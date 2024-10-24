@@ -1,0 +1,10 @@
+{
+    "Directories": [
+        {
+            "Path": "/var/lib/phosphor-state-manager/host{}-PersistData",
+            "Description": "Host State Persisted data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
+        }
+    ]
+}

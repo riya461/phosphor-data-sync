@@ -1,0 +1,187 @@
+{
+    "title": "Schema for the data sync JSON config files",
+    "$id": "https://github.com/ibm-openbmc/phosphor-data-sync/config/schema/schema.json",
+    "description": "The list of files and directories which need to be synced between BMCs",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "Files": {
+            "description": "List of the files to be synced and details of the mode of sync",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/files"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        },
+        "Directories": {
+            "description": "List of the directories to be synced and details of the  mode of sync",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/directories"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        }
+    },
+    "anyOf": [
+        {
+            "required": ["Files"]
+        },
+        {
+            "required": ["Directories"]
+        }
+    ],
+    "additionalProperties": false,
+
+    "$defs": {
+        "files": {
+            "type": "object",
+            "properties": {
+                "Path": {
+                    "$ref": "#/$defs/path"
+                },
+                "Description": {
+                    "$ref": "#/$defs/description"
+                },
+                "SyncDirection": {
+                    "$ref": "#/$defs/syncDirection"
+                },
+                "SyncType": {
+                    "$ref": "#/$defs/syncType"
+                },
+                "Periodicity": {
+                    "$ref": "#/$defs/periodicity"
+                },
+                "RetryAttempts": {
+                    "$ref": "#/$defs/retryAttempts"
+                },
+                "RetryInterval": {
+                    "$ref": "#/$defs/retryInterval"
+                }
+            },
+            "required": ["Path", "Description", "SyncDirection", "SyncType"],
+            "additionalProperties": false,
+            "allOf": [
+                { "$ref": "#/$defs/conditionForPeriodicity" },
+                { "$ref": "#/$defs/conditionForRetry" }
+            ]
+        },
+
+        "directories": {
+            "type": "object",
+            "properties": {
+                "Path": {
+                    "$ref": "#/$defs/path"
+                },
+                "Description": {
+                    "$ref": "#/$defs/description"
+                },
+                "SyncDirection": {
+                    "$ref": "#/$defs/syncDirection"
+                },
+                "SyncType": {
+                    "$ref": "#/$defs/syncType"
+                },
+                "Periodicity": {
+                    "$ref": "#/$defs/periodicity"
+                },
+                "RetryAttempts": {
+                    "$ref": "#/$defs/retryAttempts"
+                },
+                "RetryInterval": {
+                    "$ref": "#/$defs/retryInterval"
+                },
+                "ExcludeFilesList": {
+                    "$ref": "#/$defs/excludeFilesList"
+                },
+                "IncludeFilesList": {
+                    "$ref": "#/$defs/includeFilesList"
+                }
+            },
+            "required": ["Path", "Description", "SyncDirection", "SyncType"],
+            "additionalProperties": false,
+            "allOf": [
+                { "$ref": "#/$defs/conditionForPeriodicity" },
+                { "$ref": "#/$defs/conditionForRetry" }
+            ]
+        },
+        "path": {
+            "description": "Absolute path of the file/directory to be synced",
+            "$ref": "#/$defs/rootFilePath"
+        },
+        "description": {
+            "description": "A short description about the file/directory to be synced",
+            "type": "string"
+        },
+        "syncDirection": {
+            "description": "The direction in which sync operation need to be performed.",
+            "enum": ["Active2Passive", "Passive2Active", "Bidirectional"]
+        },
+        "syncType": {
+            "description": "The type of sync to be performed",
+            "enum": ["Periodic", "Immediate"]
+        },
+        "retryAttempts": {
+            "description": "The number of retries for the specific file. The value zero indicates no retries. This will override the default value",
+            "type": "integer",
+            "minimum": 0
+        },
+        "retryInterval": {
+            "description": "The time interval in ISO 8601 duration format to perform the retry of sync operation.Eg: PT1M10S - 1 Minute and 10 seconds. This will override the default value",
+            "type": "string",
+            "format": "duration"
+        },
+        "periodicity": {
+            "description": "The time interval in ISO 8601 duration format to perform the periodic sync operation.Eg: PT1M10S - 1 Minute and 10 seconds",
+            "type": "string",
+            "format": "duration"
+        },
+        "excludeFilesList": {
+            "description": "The list of files in the directory that should be excluded while sync operation",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/rootFilePath"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        },
+        "includeFilesList": {
+            "description": "The list of files in the directory that should be synced.Rest of the files will be excluded",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/rootFilePath"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        },
+        "rootFilePath": {
+            "description": "The value must be a valid UNIX standard root filepath",
+            "type": "string",
+            "pattern": "^/"
+        },
+        "conditionForPeriodicity": {
+            "if": {
+                "type": "object",
+                "properties": { "SyncType": { "const": "Periodic" } },
+                "required": ["SyncType"]
+            },
+            "then": {
+                "properties": {
+                    "Periodicity": { "$ref": "#/$defs/periodicity" }
+                },
+                "required": ["Periodicity"]
+            },
+            "else": { "not": { "required": ["Periodicity"] } }
+        },
+        "conditionForRetry": {
+            "if": {
+                "type": "object",
+                "properties": { "RetryAttempts": { "type": "integer" } },
+                "required": ["RetryAttempts"]
+            },
+            "then": { "required": ["RetryInterval"] },
+            "else": { "not": { "required": ["RetryInterval"] } }
+        }
+    }
+}

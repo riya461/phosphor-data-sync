@@ -1,0 +1,10 @@
+{
+    "Files": [
+        {
+            "Path": "/var/lib/phosphor-software-manager/hostfw/running/GUARD",
+            "Description": "GUARD",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
+        }
+    ]
+}

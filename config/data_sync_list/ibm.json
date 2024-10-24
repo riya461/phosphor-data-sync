@@ -1,0 +1,10 @@
+{
+    "Files": [
+        {
+            "Path": "/var/lib/ibm/bmcweb/RootCert",
+            "Description": "Root certificate",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
+        }
+    ]
+}

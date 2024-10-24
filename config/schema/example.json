@@ -1,0 +1,40 @@
+{
+    "Files": [
+        {
+            "Path": "/file1/path/to/sync",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate",
+            "RetryAttempts": 1,
+            "RetryInterval": "PT10S"
+        },
+        {
+            "Path": "/file2/path/to/sync",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Bidirectional",
+            "SyncType": "Periodic",
+            "Periodicity": "PT10S",
+            "RetryAttempts": 2,
+            "RetryInterval": "PT10M"
+        }
+    ],
+    "Directories": [
+        {
+            "Path": "/directory1/path/to/sync",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Passive2Active",
+            "SyncType": "Periodic",
+            "Periodicity": "PT1H",
+            "RetryAttempts": 1,
+            "RetryInterval": "PT10M",
+            "ExcludeFilesList": ["/Path/of/files/must/be/ignored/for/sync"],
+            "IncludeFilesList": ["/Path/of/files/must/be/considered/for/sync"]
+        },
+        {
+            "Path": "/directory2/path/to/sync",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Bidirectional",
+            "SyncType": "Immediate"
+        }
+    ]
+}
