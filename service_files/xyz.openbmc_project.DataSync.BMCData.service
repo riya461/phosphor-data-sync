@@ -1,0 +1,14 @@
+[Unit]
+Description=Redundant BMC Data Synchronization
+Wants=xyz.openbmc_project.State.BMC.Redundancy.service
+After=xyz.openbmc_project.State.BMC.Redundancy.service
+
+[Service]
+ExecStart=/usr/libexec/phosphor-data-sync/phosphor-rbmc-data-sync-mgr
+Restart=always
+Type=dbus
+BusName=xyz.openbmc_project.DataSync.BMCData
+
+[Install]
+WantedBy=obmc-bmc-active.target
+WantedBy=obmc-bmc-passive.target

@@ -23,3 +23,14 @@ executable('phosphor-rbmc-data-sync-mgr',
     install : true,
     install_dir: libexecdir_installdir
   )
+
+systemd_system_unit_dir = dependency('systemd').get_variable(
+  pkgconfig: 'systemdsystemunitdir')
+rbmc_data_sync_service_unit = '../service_files/xyz.openbmc_project.DataSync.BMCData.service'
+configure_file(
+  copy: true,
+  input: rbmc_data_sync_service_unit,
+  install : true,
+  install_dir: systemd_system_unit_dir,
+  output: '@PLAINNAME@'
+  )
