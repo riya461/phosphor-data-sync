@@ -41,9 +41,16 @@ conf_data.set('DEFAULT_RETRY_INTERVAL',
                 get_option('retry_interval'),
                 description : 'Default retry interval for all data to be synced')
 
-configure_file(
-    output : 'config.h',
-    configuration : conf_data
+conf_h_dep = declare_dependency(
+    include_directories : include_directories('.'),
+    sources : configure_file(
+        output : 'config.h',
+        configuration : conf_data
+    )
 )
 
 subdir('src')
+
+if not get_option('tests').disabled()
+    subdir('test')
+endif

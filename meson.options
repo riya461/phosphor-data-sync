@@ -30,3 +30,11 @@ option(
     type : 'integer',
     value : 5
 )
+
+#The option to enable the test suite
+option(
+    'tests',
+    type: 'feature',
+    value : 'enabled',
+    description: 'Build tests'
+)
