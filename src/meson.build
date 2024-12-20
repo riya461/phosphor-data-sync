@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
-phosphor_dbus_interfaces = dependency('phosphor-dbus-interfaces')
-phosphor_logging = dependency('phosphor-logging')
-sdbusplus = dependency('sdbusplus')
+phosphor_dbus_interfaces_dep = dependency('phosphor-dbus-interfaces')
+phosphor_logging_dep = dependency('phosphor-logging')
+sdbusplus_dep = dependency('sdbusplus')
 nlohmann_json_dep = dependency('nlohmann_json')
 
 rbmc_data_sync_sources = [
@@ -13,9 +13,9 @@ rbmc_data_sync_sources = [
   ]
 
 rbmc_data_sync_dependencies = [
-    phosphor_dbus_interfaces,
-    phosphor_logging,
-    sdbusplus,
+    phosphor_dbus_interfaces_dep,
+    phosphor_logging_dep,
+    sdbusplus_dep,
     conf_h_dep,
     nlohmann_json_dep,
   ]
