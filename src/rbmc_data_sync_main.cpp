@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include "config.h"
+
+#include "manager.hpp"
+
 #include <phosphor-logging/lg2.hpp>
 #include <sdbusplus/async/context.hpp>
 #include <sdbusplus/server/manager.hpp>
@@ -12,6 +16,8 @@ int main()
 
     sdbusplus::async::context ctx;
     sdbusplus::server::manager_t objManager{ctx, BMCDataSync::namespace_path};
+
+    data_sync::Manager manager{DATA_SYNC_CONFIG_DIR};
 
     // clang-tidy currently mangles this into something unreadable
     // NOLINTNEXTLINE
