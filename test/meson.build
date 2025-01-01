@@ -19,6 +19,7 @@ endif
 
 test_source_files = [
         'data_sync_config_test',
+        'manager_test',
     ]
 
 foreach test_file : test_source_files

@@ -14,12 +14,21 @@
 namespace data_sync
 {
 
-Manager::Manager(const fs::path& dataSyncCfgDir)
+Manager::Manager(sdbusplus::async::context& ctx,
+                 const fs::path& dataSyncCfgDir) :
+    _ctx(ctx), _dataSyncCfgDir(dataSyncCfgDir)
 {
-    parseConfiguration(dataSyncCfgDir);
+    _ctx.spawn(init());
 }
 
-void Manager::parseConfiguration(const fs::path& dataSyncCfgDir)
+// NOLINTNEXTLINE
+sdbusplus::async::task<> Manager::init()
+{
+    co_return co_await parseConfiguration();
+}
+
+// NOLINTNEXTLINE
+sdbusplus::async::task<> Manager::parseConfiguration()
 {
     auto parse = [this](const auto& configFile) {
         try
@@ -57,9 +66,11 @@ void Manager::parseConfiguration(const fs::path& dataSyncCfgDir)
         }
     };
 
-    if (fs::exists(dataSyncCfgDir) && fs::is_directory(dataSyncCfgDir))
+    if (fs::exists(_dataSyncCfgDir) && fs::is_directory(_dataSyncCfgDir))
     {
-        std::ranges::for_each(fs::directory_iterator(dataSyncCfgDir), parse);
+        std::ranges::for_each(fs::directory_iterator(_dataSyncCfgDir), parse);
     }
+
+    co_return;
 }
 } // namespace data_sync

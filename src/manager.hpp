@@ -4,6 +4,8 @@
 
 #include "data_sync_config.hpp"
 
+#include <sdbusplus/async.hpp>
+
 #include <filesystem>
 #include <ranges>
 #include <vector>
@@ -32,9 +34,10 @@ class Manager
      * @brief The constructor parses the configuration, monitors the data, and
      *        synchronizes it.
      *
+     * @param[in] ctx - The async context
      * @param[in] dataSyncCfgDir - The data sync configuration directory
      */
-    Manager(const fs::path& dataSyncCfgDir);
+    Manager(sdbusplus::async::context& ctx, const fs::path& dataSyncCfgDir);
 
     /**
      * @brief An API helper to verify if the manager contains the given
@@ -51,16 +54,27 @@ class Manager
 
   private:
     /**
+     * @brief A helper API to start the data sync operation.
+     */
+    sdbusplus::async::task<> init();
+
+    /**
      * @brief A helper API to parse the data sync configuration
-     *
-     * @param[in] dataSyncCfgDir - The data sync configuration directory
-     *
-     * @return NULL
      *
      * @note It will continue parsing all files even if one file fails to parse.
      */
-    void parseConfiguration(const fs::path& dataSyncCfgDir);
+    sdbusplus::async::task<> parseConfiguration();
 
+    /**
+     * @brief The async context object used to perform operations asynchronously
+     *        as required.
+     */
+    sdbusplus::async::context& _ctx;
+
+    /**
+     * @brief The data sync configuration directory
+     */
+    std::string _dataSyncCfgDir;
     /**
      * @brief The list of data to synchronize.
      */
