@@ -15,8 +15,10 @@ namespace data_sync
 {
 
 Manager::Manager(sdbusplus::async::context& ctx,
+                 std::unique_ptr<ext_data::ExternalDataIFaces>&& extDataIfaces,
                  const fs::path& dataSyncCfgDir) :
-    _ctx(ctx), _dataSyncCfgDir(dataSyncCfgDir)
+    _ctx(ctx), _extDataIfaces(std::move(extDataIfaces)),
+    _dataSyncCfgDir(dataSyncCfgDir)
 {
     _ctx.spawn(init());
 }
@@ -24,7 +26,10 @@ Manager::Manager(sdbusplus::async::context& ctx,
 // NOLINTNEXTLINE
 sdbusplus::async::task<> Manager::init()
 {
-    co_return co_await parseConfiguration();
+    co_await sdbusplus::async::execution::when_all(
+        parseConfiguration(), _extDataIfaces->startExtDataFetches());
+
+    co_return;
 }
 
 // NOLINTNEXTLINE
@@ -73,4 +78,5 @@ sdbusplus::async::task<> Manager::parseConfiguration()
 
     co_return;
 }
+
 } // namespace data_sync

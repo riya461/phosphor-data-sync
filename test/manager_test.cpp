@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "manager.hpp"
+#include "mock_ext_data_ifaces.hpp"
 
 #include <sdbusplus/async/context.hpp>
 
@@ -64,9 +65,23 @@ nlohmann::json ManagerTest::jsonData;
 TEST_F(ManagerTest, ParseDataSyncCfg)
 {
     using namespace std::literals;
+    namespace ed = data_sync::ext_data;
+
+    std::unique_ptr<ed::ExternalDataIFaces> extDataIface =
+        std::make_unique<ed::MockExternalDataIFaces>();
+
+    ed::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<ed::MockExternalDataIFaces*>(extDataIface.get());
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
     sdbusplus::async::context ctx;
-    data_sync::Manager manager{ctx, ManagerTest::dataSyncCfgDir};
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
     EXPECT_FALSE(
         manager.containsDataSyncCfg(ManagerTest::jsonData["Files"][0]));
 

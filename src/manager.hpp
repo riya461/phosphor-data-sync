@@ -3,8 +3,7 @@
 #pragma once
 
 #include "data_sync_config.hpp"
-
-#include <sdbusplus/async.hpp>
+#include "external_data_ifaces.hpp"
 
 #include <filesystem>
 #include <ranges>
@@ -35,9 +34,12 @@ class Manager
      *        synchronizes it.
      *
      * @param[in] ctx - The async context
+     * @param[in] extDataIfaces - The external data interfaces object
      * @param[in] dataSyncCfgDir - The data sync configuration directory
      */
-    Manager(sdbusplus::async::context& ctx, const fs::path& dataSyncCfgDir);
+    Manager(sdbusplus::async::context& ctx,
+            std::unique_ptr<ext_data::ExternalDataIFaces>&& extDataIfaces,
+            const fs::path& dataSyncCfgDir);
 
     /**
      * @brief An API helper to verify if the manager contains the given
@@ -70,6 +72,12 @@ class Manager
      *        as required.
      */
     sdbusplus::async::context& _ctx;
+
+    /**
+     * @brief An external data interface object used to seamlessly retrieve
+     *        external dependent data.
+     */
+    std::unique_ptr<ext_data::ExternalDataIFaces> _extDataIfaces;
 
     /**
      * @brief The data sync configuration directory

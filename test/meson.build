@@ -1,4 +1,5 @@
 gtest_dep = dependency('gtest', main : true, required : false)
+gmock_dep = dependency('gmock', required: false)
 if not gtest_dep.found()
     gtest_proj = import('cmake').subproject('googletest', required: false)
     if gtest_proj.found()
@@ -9,6 +10,7 @@ if not gtest_dep.found()
                 gtest_proj.dependency('gtest_main'),
             ]
         )
+        gmock_dep = gtest_proj.dependency('gmock')
     else
         assert(
             not get_option('tests').enabled(),
@@ -31,6 +33,7 @@ foreach test_file : test_source_files
             rbmc_data_sync_sources,
             dependencies : [
                 gtest_dep,
+                gmock_dep,
                 rbmc_data_sync_dependencies,
             ],
             include_directories: inc_dir,
