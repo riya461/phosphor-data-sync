@@ -1,0 +1,6 @@
+[wrap-git]
+url = https://github.com/google/googletest
+revision = HEAD
+
+[provide]
+gtest = gtest_dep
