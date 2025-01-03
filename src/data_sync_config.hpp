@@ -48,6 +48,15 @@ struct Retry
           const std::chrono::seconds& retryIntervalInSec);
 
     /**
+     * @brief Overload the == operator to compare objects.
+     *
+     * @param[in] retry - The object to check
+     *
+     * @return True if it matches; otherwise, False.
+     */
+    bool operator==(const Retry& retry) const;
+
+    /**
      * @brief Number of retries.
      */
     uint8_t _retryAttempts;
@@ -72,6 +81,15 @@ struct DataSyncConfig
      * @param[in] config - The sync data information
      */
     DataSyncConfig(const nlohmann::json& config);
+
+    /**
+     * @brief Overload the == operator to compare objects.
+     *
+     * @param[in] dataSyncCfg - The object to check
+     *
+     * @return True if it matches; otherwise, False.
+     */
+    bool operator==(const DataSyncConfig& dataSyncCfg) const;
 
     /**
      * @brief Get sync direction in string format.

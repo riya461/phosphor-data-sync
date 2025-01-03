@@ -16,6 +16,12 @@ Retry::Retry(uint8_t retryAttempts,
     _retryAttempts(retryAttempts), _retryIntervalInSec(retryIntervalInSec)
 {}
 
+bool Retry::operator==(const Retry& retry) const
+{
+    return _retryAttempts == retry._retryAttempts &&
+           _retryIntervalInSec == retry._retryIntervalInSec;
+}
+
 DataSyncConfig::DataSyncConfig(const nlohmann::json& config) :
     _path(config["Path"].get<std::string>()),
     _syncDirection(
@@ -68,6 +74,17 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config) :
     {
         _includeFileList = std::nullopt;
     }
+}
+
+bool DataSyncConfig::operator==(const DataSyncConfig& dataSyncCfg) const
+{
+    return _path == dataSyncCfg._path &&
+           _syncDirection == dataSyncCfg._syncDirection &&
+           _syncType == dataSyncCfg._syncType &&
+           _periodicityInSec == dataSyncCfg._periodicityInSec &&
+           _retry == dataSyncCfg._retry &&
+           _excludeFileList == dataSyncCfg._excludeFileList &&
+           _includeFileList == dataSyncCfg._includeFileList;
 }
 
 std::optional<SyncDirection>

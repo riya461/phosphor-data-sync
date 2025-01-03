@@ -5,6 +5,7 @@
 #include "data_sync_config.hpp"
 
 #include <filesystem>
+#include <ranges>
 #include <vector>
 
 namespace data_sync
@@ -34,6 +35,19 @@ class Manager
      * @param[in] dataSyncCfgDir - The data sync configuration directory
      */
     Manager(const fs::path& dataSyncCfgDir);
+
+    /**
+     * @brief An API helper to verify if the manager contains the given
+     *        data sync configuration.
+     *
+     * @param[in] dataSyncCfg - The data sync configuration to check.
+     *
+     * @return True if contains; otherwise False.
+     */
+    bool containsDataSyncCfg(const config::DataSyncConfig& dataSyncCfg)
+    {
+        return std::ranges::contains(_dataSyncConfiguration, dataSyncCfg);
+    }
 
   private:
     /**
