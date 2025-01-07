@@ -68,6 +68,34 @@ class Manager
     sdbusplus::async::task<> parseConfiguration();
 
     /**
+     * @brief A helper API to initiate sync events, covering the following
+     *        scenarios. These event will be initiated based on the BMC role.
+     *
+     *        - A file monitor for all configured files that require immediate
+     *          synchronization.
+     *        - A timer event for all configured files that require periodic
+     *          synchronization.
+     */
+    sdbusplus::async::task<> startSyncEvents();
+
+    /**
+     * @brief A helper to API to monitor data to sync if its changed
+     *
+     * @param[in] dataSyncCfg - The data sync config to sync
+     *
+     */
+    sdbusplus::async::task<>
+        monitorDataToSync(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
+     * @brief A helper to API to sync data periodically.
+     *
+     * @param[in] dataSyncCfg - The data sync config to sync
+     */
+    sdbusplus::async::task<>
+        monitorTimerToSync(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
      * @brief The async context object used to perform operations asynchronously
      *        as required.
      */
