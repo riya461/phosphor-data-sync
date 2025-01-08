@@ -34,6 +34,7 @@ TEST(DataSyncConfigParserTest, TestImmediateFileSyncWithNoRetry)
     data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
@@ -66,6 +67,7 @@ TEST(DataSyncConfigParserTest, TestPeriodicFileSyncWithRetry)
     data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Passive2Active);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Periodic);
@@ -97,6 +99,7 @@ TEST(DataSyncConfigParserTest, TestImmediateDirectorySyncWithNoRetry)
     data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
 
     EXPECT_EQ(dataSyncConfig._path, "/directory/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Passive2Active);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
@@ -127,6 +130,7 @@ TEST(DataSyncConfigParserTest, TestImmediateAndBidirectionalDirectorySync)
     data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
 
     EXPECT_EQ(dataSyncConfig._path, "/directory/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Bidirectional);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
@@ -160,6 +164,7 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidPeriodicity)
     data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Periodic);
@@ -195,6 +200,7 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidRetryInterval)
     data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Periodic);
@@ -227,6 +233,7 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncDirection)
     data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
@@ -257,6 +264,39 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncType)
     data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._syncDirection,
+              data_sync::config::SyncDirection::Active2Passive);
+    EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
+    EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._excludeFileList, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._includeFileList, std::nullopt);
+}
+
+/*
+ * Test when the input JSON contains the details of the file to be synced
+ * immediately with valid Destination and no overriding retry attempt and
+ * retry interval.
+ */
+TEST(DataSyncConfigParserTest, TestFileSyncWithValidDestination)
+{
+    // JSON object with details of file to be synced.
+    const auto configJSON = R"(
+        {
+            "Path": "/file/path/to/sync",
+            "DestinationPath": "/file/path/to/destination",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
+        }
+
+    )"_json;
+
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+
+    EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._destPath, "/file/path/to/destination");
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);

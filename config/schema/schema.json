@@ -41,6 +41,9 @@
                 "Path": {
                     "$ref": "#/$defs/path"
                 },
+                "DestinationPath": {
+                    "$ref": "#/$defs/destinationPath"
+                },
                 "Description": {
                     "$ref": "#/$defs/description"
                 },
@@ -73,6 +76,9 @@
             "properties": {
                 "Path": {
                     "$ref": "#/$defs/path"
+                },
+                "DestinationPath": {
+                    "$ref": "#/$defs/destinationPath"
                 },
                 "Description": {
                     "$ref": "#/$defs/description"
@@ -108,6 +114,10 @@
         },
         "path": {
             "description": "Absolute path of the file/directory to be synced",
+            "$ref": "#/$defs/rootFilePath"
+        },
+        "destinationPath": {
+            "description": "Absolute path to the destination file/directory to be synced",
             "$ref": "#/$defs/rootFilePath"
         },
         "description": {

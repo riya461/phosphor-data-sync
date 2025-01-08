@@ -133,6 +133,11 @@ struct DataSyncConfig
     std::string _path;
 
     /**
+     * @brief The file or directory path to the destination to be synchronized.
+     */
+    std::optional<std::string> _destPath;
+
+    /**
      * @brief Used to get sync direction.
      */
     SyncDirection _syncDirection;
