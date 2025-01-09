@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <phosphor-logging/lg2.hpp>
 
+#include <cstdlib>
 #include <exception>
 #include <fstream>
 #include <iterator>
@@ -118,6 +119,31 @@ sdbusplus::async::task<> Manager::startSyncEvents()
         }
     });
     co_return;
+}
+
+void Manager::syncData(const config::DataSyncConfig& dataSyncCfg)
+{
+    using namespace std::string_literals;
+    std::string syncCmd{"rsync --archive --compress"};
+
+    // Add source data path
+    syncCmd.append(" "s + dataSyncCfg._path);
+
+#ifdef UNIT_TEST
+    syncCmd.append(" "s);
+#else
+    // TODO Support for remote (i,e sibling BMC) copying needs to be added.
+#endif
+
+    // Add destination data path
+    syncCmd.append(dataSyncCfg._destPath.value_or(dataSyncCfg._path));
+    int result = std::system(syncCmd.c_str()); // NOLINT
+    if (result != 0)
+    {
+        // TODO:
+        // Retry and create error log and disable redundancy if retry is failed.
+        lg2::error("Error syncing: {PATH}", "PATH", dataSyncCfg._path);
+    }
 }
 
 // NOLINTNEXTLINE
