@@ -2,6 +2,7 @@
 
 #include "external_data_ifaces_impl.hpp"
 
+#include <xyz/openbmc_project/State/BMC/Redundancy/Sibling/client.hpp>
 #include <xyz/openbmc_project/State/BMC/Redundancy/client.hpp>
 
 namespace data_sync::ext_data
@@ -36,6 +37,50 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchBMCRedundancyMgrProps()
     if (it != props.end())
     {
         bmcRedundancy(std::get<BMCRedundancy>(it->second));
+    }
+
+    co_return;
+}
+
+// NOLINTNEXTLINE
+sdbusplus::async::task<> ExternalDataIFacesImpl::fetchSiblingBmcIP()
+{
+    // TODO: Currently, the IP addresses for both BMCs are hardcoded.
+    // Once the network DBus exposes the IPs, update the logic to retrieve
+    // them dynamically from Dbus.
+
+    // TODO: Handle the exception and exit gracefully, as the data sync relies
+    //      heavily on these DBus properties and cannot function effectively
+    //      without them.
+
+    using SiblingBMCMgr = sdbusplus::client::xyz::openbmc_project::state::bmc::
+        redundancy::Sibling<>;
+
+    using SiblingBMC = sdbusplus::common::xyz::openbmc_project::state::bmc::
+        redundancy::Sibling;
+
+    std::string siblingBMCInstancePath =
+        std::string(sdbusplus::common::xyz::openbmc_project::state::bmc::
+                        redundancy::Sibling::namespace_path::value) +
+        "/" +
+        sdbusplus::common::xyz::openbmc_project::state::bmc::redundancy::
+            Sibling::namespace_path::bmc;
+
+    auto siblingBMCMgr = SiblingBMCMgr(_ctx)
+                             .service(SiblingBMC::interface)
+                             .path(siblingBMCInstancePath);
+
+    auto siblingBMCPosition = co_await siblingBMCMgr.bmc_position();
+
+    if (siblingBMCPosition == 0)
+    {
+        // Using the simics bmc0 eth0 IP address
+        siblingBmcIP("10.0.2.100");
+    }
+    else
+    {
+        // Using the simics bmc0 eth0 IP address
+        siblingBmcIP("10.2.2.100");
     }
 
     co_return;

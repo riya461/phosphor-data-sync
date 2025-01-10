@@ -9,7 +9,8 @@ namespace data_sync::ext_data
 sdbusplus::async::task<> ExternalDataIFaces::startExtDataFetches()
 {
     // NOLINTNEXTLINE
-    co_return co_await fetchBMCRedundancyMgrProps();
+    co_return co_await sdbusplus::async::execution::when_all(
+        fetchBMCRedundancyMgrProps(), fetchSiblingBmcIP());
 }
 
 BMCRole ExternalDataIFaces::bmcRole() const
@@ -30,6 +31,16 @@ BMCRedundancy ExternalDataIFaces::bmcRedundancy() const
 void ExternalDataIFaces::bmcRedundancy(const BMCRedundancy& bmcRedundancy)
 {
     _bmcRedundancy = bmcRedundancy;
+}
+
+SiblingBmcIP ExternalDataIFaces::siblingBmcIP() const
+{
+    return _siblingBmcIP;
+}
+
+void ExternalDataIFaces::siblingBmcIP(const SiblingBmcIP& siblingBmcIP)
+{
+    _siblingBmcIP = siblingBmcIP;
 }
 
 } // namespace data_sync::ext_data

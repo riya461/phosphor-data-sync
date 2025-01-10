@@ -11,6 +11,7 @@ namespace data_sync::ext_data
 using RBMC = sdbusplus::common::xyz::openbmc_project::state::bmc::Redundancy;
 using BMCRole = RBMC::Role;
 using BMCRedundancy = bool;
+using SiblingBmcIP = std::string;
 
 /**
  * @class ExternalDataIFaces
@@ -53,11 +54,23 @@ class ExternalDataIFaces
      */
     BMCRedundancy bmcRedundancy() const;
 
+    /**
+     * @brief Used to obtain the Sibling BMC IP.
+     *
+     * @return The Sibling BMC IP
+     */
+    SiblingBmcIP siblingBmcIP() const;
+
   protected:
     /**
      * @brief Used to retrieve the BMC role.
      */
     virtual sdbusplus::async::task<> fetchBMCRedundancyMgrProps() = 0;
+
+    /**
+     * @brief Used to retrieve the Sibling BMC IP.
+     */
+    virtual sdbusplus::async::task<> fetchSiblingBmcIP() = 0;
 
     /**
      * @brief A utility API to assign the retrieved BMC role.
@@ -77,6 +90,15 @@ class ExternalDataIFaces
      */
     void bmcRedundancy(const BMCRedundancy& bmcRedundancy);
 
+    /**
+     * @brief A utility API to assign the retrieved Sibling BMC IP.
+     *
+     * @param[in] siblingBmcIP - The retrieved Sibling BMC IP.
+     *
+     * @return None.
+     */
+    void siblingBmcIP(const SiblingBmcIP& siblingBmcIP);
+
   private:
     /**
      * @brief Holds the BMC role.
@@ -87,6 +109,11 @@ class ExternalDataIFaces
      * @brief Indicates whether BMC redundancy is enabled in the system.
      */
     BMCRedundancy _bmcRedundancy{false};
+
+    /**
+     * @brief hold the Sibling BMC IP
+     */
+    SiblingBmcIP _siblingBmcIP;
 };
 
 } // namespace data_sync::ext_data

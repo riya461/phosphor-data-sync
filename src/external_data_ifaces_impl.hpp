@@ -39,6 +39,11 @@ class ExternalDataIFacesImpl : public ExternalDataIFaces
     sdbusplus::async::task<> fetchBMCRedundancyMgrProps() override;
 
     /**
+     * @brief Used to retrieve the Sibling BMC IP from Dbus.
+     */
+    sdbusplus::async::task<> fetchSiblingBmcIP() override;
+
+    /**
      * @brief Used to get the async context
      */
     sdbusplus::async::context& _ctx;
