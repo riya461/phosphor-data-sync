@@ -31,6 +31,15 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config) :
                   .value_or(SyncType::Immediate))
 {
     // Initiailze optional members
+    if (config.contains("DestinationPath"))
+    {
+        _destPath = config["DestinationPath"].get<std::string>();
+    }
+    else
+    {
+        _destPath = std::nullopt;
+    }
+
     if (_syncType == SyncType::Periodic)
     {
         constexpr auto defPeriodicity = 60;
@@ -80,6 +89,7 @@ bool DataSyncConfig::operator==(const DataSyncConfig& dataSyncCfg) const
 {
     return _path == dataSyncCfg._path &&
            _syncDirection == dataSyncCfg._syncDirection &&
+           _destPath == dataSyncCfg._destPath &&
            _syncType == dataSyncCfg._syncType &&
            _periodicityInSec == dataSyncCfg._periodicityInSec &&
            _retry == dataSyncCfg._retry &&

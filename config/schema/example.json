@@ -10,6 +10,7 @@
         },
         {
             "Path": "/file2/path/to/sync",
+            "DestinationPath": "/file2/path/to/target/destination",
             "Description": "Add details about the data and purpose of the synchronization",
             "SyncDirection": "Bidirectional",
             "SyncType": "Periodic",
