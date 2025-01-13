@@ -15,6 +15,7 @@ class MockExternalDataIFaces : public ExternalDataIFaces
     MOCK_METHOD(sdbusplus::async::task<>, fetchBMCRedundancyMgrProps, (),
                 (override));
     MOCK_METHOD(sdbusplus::async::task<>, fetchSiblingBmcIP, (), (override));
+    MOCK_METHOD(sdbusplus::async::task<>, fetchRbmcCredentials, (), (override));
 };
 
 } // namespace data_sync::ext_data

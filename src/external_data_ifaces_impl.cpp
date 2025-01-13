@@ -60,11 +60,8 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchSiblingBmcIP()
         redundancy::Sibling;
 
     std::string siblingBMCInstancePath =
-        std::string(sdbusplus::common::xyz::openbmc_project::state::bmc::
-                        redundancy::Sibling::namespace_path::value) +
-        "/" +
-        sdbusplus::common::xyz::openbmc_project::state::bmc::redundancy::
-            Sibling::namespace_path::bmc;
+        std::string(SiblingBMC::namespace_path::value) + "/" +
+        SiblingBMC::namespace_path::bmc;
 
     auto siblingBMCMgr = SiblingBMCMgr(_ctx)
                              .service(SiblingBMC::interface)
@@ -79,10 +76,22 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchSiblingBmcIP()
     }
     else
     {
-        // Using the simics bmc0 eth0 IP address
+        // Using the simics bmc1 eth0 IP address
         siblingBmcIP("10.2.2.100");
     }
 
+    co_return;
+}
+
+// NOLINTNEXTLINE
+sdbusplus::async::task<> ExternalDataIFacesImpl::fetchRbmcCredentials()
+{
+    // TODO: Currently, the username and password for BMCs are hardcoded.
+    // Once user management DBus exposes the username and the encrypted password
+    // available, update the logic to retrieve them dynamically.
+
+    // here, username hardcode as service and password as 0penBmc0
+    rbmcCredentials(std::make_pair("service", "0penBmc0"));
     co_return;
 }
 
