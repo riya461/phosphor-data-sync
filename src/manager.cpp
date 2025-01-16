@@ -131,8 +131,6 @@ void Manager::syncData(const config::DataSyncConfig& dataSyncCfg)
 {
     using namespace std::string_literals;
     std::string syncCmd{"rsync --archive --compress"};
-
-    // Add source data path
     syncCmd.append(" "s + dataSyncCfg._path);
 
 #ifdef UNIT_TEST
@@ -160,11 +158,16 @@ sdbusplus::async::task<> Manager::monitorDataToSync(
     co_return;
 }
 
-// NOLINTNEXTLINE
-sdbusplus::async::task<> Manager::monitorTimerToSync(
-    [[maybe_unused]] const config::DataSyncConfig& dataSyncCfg)
+sdbusplus::async::task<>
+    // NOLINTNEXTLINE
+    Manager::monitorTimerToSync(const config::DataSyncConfig& dataSyncCfg)
 {
-    // TODO Create timer events to monitor data for sync
+    while (!_ctx.stop_requested())
+    {
+        co_await sdbusplus::async::sleep_for(
+            _ctx, dataSyncCfg._periodicityInSec.value());
+        syncData(dataSyncCfg);
+    }
     co_return;
 }
 

@@ -1,0 +1,282 @@
+#include "manager_test.hpp"
+
+std::filesystem::path ManagerTest::dataSyncCfgDir;
+std::filesystem::path ManagerTest::tmpDataSyncDataDir;
+nlohmann::json ManagerTest::commonJsonData;
+
+TEST_F(ManagerTest, PeriodicDataSyncTest)
+{
+    using namespace std::literals;
+    namespace ed = data_sync::ext_data;
+
+    std::unique_ptr<ed::ExternalDataIFaces> extDataIface =
+        std::make_unique<ed::MockExternalDataIFaces>();
+
+    ed::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<ed::MockExternalDataIFaces*>(extDataIface.get());
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    nlohmann::json jsonData = {
+        {"Files",
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
+           {"DestinationPath",
+            ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+           {"Description", "Parse test file"},
+           {"SyncDirection", "Bidirectional"},
+           {"SyncType", "Periodic"},
+           {"Periodicity", "PT1S"}}}}};
+
+    std::string srcFile{jsonData["Files"][0]["Path"]};
+    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+
+    writeConfig(jsonData);
+    sdbusplus::async::context ctx;
+
+    std::string data{"Initial Data\n"};
+    ManagerTest::writeData(srcFile, data);
+
+    ASSERT_EQ(ManagerTest::readData(srcFile), data);
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
+    EXPECT_NE(ManagerTest::readData(destFile), data)
+        << "The data should not match because the manager is spawned and "
+        << "is waiting for the periodic interval to initiate the sync.";
+
+    std::string updated_data{"Data got updated\n"};
+    ctx.spawn(sdbusplus::async::sleep_for(ctx, 2s) |
+              sdbusplus::async::execution::then(
+                  [&srcFile, &destFile, &data, &updated_data]() {
+        EXPECT_EQ(ManagerTest::readData(destFile), data);
+        ManagerTest::writeData(srcFile, updated_data);
+    }));
+
+    EXPECT_NE(ManagerTest::readData(destFile), updated_data);
+
+    ctx.spawn(
+        sdbusplus::async::sleep_for(ctx, 0.5s) |
+        sdbusplus::async::execution::then([&ctx]() { ctx.request_stop(); }));
+    ctx.run();
+
+    EXPECT_NE(ManagerTest::readData(destFile), updated_data)
+        << "ctx is stopped before sync could take place therefore modified data"
+        << "should not sync to dest path.";
+}
+
+TEST_F(ManagerTest, PeriodicDataSyncDelayFileTest)
+{
+    using namespace std::literals;
+    namespace ed = data_sync::ext_data;
+
+    std::unique_ptr<ed::ExternalDataIFaces> extDataIface =
+        std::make_unique<ed::MockExternalDataIFaces>();
+
+    ed::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<ed::MockExternalDataIFaces*>(extDataIface.get());
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    nlohmann::json jsonData = {
+        {"Files",
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
+           {"DestinationPath",
+            ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+           {"Description", "Parse test file"},
+           {"SyncDirection", "Bidirectional"},
+           {"SyncType", "Periodic"},
+           {"Periodicity", "PT1S"}}}}};
+
+    std::string srcFile{jsonData["Files"][0]["Path"]};
+    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+
+    writeConfig(jsonData);
+    sdbusplus::async::context ctx;
+
+    std::string data{"Initial Data\n"};
+    ASSERT_NE(ManagerTest::readData(srcFile), data);
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
+    EXPECT_NE(ManagerTest::readData(destFile), data)
+        << "The data should not match because the source data is "
+        << "not present";
+
+    ctx.spawn(sdbusplus::async::sleep_for(ctx, 1.1s) |
+              sdbusplus::async::execution::then([&srcFile, &destFile, &data]() {
+        EXPECT_NE(ManagerTest::readData(destFile), data);
+        ManagerTest::writeData(srcFile, data);
+    }));
+
+    EXPECT_NE(ManagerTest::readData(destFile), data)
+        << "Source file just created, sync haven't took place yet.";
+
+    ctx.spawn(
+        sdbusplus::async::sleep_for(ctx, 1.5s) |
+        sdbusplus::async::execution::then([&ctx]() { ctx.request_stop(); }));
+    ctx.run();
+
+    EXPECT_EQ(ManagerTest::readData(destFile), data)
+        << "ctx is stopped after sync take place therefore data"
+        << "should sync to dest path.";
+}
+
+TEST_F(ManagerTest, PeriodicDataSyncMultiRWTest)
+{
+    using namespace std::literals;
+    namespace ed = data_sync::ext_data;
+
+    std::unique_ptr<ed::ExternalDataIFaces> extDataIface =
+        std::make_unique<ed::MockExternalDataIFaces>();
+
+    ed::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<ed::MockExternalDataIFaces*>(extDataIface.get());
+
+    ON_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillByDefault([&mockExtDataIfaces]() -> sdbusplus::async::task<> {
+        mockExtDataIfaces->setBMCRole(ed::BMCRole::Active);
+        co_return;
+    });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    nlohmann::json jsonData = {
+        {"Files",
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
+           {"DestinationPath",
+            ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+           {"Description", "Parse test file"},
+           {"SyncDirection", "Active2Passive"},
+           {"SyncType", "Periodic"},
+           {"Periodicity", "PT1S"}}}}};
+
+    std::string srcFile{jsonData["Files"][0]["Path"]};
+    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+
+    writeConfig(jsonData);
+    sdbusplus::async::context ctx;
+
+    std::string data{"Initial Data\n"};
+    ManagerTest::writeData(srcFile, data);
+
+    ASSERT_EQ(ManagerTest::readData(srcFile), data);
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
+    EXPECT_NE(ManagerTest::readData(destFile), data)
+        << "The data should not match because the manager is spawned and"
+        << " is waiting for the periodic interval to initiate the sync.";
+
+    std::string updated_data{"Data got updated\n"};
+    ctx.spawn(sdbusplus::async::sleep_for(ctx, 2.1s) |
+              sdbusplus::async::execution::then(
+                  [&srcFile, &destFile, &data, &updated_data]() {
+        EXPECT_EQ(ManagerTest::readData(destFile), data)
+            << "The data should match as 2.1s is passed and "
+            << "sync should take place every 1s as per config";
+        ManagerTest::writeData(srcFile, updated_data);
+    }));
+
+    EXPECT_NE(ManagerTest::readData(destFile), updated_data);
+
+    ctx.spawn(
+        sdbusplus::async::sleep_for(ctx, 2.2s) |
+        sdbusplus::async::execution::then([&ctx]() { ctx.request_stop(); }));
+    ctx.run();
+    EXPECT_EQ(ManagerTest::readData(destFile), updated_data)
+        << "The data should match with the updated data as 2.2s is passed"
+        << " and sync should take place every 1s as per config.";
+}
+
+TEST_F(ManagerTest, PeriodicDataSyncP2ATest)
+{
+    using namespace std::literals;
+    namespace ed = data_sync::ext_data;
+
+    std::unique_ptr<ed::ExternalDataIFaces> extDataIface =
+        std::make_unique<ed::MockExternalDataIFaces>();
+
+    ed::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<ed::MockExternalDataIFaces*>(extDataIface.get());
+
+    ON_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillByDefault([&mockExtDataIfaces]() -> sdbusplus::async::task<> {
+        mockExtDataIfaces->setBMCRole(ed::BMCRole::Passive);
+        co_return;
+    });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    nlohmann::json jsonData = {
+        {"Files",
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
+           {"DestinationPath",
+            ManagerTest::tmpDataSyncDataDir.string() + "/destFile3"},
+           {"Description", "Parse test file"},
+           {"SyncDirection", "Passive2Active"},
+           {"SyncType", "Periodic"},
+           {"Periodicity", "PT1S"}}}}};
+
+    std::string srcFile{jsonData["Files"][0]["Path"]};
+    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+
+    writeConfig(jsonData);
+    sdbusplus::async::context ctx;
+
+    std::string data{"Initial Data\n"};
+    ManagerTest::writeData(srcFile, data);
+
+    ASSERT_EQ(ManagerTest::readData(srcFile), data);
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+    EXPECT_NE(ManagerTest::readData(destFile), data)
+        << "The data should not match because the manager is spawned and"
+        << "is waiting for the periodic interval to initiate the sync.";
+
+    ctx.spawn(
+        sdbusplus::async::sleep_for(ctx, 1.1s) |
+        sdbusplus::async::execution::then([&ctx]() { ctx.request_stop(); }));
+    ctx.run();
+
+    EXPECT_EQ(ManagerTest::readData(destFile), data)
+        << "The sync direction is from Passive to Active, mocks the role"
+        << " as Passive and verifies that the data matches from the P-BMC.";
+}
