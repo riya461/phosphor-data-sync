@@ -106,6 +106,19 @@ class Manager
         monitorTimerToSync(const config::DataSyncConfig& dataSyncCfg);
 
     /**
+     * @brief A helper to API Checks if the data can be synchronize.
+     *
+     *        - This API verifies whether the given data meets the criteria
+     *          for being synced. It returns a boolean value indicating if
+     *          the data is eligible to be synced.
+     *
+     * @param[in] dataSyncCfg - The data sync config to sync
+     *
+     * @return True if SyncEligible; otherwise False.
+     */
+    bool isSyncEligible(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
      * @brief The async context object used to perform operations asynchronously
      *        as required.
      */

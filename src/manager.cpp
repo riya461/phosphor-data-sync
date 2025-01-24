@@ -80,34 +80,40 @@ sdbusplus::async::task<> Manager::parseConfiguration()
     co_return;
 }
 
+bool Manager::isSyncEligible(const config::DataSyncConfig& dataSyncCfg)
+{
+    using enum config::SyncDirection;
+    using enum ext_data::BMCRole;
+
+    if ((dataSyncCfg._syncDirection == Bidirectional) ||
+        ((dataSyncCfg._syncDirection == Active2Passive) &&
+         this->_extDataIfaces->bmcRole() == Active) ||
+        ((dataSyncCfg._syncDirection == Passive2Active) &&
+         this->_extDataIfaces->bmcRole() == Passive))
+    {
+        return true;
+    }
+    else
+    {
+        // TODO Trace is required, will overflow?
+        lg2::debug("Sync is not required for [{PATH}] due to "
+                   "SyncDirection: {SYNC_DIRECTION} BMCRole: {BMC_ROLE}",
+                   "PATH", dataSyncCfg._path, "SYNC_DIRECTION",
+                   dataSyncCfg.getSyncDirectionInStr(), "BMC_ROLE",
+                   _extDataIfaces->bmcRole());
+    }
+    return false;
+}
+
 // NOLINTNEXTLINE
 sdbusplus::async::task<> Manager::startSyncEvents()
 {
-    auto syncData = [this](const auto& dataSyncCfg) -> bool {
-        using enum config::SyncDirection;
-        using enum ext_data::BMCRole;
-        if ((dataSyncCfg._syncDirection == Bidirectional) ||
-            ((dataSyncCfg._syncDirection == Active2Passive) &&
-             this->_extDataIfaces->bmcRole() == Active) ||
-            ((dataSyncCfg._syncDirection == Passive2Active) &&
-             this->_extDataIfaces->bmcRole() == Passive))
-        {
-            return true;
-        }
-        else
-        {
-            // TODO Trace is required, will overflow?
-            lg2::debug("Sync is not required for [{PATH}] due to "
-                       "SyncDirection: {SYNC_DIRECTION} BMCRole: {BMC_ROLE}",
-                       "PATH", dataSyncCfg._path, "SYNC_DIRECTION",
-                       dataSyncCfg.getSyncDirectionInStr(), "BMC_ROLE",
-                       _extDataIfaces->bmcRole());
-        }
-        return false;
-    };
-
-    std::ranges::for_each(_dataSyncConfiguration | std::views::filter(syncData),
-                          [this](const auto& dataSyncCfg) {
+    std::ranges::for_each(
+        _dataSyncConfiguration |
+            std::views::filter([this](const auto& dataSyncCfg) {
+        return this->isSyncEligible(dataSyncCfg);
+    }),
+        [this](const auto& dataSyncCfg) {
         using enum config::SyncType;
         if (dataSyncCfg._syncType == Immediate)
         {
