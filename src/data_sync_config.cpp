@@ -22,8 +22,9 @@ bool Retry::operator==(const Retry& retry) const
            _retryIntervalInSec == retry._retryIntervalInSec;
 }
 
-DataSyncConfig::DataSyncConfig(const nlohmann::json& config) :
-    _path(config["Path"].get<std::string>()),
+DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
+                               const bool isPathDir) :
+    _path(config["Path"].get<std::string>()), _isPathDir(isPathDir),
     _syncDirection(
         convertSyncDirectionToEnum(config["SyncDirection"].get<std::string>())
             .value_or(SyncDirection::Active2Passive)),

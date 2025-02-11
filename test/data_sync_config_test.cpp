@@ -31,9 +31,10 @@ TEST(DataSyncConfigParserTest, TestImmediateFileSyncWithNoRetry)
 
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, false);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, false);
     EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
@@ -64,9 +65,10 @@ TEST(DataSyncConfigParserTest, TestPeriodicFileSyncWithRetry)
 
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, false);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, false);
     EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Passive2Active);
@@ -96,9 +98,10 @@ TEST(DataSyncConfigParserTest, TestImmediateDirectorySyncWithNoRetry)
         }
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, true);
 
     EXPECT_EQ(dataSyncConfig._path, "/directory/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, true);
     EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Passive2Active);
@@ -127,9 +130,10 @@ TEST(DataSyncConfigParserTest, TestImmediateAndBidirectionalDirectorySync)
         }
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, true);
 
     EXPECT_EQ(dataSyncConfig._path, "/directory/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, true);
     EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Bidirectional);
@@ -161,9 +165,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidPeriodicity)
 
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, false);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, false);
     EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
@@ -197,9 +202,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidRetryInterval)
 
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, false);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, false);
     EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
@@ -230,9 +236,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncDirection)
 
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, false);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, false);
     EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
@@ -261,9 +268,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncType)
 
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, false);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, false);
     EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);
@@ -293,9 +301,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithValidDestination)
 
     )"_json;
 
-    data_sync::config::DataSyncConfig dataSyncConfig(configJSON);
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, false);
 
     EXPECT_EQ(dataSyncConfig._path, "/file/path/to/sync");
+    EXPECT_EQ(dataSyncConfig._isPathDir, false);
     EXPECT_EQ(dataSyncConfig._destPath, "/file/path/to/destination");
     EXPECT_EQ(dataSyncConfig._syncDirection,
               data_sync::config::SyncDirection::Active2Passive);

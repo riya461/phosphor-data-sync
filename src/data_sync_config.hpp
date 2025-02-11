@@ -80,7 +80,7 @@ struct DataSyncConfig
      *
      * @param[in] config - The sync data information
      */
-    DataSyncConfig(const nlohmann::json& config);
+    DataSyncConfig(const nlohmann::json& config, bool isPathDir);
 
     /**
      * @brief Overload the == operator to compare objects.
@@ -131,6 +131,11 @@ struct DataSyncConfig
      * @brief The file or directory path to be synchronized.
      */
     std::string _path;
+
+    /**
+     * @brief Bool flag to indicate whether the path is file or directory
+     */
+    bool _isPathDir;
 
     /**
      * @brief The file or directory path to the destination to be synchronized.

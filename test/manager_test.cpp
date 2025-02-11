@@ -67,14 +67,14 @@ TEST_F(ManagerTest, ParseDataSyncCfg)
     data_sync::Manager manager{ctx, std::move(extDataIface),
                                ManagerTest::dataSyncCfgDir};
 
-    EXPECT_FALSE(
-        manager.containsDataSyncCfg(ManagerTest::commonJsonData["Files"][0]));
+    EXPECT_FALSE(manager.containsDataSyncCfg(data_sync::config::DataSyncConfig(
+        ManagerTest::commonJsonData["Files"][0], false)));
 
     ctx.spawn(
         sdbusplus::async::sleep_for(ctx, 1ns) |
         sdbusplus::async::execution::then([&ctx]() { ctx.request_stop(); }));
     ctx.run();
 
-    EXPECT_TRUE(
-        manager.containsDataSyncCfg(ManagerTest::commonJsonData["Files"][0]));
+    EXPECT_TRUE(manager.containsDataSyncCfg(data_sync::config::DataSyncConfig(
+        ManagerTest::commonJsonData["Files"][0], false)));
 }
