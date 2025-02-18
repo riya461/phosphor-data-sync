@@ -119,6 +119,16 @@ class DataWatcher
     uint32_t _eventMasksToWatch;
 
     /**
+     * @brief The group of events for which the data need to be watched on the
+     * parent if the configured path is not exisitng in the filesystem.
+     *
+     * If the configured path is a file the _eventMasksToWatch will be
+     * IN_CLOSE_WRITE only. But if file not exists, we need to monitor IN_CREATE
+     * also.
+     */
+    uint32_t _eventMasksIfNotExists = IN_CREATE | IN_CLOSE_WRITE;
+
+    /**
      * @brief File/Directory path to be watched
      */
     std::filesystem::path _dataPathToWatch;
@@ -179,6 +189,33 @@ class DataWatcher
      *                 false - Sync not required for the data
      */
     bool processEvent(const EventInfo& receivedEventInfo);
+
+    /**
+     * @brief API to handle the received IN_CLOSE_WRITE inotify events
+     *
+     * @param[in] receivedEventInfo : The eventInfo type which has the
+     *                                information of received inotify event.
+     * @returns bool : true - Required to the sync the data
+     *                 false - Sync not required for the data
+     */
+    bool processCloseWrite(const EventInfo& receivedEventInfo);
+
+    /**
+     * @brief API to handle the received IN_CREATE inotify events
+     *
+     * @param[in] receivedEventInfo : The eventInfo type which has the
+     *                                information of received inotify event.
+     * @returns bool : true - Required to the sync the data
+     *                 false - Sync not required for the data
+     */
+    bool processCreate(const EventInfo& receivedEventInfo);
+
+    /** @brief API to remove the watch for a path and to
+     *  remove from the map of watch descriptors.
+     *
+     *  @param[in] wd - Watch descriptor corresponding to the path
+     */
+    void removeWatch(int wd);
 };
 
 } // namespace data_sync::watch::inotify

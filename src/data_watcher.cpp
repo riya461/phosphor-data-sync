@@ -18,13 +18,6 @@ DataWatcher::DataWatcher(sdbusplus::async::context& ctx, const int inotifyFlags,
     _fdioInstance(
         std::make_unique<sdbusplus::async::fdio>(ctx, _inotifyFileDescriptor()))
 {
-    if (!std::filesystem::exists(_dataPathToWatch))
-    {
-        lg2::debug("Given path [{PATH}] doesn't exist to watch", "PATH",
-                   _dataPathToWatch);
-        // TODO : Handle not exists sceanrio by monitoring parent
-    }
-
     createWatchers(_dataPathToWatch);
 }
 
@@ -101,7 +94,19 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
     }
     else
     {
-        // TODO : If configured path not exist, monitor parent until it creates
+        lg2::debug("Given path [{PATH}] doesn't exist to watch", "PATH",
+                   pathToWatch);
+
+        auto getExistingParentPath = [](fs::path dataPath) {
+            while (!fs::exists(dataPath))
+            {
+                dataPath = dataPath.parent_path();
+            }
+            return dataPath;
+        };
+
+        addToWatchList(getExistingParentPath(pathToWatch),
+                       _eventMasksIfNotExists);
     }
 }
 
@@ -156,29 +161,137 @@ bool DataWatcher::processEvent(const EventInfo& receivedEventInfo)
 {
     if ((std::get<EventMask>(receivedEventInfo) & IN_CLOSE_WRITE) != 0)
     {
-        /**
-         * Either of the following case occured
-         * Case 1 : Files listed in the config and are already existing has been
-         *          modified
-         * Case 2 : Files got created inside a watching directory
-         */
-        lg2::debug("Processing an IN_CLOSE_WRITE for {PATH}", "PATH",
-                   _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
-                       std::get<BaseName>(receivedEventInfo));
-        return true;
+        return processCloseWrite(receivedEventInfo);
     }
     else if ((std::get<EventMask>(receivedEventInfo) &
               (IN_CREATE | IN_ISDIR)) != 0)
     {
-        // add watch for the created child subdirectories
-        fs::path subDirPath =
-            _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
-            std::get<BaseName>(receivedEventInfo);
-        lg2::debug("Processing an IN_CREATE for {PATH}", "PATH", subDirPath);
-        createWatchers(subDirPath);
+        /**
+         * Handle the creation of directories inside a monitoring DIR
+         */
+        return processCreate(receivedEventInfo);
+    }
+    return false;
+}
+
+bool DataWatcher::processCloseWrite(const EventInfo& receivedEventInfo)
+{
+    fs::path eventReceivedFor =
+        _watchDescriptors.at(std::get<WD>(receivedEventInfo));
+    lg2::debug("Processing an IN_CLOSE_WRITE for {PATH}", "PATH",
+               eventReceivedFor / std::get<BaseName>(receivedEventInfo));
+
+    if (eventReceivedFor.string().starts_with(_dataPathToWatch.string()))
+    {
+        // Case 1 : The file configured in the JSON exists and is modified
+        // Case 2 : A file got created or modified inside a watching subdir
+        return true;
+    }
+    else if (eventReceivedFor / std::get<BaseName>(receivedEventInfo) ==
+             _dataPathToWatch)
+    {
+        // The configured file in the monitored parent directory has been
+        // created, hence monitor the configured file and remove the parent
+        // watcher as it is no longer needed.
+        addToWatchList(_dataPathToWatch, _eventMasksToWatch);
+        removeWatch(std::get<WD>(receivedEventInfo));
         return true;
     }
     return false;
+}
+
+bool DataWatcher::processCreate(const EventInfo& receivedEventInfo)
+{
+    fs::path absCreatedPath =
+        _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
+        std::get<BaseName>(receivedEventInfo);
+
+    // Process IN_CREATE only for DIR and skip for files as
+    // all the file events are handled using IN_CLOSE_WRITE
+    if ((std::get<EventMask>(receivedEventInfo) & IN_ISDIR) != 0)
+    {
+        lg2::debug("Processing an IN_CREATE for {PATH}", "PATH",
+                   absCreatedPath);
+        if (absCreatedPath.string().starts_with(_dataPathToWatch.string()) &&
+            (absCreatedPath != _dataPathToWatch))
+        {
+            // The created dir is a child directory inside the configured data
+            // path add watch for the created child subdirectories.
+            createWatchers(absCreatedPath);
+            return true;
+        }
+        else if (_dataPathToWatch.string().starts_with(absCreatedPath.string()))
+        {
+            // Was monitoring existing parent path of the configured data path
+            // and a new file/directory got created inside it.
+
+            auto modifyWatchIfExpected = [this](const fs::path& entry) {
+                if (_dataPathToWatch.string().starts_with(entry.string()))
+                {
+                    // Created DIR is in the tree of the configured path.
+                    // Hence, Add watch for the created DIR and remove its
+                    // parent watch until the JSON configured DIR creates.
+                    if (_dataPathToWatch == entry)
+                    {
+                        // Add configured event masks if created DIR is the
+                        // configured path.
+                        addToWatchList(entry, _eventMasksToWatch);
+                    }
+                    else
+                    {
+                        addToWatchList(entry, _eventMasksIfNotExists);
+                    }
+
+                    // "/a/b/c/d". Here "d" is directory and is the cfg path.
+                    // Watching "a" since the "b/c/d" path is not exist.
+                    // Now, assume "mkdir -p /a/b/c" happened.
+                    // Remove watches for "a" and "b" and watch only "c" parent.
+                    // Inotify event received for "a" only and "b" and "c"
+                    // created in a single shot. So on recursive directory
+                    // iteration, in order to remove the watch for the parents
+                    // 'a' and 'b', need to iterate through the map, as only WD
+                    // of 'a' is known from the inotify event.
+                    if (auto parent =
+                            std::ranges::find_if(_watchDescriptors,
+                                                 [&entry](const auto& wd) {
+                        return (wd.second == entry.parent_path());
+                    });
+                        parent != _watchDescriptors.end())
+                    {
+                        removeWatch(parent->first);
+                    }
+                    return true;
+                }
+                else if (entry.string().starts_with(_dataPathToWatch.string()))
+                {
+                    // Created DIR is expected only, and is a child directory of
+                    // the configured path.
+                    // Hence add watch for created dirs and don't remove it's
+                    // parent as created DIRs are childs of the configured DIR.
+                    addToWatchList(entry, _eventMasksToWatch);
+                    return true;
+                }
+                return false;
+            };
+            auto monitoringPath =
+                _watchDescriptors.at(std::get<WD>(receivedEventInfo));
+            std::ranges::for_each(
+                fs::recursive_directory_iterator(monitoringPath),
+                modifyWatchIfExpected);
+            return true;
+        }
+    }
+    return false;
+}
+
+void DataWatcher::removeWatch(int wd)
+{
+    fs::path pathToRemove = _watchDescriptors.at(wd);
+
+    inotify_rm_watch(_inotifyFileDescriptor(), wd);
+    _watchDescriptors.erase(wd);
+
+    lg2::debug("Stopped monitoring {PATH}", "PATH", pathToRemove);
 }
 
 } // namespace data_sync::watch::inotify
