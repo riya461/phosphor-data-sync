@@ -27,6 +27,26 @@ using BaseName = std::string;
 using EventMask = uint32_t;
 using EventInfo = std::tuple<WD, BaseName, EventMask>;
 
+/**
+ * @brief enum which indicates the type of operations that can take against an
+ * intersted inotify event on a configured data path
+ */
+enum class DataOps
+{
+    COPY,
+    DELETE
+};
+
+/**
+ * @brief A map which tells what type of operations need to perform on the data
+ * path against an intersted inotify event.
+ *
+ * fs::path - absolute path of the modified data
+ * DataOps  - Type of action need to perform on the data path
+ */
+using DataOperations = std::map<fs::path, DataOps>;
+using DataOperation = std::pair<fs::path, DataOps>;
+
 /** @class FD
  *
  *  @brief RAII wrapper for file descriptor.
@@ -105,7 +125,7 @@ class DataWatcher
      *                 false - Inidcates that no action is required on the
      *                         received event
      */
-    sdbusplus::async::task<bool> onDataChange();
+    sdbusplus::async::task<DataOperations> onDataChange();
 
   private:
     /**
@@ -123,10 +143,11 @@ class DataWatcher
      * parent if the configured path is not exisitng in the filesystem.
      *
      * If the configured path is a file the _eventMasksToWatch will be
-     * IN_CLOSE_WRITE only. But if file not exists, we need to monitor IN_CREATE
-     * also.
+     * IN_CLOSE_WRITE | IN_DELETE_SELF. But if file not exists, we need to
+     * monitor IN_CREATE | IN_DELETE also.
      */
-    uint32_t _eventMasksIfNotExists = IN_CREATE | IN_CLOSE_WRITE;
+    uint32_t _eventMasksIfNotExists = IN_CREATE | IN_CLOSE_WRITE | IN_DELETE |
+                                      IN_DELETE_SELF;
 
     /**
      * @brief File/Directory path to be watched
@@ -150,11 +171,26 @@ class DataWatcher
     std::unique_ptr<sdbusplus::async::fdio> _fdioInstance;
 
     /**
+     * @brief Map of DataOperation
+     */
+    DataOperations _dataOperations;
+
+    /**
      * @brief initialize an inotify instance and returns file descriptor
      */
     int inotifyInit() const;
 
-    /* @brief Create watcher for the given data path and add to the list of
+    /**
+     * @brief API to get the existing parent path of a given path.
+     *
+     * @param[in] dataPath - The path to check
+
+     * @returns std::filesystem::path - existing parent path
+     */
+    static fs::path getExistingParentPath(const fs::path& dataPath);
+
+    /**
+     * @brief Create watcher for the given data path and add to the list of
      * watch descriptors.
      *
      * @param[in] pathToWatch - The path of file/directory to be monitored
@@ -180,35 +216,73 @@ class DataWatcher
     std::optional<std::vector<EventInfo>> readEvents();
 
     /**
-     * @brief API to trigger necessary actions based on the received inotify
-     * events
-     * @param[in] receivedEventInfo : The EventInfo type which has the
-     *                                information of received inotify events.
+     * @brief API to trigger processing of the received inotify events.
      *
-     * @returns bool : true - Required to the sync the data
-     *                 false - Sync not required for the data
+     * @param[in] receivedEvents : The vector of type eventInfo type which has
+     *                             the information of received inotify events.
+     *
      */
-    bool processEvent(const EventInfo& receivedEventInfo);
+    void processEvents(const std::vector<EventInfo>& receivedEvents);
+
+    /**
+     * @brief API to process each of the received inotify event and to determine
+     * the type of operation need to trigger for the event.
+     *
+     * @param[in] receivedEvent : eventInfo type which has the information of
+     *                            received  inotify event.
+     *
+     * @returns DataOperation : If the received event need to handle in rsync
+     *          std::nullopt  : If the received event doesn't need to handle.
+     */
+    std::optional<DataOperation> processEvent(const EventInfo& receivedEvent);
 
     /**
      * @brief API to handle the received IN_CLOSE_WRITE inotify events
      *
-     * @param[in] receivedEventInfo : The eventInfo type which has the
-     *                                information of received inotify event.
-     * @returns bool : true - Required to the sync the data
-     *                 false - Sync not required for the data
+     * @param[in] receivedEventInfo : eventInfo type which has the information
+     *                                of received  inotify event.
+     *
+     * @returns DataOperation : If the received event need to handle in rsync
+     *          std::nullopt  : If the received event doesn't need to handle.
      */
-    bool processCloseWrite(const EventInfo& receivedEventInfo);
+    std::optional<DataOperation>
+        processCloseWrite(const EventInfo& receivedEventInfo);
 
     /**
      * @brief API to handle the received IN_CREATE inotify events
      *
-     * @param[in] receivedEventInfo : The eventInfo type which has the
-     *                                information of received inotify event.
-     * @returns bool : true - Required to the sync the data
-     *                 false - Sync not required for the data
+     * @param[in] receivedEventInfo : eventInfo type which has the information
+     *                                of received  inotify event.
+     *
+     * @returns DataOperation : If the received event need to handle in rsync
+     *          std::nullopt  : If the received event doesn't need to handle.
      */
-    bool processCreate(const EventInfo& receivedEventInfo);
+    std::optional<DataOperation>
+        processCreate(const EventInfo& receivedEventInfo);
+
+    /**
+     * @brief API to handle the received IN_DELETE inotify events
+     *
+     * @param[in] receivedEventInfo : eventInfo type which has the information
+     *                                of received  inotify event.
+     *
+     * @returns DataOperation : If the received event need to handle in rsync
+     *          std::nullopt  : If the received event doesn't need to handle.
+     */
+    std::optional<DataOperation>
+        processDelete(const EventInfo& receivedEventInfo);
+
+    /**
+     * @brief API to handle the received IN_DELETE_SELF inotify events
+     *
+     * @param[in] receivedEventInfo : eventInfo type which has the information
+     *                                of received  inotify event.
+     *
+     * @returns DataOperation : If the received event need to handle in rsync
+     *          std::nullopt  : If the received event doesn't need to handle.
+     */
+    std::optional<DataOperation>
+        processDeleteSelf(const EventInfo& receivedEventInfo);
 
     /** @brief API to remove the watch for a path and to
      *  remove from the map of watch descriptors.

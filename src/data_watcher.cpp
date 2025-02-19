@@ -50,6 +50,16 @@ int DataWatcher::inotifyInit() const
     return fd;
 }
 
+fs::path DataWatcher::getExistingParentPath(const fs::path& dataPath)
+{
+    fs::path parentPath = dataPath.parent_path();
+    while (!fs::exists(parentPath))
+    {
+        parentPath = parentPath.parent_path();
+    }
+    return parentPath;
+}
+
 void DataWatcher::addToWatchList(const fs::path& pathToWatch,
                                  uint32_t eventMasksToWatch)
 {
@@ -97,38 +107,34 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
         lg2::debug("Given path [{PATH}] doesn't exist to watch", "PATH",
                    pathToWatch);
 
-        auto getExistingParentPath = [](fs::path dataPath) {
-            while (!fs::exists(dataPath))
-            {
-                dataPath = dataPath.parent_path();
-            }
-            return dataPath;
-        };
-
         addToWatchList(getExistingParentPath(pathToWatch),
                        _eventMasksIfNotExists);
     }
 }
 
 // NOLINTNEXTLINE
-sdbusplus::async::task<bool> DataWatcher::onDataChange()
+sdbusplus::async::task<DataOperations> DataWatcher::onDataChange()
 {
     // NOLINTNEXTLINE
     co_await _fdioInstance->next();
 
     if (auto receivedEvents = readEvents(); receivedEvents.has_value())
     {
-        auto matched = [this](const auto& event) {
-            return processEvent(event);
-        };
-
-        co_return std::ranges::any_of(receivedEvents.value(), matched);
+        processEvents(receivedEvents.value());
     }
-    co_return false;
+
+    co_return _dataOperations;
 }
 
 std::optional<std::vector<EventInfo>> DataWatcher::readEvents()
 {
+    // Before reading the events clear the map of data operation to remove the
+    // handled operation details.
+    if (!_dataOperations.empty())
+    {
+        _dataOperations.clear();
+    }
+
     // Maximum inotify events supported in the buffer
     constexpr auto maxBytes = sizeof(struct inotify_event) + NAME_MAX + 1;
     uint8_t buffer[maxBytes];
@@ -157,7 +163,21 @@ std::optional<std::vector<EventInfo>> DataWatcher::readEvents()
     return receivedEvents;
 }
 
-bool DataWatcher::processEvent(const EventInfo& receivedEventInfo)
+void DataWatcher::processEvents(
+    const std::vector<EventInfo>& receivedEventsInfo)
+{
+    std::ranges::for_each(receivedEventsInfo, [this](const auto& event) {
+        std::optional<DataOperation> dataOperation = processEvent(event);
+        if (dataOperation.has_value())
+        {
+            _dataOperations.insert_or_assign(dataOperation.value().first,
+                                             dataOperation.value().second);
+        }
+    });
+}
+
+std::optional<DataOperation>
+    DataWatcher::processEvent(const EventInfo& receivedEventInfo)
 {
     if ((std::get<EventMask>(receivedEventInfo) & IN_CLOSE_WRITE) != 0)
     {
@@ -171,10 +191,25 @@ bool DataWatcher::processEvent(const EventInfo& receivedEventInfo)
          */
         return processCreate(receivedEventInfo);
     }
-    return false;
+    else if ((std::get<EventMask>(receivedEventInfo) & IN_DELETE_SELF) != 0)
+    {
+        return processDeleteSelf(receivedEventInfo);
+    }
+    else if ((std::get<EventMask>(receivedEventInfo) & IN_DELETE) != 0)
+    {
+        return processDelete(receivedEventInfo);
+    }
+    else
+    {
+        lg2::debug("Received an uninterested inotify event with mask : {MASK} ",
+                   "MASK", std::get<EventMask>(receivedEventInfo));
+        return std::nullopt;
+    }
+    return std::nullopt;
 }
 
-bool DataWatcher::processCloseWrite(const EventInfo& receivedEventInfo)
+std::optional<DataOperation>
+    DataWatcher::processCloseWrite(const EventInfo& receivedEventInfo)
 {
     fs::path eventReceivedFor =
         _watchDescriptors.at(std::get<WD>(receivedEventInfo));
@@ -185,7 +220,7 @@ bool DataWatcher::processCloseWrite(const EventInfo& receivedEventInfo)
     {
         // Case 1 : The file configured in the JSON exists and is modified
         // Case 2 : A file got created or modified inside a watching subdir
-        return true;
+        return std::make_pair(_dataPathToWatch, DataOps::COPY);
     }
     else if (eventReceivedFor / std::get<BaseName>(receivedEventInfo) ==
              _dataPathToWatch)
@@ -195,12 +230,14 @@ bool DataWatcher::processCloseWrite(const EventInfo& receivedEventInfo)
         // watcher as it is no longer needed.
         addToWatchList(_dataPathToWatch, _eventMasksToWatch);
         removeWatch(std::get<WD>(receivedEventInfo));
-        return true;
+        return std::make_pair(_dataPathToWatch, DataOps::COPY);
     }
-    return false;
+
+    return std::nullopt;
 }
 
-bool DataWatcher::processCreate(const EventInfo& receivedEventInfo)
+std::optional<DataOperation>
+    DataWatcher::processCreate(const EventInfo& receivedEventInfo)
 {
     fs::path absCreatedPath =
         _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
@@ -213,12 +250,13 @@ bool DataWatcher::processCreate(const EventInfo& receivedEventInfo)
         lg2::debug("Processing an IN_CREATE for {PATH}", "PATH",
                    absCreatedPath);
         if (absCreatedPath.string().starts_with(_dataPathToWatch.string()) &&
-            (absCreatedPath != _dataPathToWatch))
+            (_dataPathToWatch != absCreatedPath))
         {
             // The created dir is a child directory inside the configured data
             // path add watch for the created child subdirectories.
             createWatchers(absCreatedPath);
-            return true;
+
+            return std::make_pair(absCreatedPath, DataOps::COPY);
         }
         else if (_dataPathToWatch.string().starts_with(absCreatedPath.string()))
         {
@@ -278,10 +316,61 @@ bool DataWatcher::processCreate(const EventInfo& receivedEventInfo)
             std::ranges::for_each(
                 fs::recursive_directory_iterator(monitoringPath),
                 modifyWatchIfExpected);
-            return true;
+            return std::make_pair(absCreatedPath, DataOps::COPY);
         }
     }
-    return false;
+    return std::nullopt;
+}
+
+std::optional<DataOperation>
+    DataWatcher::processDeleteSelf(const EventInfo& receivedEventInfo)
+{
+    // Case 1 : A monitoring file got deleted.
+    // case 2 : A monitoring directory got deleted.
+
+    fs::path deletedPath =
+        _watchDescriptors.at(std::get<WD>(receivedEventInfo));
+    lg2::debug("Processing IN_DELETE_SELF for {PATH}", "PATH", deletedPath);
+
+    if (_watchDescriptors.size() == 1)
+    {
+        // If configured file / directory got deleted add a watch on parent
+        // dir to notify future create events.
+
+        // Unique watches are there for all the sub directories also. Hence when
+        // a configured and monitoring directory deletes, IN_DELETE_SELF will
+        // emit for all sub directories which will remove its watches and
+        // finally will get IN_DELETE_SELF for the configured dir also which
+        // makes the size of _watchDescriptors 1.
+
+        addToWatchList(getExistingParentPath(deletedPath),
+                       _eventMasksIfNotExists);
+    }
+
+    // Remove the watch for the deleted path
+    removeWatch(std::get<WD>(receivedEventInfo));
+
+    return std::make_pair(deletedPath, DataOps::DELETE);
+}
+
+std::optional<DataOperation>
+    DataWatcher::processDelete(const EventInfo& receivedEventInfo)
+{
+    fs::path deletedPath =
+        _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
+        std::get<BaseName>(receivedEventInfo);
+
+    // Deleting sub directories will emit IN_DELETE_SELF as all the
+    // subdirectories have unique watches. Hence skipping IN_DELETE for
+    // subdirectories.
+    if ((std::get<EventMask>(receivedEventInfo) & IN_ISDIR) == 0)
+    {
+        // A file inside a monitoring directory got deleted.
+        lg2::debug("Processing IN_DELETE for {PATH}", "PATH", deletedPath);
+        return std::make_pair(deletedPath, DataOps::DELETE);
+    }
+
+    return std::nullopt;
 }
 
 void DataWatcher::removeWatch(int wd)

@@ -173,10 +173,10 @@ sdbusplus::async::task<>
 {
     try
     {
-        uint32_t eventMasksToWatch = IN_CLOSE_WRITE;
+        uint32_t eventMasksToWatch = IN_CLOSE_WRITE | IN_DELETE_SELF;
         if (dataSyncCfg._isPathDir)
         {
-            eventMasksToWatch |= IN_CREATE;
+            eventMasksToWatch |= IN_CREATE | IN_DELETE;
         }
 
         // Create watcher for the dataSyncCfg._path
@@ -185,9 +185,13 @@ sdbusplus::async::task<>
 
         while (!_ctx.stop_requested())
         {
-            if (co_await dataWatcher.onDataChange())
+            if (auto dataOperations = co_await dataWatcher.onDataChange();
+                !dataOperations.empty())
             {
-                co_await syncData(dataSyncCfg);
+                for ([[maybe_unused]] const auto& dataOp : dataOperations)
+                {
+                    co_await syncData(dataSyncCfg);
+                }
             }
         }
     }
