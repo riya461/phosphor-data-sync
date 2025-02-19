@@ -173,9 +173,15 @@ sdbusplus::async::task<>
 {
     try
     {
+        uint32_t eventMasksToWatch = IN_CLOSE_WRITE;
+        if (dataSyncCfg._isPathDir)
+        {
+            eventMasksToWatch |= IN_CREATE;
+        }
+
         // Create watcher for the dataSyncCfg._path
         watch::inotify::DataWatcher dataWatcher(
-            _ctx, IN_NONBLOCK, IN_CLOSE_WRITE, dataSyncCfg._path);
+            _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path);
 
         while (!_ctx.stop_requested())
         {

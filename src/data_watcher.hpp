@@ -8,19 +8,24 @@
 #include <sdbusplus/async.hpp>
 
 #include <filesystem>
+#include <map>
 
 namespace data_sync::watch::inotify
 {
 
+namespace fs = std::filesystem;
+
 /**
  * @brief A tuple which has the info related to the occured inotify event
  *
+ * int         - Watch descriptor corresponds to the event
  * std::string - name[] in inotify_event struct
  * uint32_t    - Mask describing event
  */
+using WD = int;
 using BaseName = std::string;
 using EventMask = uint32_t;
-using EventInfo = std::tuple<BaseName, EventMask>;
+using EventInfo = std::tuple<WD, BaseName, EventMask>;
 
 /** @class FD
  *
@@ -119,9 +124,10 @@ class DataWatcher
     std::filesystem::path _dataPathToWatch;
 
     /**
-     * @brief The unique watch descriptor for the inotify instance
+     * @brief The map of unique watch descriptors associated with an configured
+     * file or directory.
      */
-    int _watchDescriptor{-1};
+    std::map<WD, fs::path> _watchDescriptors;
 
     /**
      * @brief file descriptor referring to the inotify instance
@@ -138,12 +144,22 @@ class DataWatcher
      */
     int inotifyInit() const;
 
-    /**
-     * @brief Create an inotify watch for the data to be monitored
+    /* @brief Create watcher for the given data path and add to the list of
+     * watch descriptors.
      *
-     * @returns - unique watch descriptor for the created watch
+     * @param[in] pathToWatch - The path of file/directory to be monitored
+     * @param[in] eventMasksToWatch - The set of events for which the path to be
+     *                                monitored
      */
-    int addToWatchList();
+    void addToWatchList(const fs::path& pathToWatch,
+                        uint32_t eventMasksToWatch);
+
+    /** @brief API to create watchers for the given path and also for the
+     * subdirectories if exists inside the configured directory path.
+     *
+     * @param[in] pathToWatch - The path of file/directory to be monitored.
+     */
+    void createWatchers(const std::filesystem::path& pathToWatch);
 
     /**
      * @brief API to read the triggered events from inotify structure
@@ -162,7 +178,7 @@ class DataWatcher
      * @returns bool : true - Required to the sync the data
      *                 false - Sync not required for the data
      */
-    static bool processEvent(EventInfo receivedEventInfo);
+    bool processEvent(const EventInfo& receivedEventInfo);
 };
 
 } // namespace data_sync::watch::inotify
