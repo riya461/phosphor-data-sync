@@ -24,6 +24,7 @@ test_source_files = [
         'manager_test',
         'periodic_sync_test',
         'full_sync_test',
+        'immediate_sync_test',
     ]
 
 foreach test_file : test_source_files

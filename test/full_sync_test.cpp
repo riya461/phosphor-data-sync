@@ -154,6 +154,15 @@ TEST_F(ManagerTest, FullSyncA2PTest)
 
         ctx.request_stop();
 
+        // Forcing to trigger inotify events so that all running immediate
+        // sync tasks will resume and stop since the context is requested to
+        // stop in the above.
+        ManagerTest::writeData(srcFile1, data1);
+        ManagerTest::writeData(srcFile2, data2);
+        ManagerTest::writeData(srcFile3, data3);
+        ManagerTest::writeData(srcFile4, data4);
+        ManagerTest::writeData(dirFile, "Data in directory file");
+
         co_return;
     };
 
@@ -311,6 +320,15 @@ TEST_F(ManagerTest, FullSyncP2ATest)
 
         ctx.request_stop();
 
+        // Forcing to trigger inotify events so that all running immediate
+        // sync tasks will resume and stop since the context is requested to
+        // stop in the above.
+        ManagerTest::writeData(srcFile1, data1);
+        ManagerTest::writeData(srcFile2, data2);
+        ManagerTest::writeData(srcFile3, data3);
+        ManagerTest::writeData(srcFile4, data4);
+        ManagerTest::writeData(dirFile, "Data in directory file");
+
         co_return;
     };
 
@@ -452,6 +470,15 @@ TEST_F(ManagerTest, FullSyncInProgressTest)
             << "FullSync status is not InProgress!";
         ctx.request_stop();
 
+        // Forcing to trigger inotify events so that all running immediate
+        // sync tasks will resume and stop since the context is requested to
+        // stop in the above.
+        ManagerTest::writeData(srcFile1, data1);
+        ManagerTest::writeData(srcFile2, data2);
+        ManagerTest::writeData(srcFile3, data3);
+        ManagerTest::writeData(srcFile4, data4);
+        ManagerTest::writeData(dirFile, "Data in directory file");
+
         co_return;
     };
 
@@ -511,7 +538,7 @@ TEST_F(ManagerTest, FullSyncFailed)
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
-          {{"Path", "/path/to/src/srcFile4"},
+          {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile4"},
            {"DestinationPath",
             ManagerTest::tmpDataSyncDataDir.string() + "/destFile4"},
            {"Description", "FullSync from Passive to Active bmc"},
@@ -581,6 +608,14 @@ TEST_F(ManagerTest, FullSyncFailed)
         EXPECT_NE(ManagerTest::readData(destFile4), data4);
 
         ctx.request_stop();
+
+        // Forcing to trigger inotify events so that all running immediate
+        // sync tasks will resume and stop since the context is requested to
+        // stop in the above.
+        ManagerTest::writeData(srcFile1, data1);
+        ManagerTest::writeData(srcFile2, data2);
+        ManagerTest::writeData(srcFile3, data3);
+        ManagerTest::writeData(srcFile4, data4);
 
         co_return;
     };
