@@ -32,6 +32,13 @@ sdbusplus::async::task<> Manager::init()
     co_await sdbusplus::async::execution::when_all(
         parseConfiguration(), _extDataIfaces->startExtDataFetches());
 
+    if (_syncBMCDataIface.disable_sync())
+    {
+        lg2::info(
+            "Sync is Disabled, data sync cannot be performed to the sibling BMC.");
+        co_return;
+    }
+
     // TODO: Explore the possibility of running FullSync and Background Sync
     // concurrently
     if (_extDataIfaces->bmcRedundancy())
@@ -210,13 +217,35 @@ sdbusplus::async::task<>
     // NOLINTNEXTLINE
     Manager::monitorTimerToSync(const config::DataSyncConfig& dataSyncCfg)
 {
-    while (!_ctx.stop_requested())
+    while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
     {
         co_await sdbusplus::async::sleep_for(
             _ctx, dataSyncCfg._periodicityInSec.value());
+        // Below is temporary check to avoid sync when disable sync is set to
+        // true.
+        // TODO: add receiver logic to stop sync events when disable sync is set
+        // to true.
+        if (_syncBMCDataIface.disable_sync())
+        {
+            break;
+        }
         co_await syncData(dataSyncCfg);
     }
     co_return;
+}
+
+void Manager::disableSyncPropChanged(bool disableSync)
+{
+    if (disableSync)
+    {
+        // TODO: Disable all sync events using Sender Receiver.
+        lg2::info("Sync is Disabled, Stopping events");
+    }
+    else
+    {
+        lg2::info("Sync is Enabled, Starting events");
+        _ctx.spawn(startSyncEvents());
+    }
 }
 
 // NOLINTNEXTLINE
@@ -232,6 +261,8 @@ sdbusplus::async::task<void> Manager::startFullSync()
 
     for (const auto& cfg : _dataSyncConfiguration)
     {
+        // TODO: add receiver logic to stop fullsync when disable sync is set to
+        // true.
         if (isSyncEligible(cfg))
         {
             _ctx.spawn(

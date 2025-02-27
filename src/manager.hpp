@@ -87,6 +87,26 @@ class Manager
         return _syncBMCDataIface.full_sync_status();
     }
 
+    /**
+     * @brief Helper API to start events when Disable sync property is changed.
+     *        - If the Disable sync property is set to true, it stops all sync
+     *          events. Otherwise, it starts all sync events.
+     *
+     * @param[in] disableSync - The Disable sync property value being set.
+     */
+    void disableSyncPropChanged(bool disableSync);
+
+    /**
+     * @brief Helper API to set the Disable sync Dbus status-property.
+     *        Specifically, for unit testing purposes.
+     *
+     * @param[in] disableSync - The Disable sync property value being set.
+     */
+    void setDisableSyncStatus(bool disableSync)
+    {
+        _syncBMCDataIface.disable_sync(disableSync);
+    }
+
   private:
     /**
      * @brief A helper API to start the data sync operation.

@@ -51,6 +51,16 @@ class SyncBMCDataIface :
      */
     sdbusplus::async::task<> method_call(start_full_sync_t type);
 
+    /**
+     * @brief Implements property set for the disable sync property.
+     *
+     * @param[in] disable_sync_t - The type.
+     * @param[in] disable - the value being set.
+     *
+     * @return If the property value changed
+     */
+    bool set_property(disable_sync_t type, bool disable);
+
   private:
     /**
      * @brief Reference to the Manager object.

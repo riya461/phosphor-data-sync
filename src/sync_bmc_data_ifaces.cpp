@@ -25,6 +25,13 @@ sdbusplus::async::task<>
     // NOLINTNEXTLINE
     SyncBMCDataIface::method_call([[maybe_unused]] start_full_sync_t type)
 {
+    if (disable_sync_)
+    {
+        lg2::error("Sync is Disabled, cannot start full sync.");
+        throw sdbusplus::xyz::openbmc_project::Control::SyncBMCData::Error::
+            SyncDisabled();
+    }
+
     if (_manager.isSiblingBmcNotAvailable())
     {
         lg2::error(
@@ -42,6 +49,20 @@ sdbusplus::async::task<>
     }
 
     co_return _ctx.spawn(_manager.startFullSync());
+}
+
+bool SyncBMCDataIface::set_property([[maybe_unused]] disable_sync_t type,
+                                    bool disable)
+{
+    if (disable_sync_ == disable)
+    {
+        lg2::info("Disable sync property is already set to {VALUE}", "VALUE",
+                  disable);
+        return false;
+    }
+    disable_sync_ = disable;
+    _manager.disableSyncPropChanged(disable);
+    return true;
 }
 
 } // namespace data_sync::dbus_ifaces
