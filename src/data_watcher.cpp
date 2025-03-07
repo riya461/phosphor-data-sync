@@ -184,7 +184,7 @@ std::optional<DataOperation>
         return processCloseWrite(receivedEventInfo);
     }
     else if ((std::get<EventMask>(receivedEventInfo) &
-              (IN_CREATE | IN_ISDIR)) != 0)
+              (IN_CREATE | IN_ISDIR)) == (IN_CREATE | IN_ISDIR))
     {
         /**
          * Handle the creation of directories inside a monitoring DIR
