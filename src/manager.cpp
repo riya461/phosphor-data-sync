@@ -190,11 +190,19 @@ sdbusplus::async::task<>
         watch::inotify::DataWatcher dataWatcher(
             _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path);
 
-        while (!_ctx.stop_requested())
+        while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
         {
             if (auto dataOperations = co_await dataWatcher.onDataChange();
                 !dataOperations.empty())
             {
+                // Below is temporary check to avoid sync when disable sync is
+                // set to true.
+                // TODO: add receiver logic to stop sync events when disable
+                // sync is set to true.
+                if (_syncBMCDataIface.disable_sync())
+                {
+                    break;
+                }
                 for ([[maybe_unused]] const auto& dataOp : dataOperations)
                 {
                     co_await syncData(dataSyncCfg);
