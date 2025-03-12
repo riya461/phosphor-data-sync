@@ -174,6 +174,86 @@ TEST_F(ManagerTest, testDataDeleteInDir)
     ctx.run();
 }
 
+TEST_F(ManagerTest, testDataDeletePathFile)
+{
+    using namespace std::literals;
+    namespace extData = data_sync::ext_data;
+
+    std::unique_ptr<extData::ExternalDataIFaces> extDataIface =
+        std::make_unique<extData::MockExternalDataIFaces>();
+
+    extData::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<extData::MockExternalDataIFaces*>(extDataIface.get());
+
+    ON_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillByDefault([&mockExtDataIfaces]() -> sdbusplus::async::task<> {
+        mockExtDataIfaces->setBMCRole(extData::BMCRole::Active);
+        co_return;
+    });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    nlohmann::json jsonData = {
+        {"Files",
+         {{{"Path",
+            ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/TestFile"},
+           {"DestinationPath",
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/TestFile"},
+           {"Description", "File to test immediate sync on self delete"},
+           {"SyncDirection", "Active2Passive"},
+           {"SyncType", "Immediate"}}}}};
+
+    std::string srcPath{jsonData["Files"][0]["Path"]};
+    std::string destPath{jsonData["Files"][0]["DestinationPath"]};
+
+    writeConfig(jsonData);
+    sdbusplus::async::context ctx;
+
+    // Create directories in source and destination
+    std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir /
+                                      "srcDir");
+    std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir /
+                                      "destDir");
+
+    std::string data{"Src: Initial Data\n"};
+    // Just for create path in the dest to watch for expectation check
+    std::string destData{"Dest: Initial Data\n"};
+    ManagerTest::writeData(srcPath, data);
+    ManagerTest::writeData(destPath, destData);
+    ASSERT_EQ(ManagerTest::readData(srcPath), data);
+    ASSERT_EQ(ManagerTest::readData(destPath), destData);
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
+    // Watch for dest path data change
+    data_sync::watch::inotify::DataWatcher dataWatcher(
+        ctx, IN_NONBLOCK, IN_DELETE_SELF, destPath);
+    ctx.spawn(dataWatcher.onDataChange() |
+              sdbusplus::async::execution::then(
+                  [&destPath]([[maybe_unused]] const auto& dataOps) {
+        EXPECT_FALSE(std::filesystem::exists(destPath));
+    }));
+
+    // Remove file after 1s so that the background sync events will be ready
+    // to catch.
+    ctx.spawn(sdbusplus::async::sleep_for(ctx, 1s) |
+              sdbusplus::async::execution::then([&ctx, &srcPath]() {
+        // remove the file
+        std::filesystem::remove(srcPath);
+        ASSERT_FALSE(std::filesystem::exists(srcPath));
+        ctx.request_stop();
+    }));
+
+    ctx.run();
+}
 TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
 {
     using namespace std::literals;
