@@ -75,10 +75,10 @@
             "type": "object",
             "properties": {
                 "Path": {
-                    "$ref": "#/$defs/path"
+                    "$ref": "#/$defs/dirPath"
                 },
                 "DestinationPath": {
-                    "$ref": "#/$defs/destinationPath"
+                    "$ref": "#/$defs/destinationDirPath"
                 },
                 "Description": {
                     "$ref": "#/$defs/description"
@@ -113,12 +113,20 @@
             ]
         },
         "path": {
-            "description": "Absolute path of the file/directory to be synced",
+            "description": "Absolute path of the file to be synced",
             "$ref": "#/$defs/rootFilePath"
         },
         "destinationPath": {
-            "description": "Absolute path to the destination file/directory to be synced",
+            "description": "Absolute path to the destination file to be synced",
             "$ref": "#/$defs/rootFilePath"
+        },
+        "dirPath": {
+            "description": "Absolute path of the directory to be synced",
+            "$ref": "#/$defs/rootDirPath"
+        },
+        "destinationDirPath": {
+            "description": "Absolute path to the destination directory to be synced",
+            "$ref": "#/$defs/rootDirPath"
         },
         "description": {
             "description": "A short description about the file/directory to be synced",
@@ -169,6 +177,11 @@
             "description": "The value must be a valid UNIX standard root filepath",
             "type": "string",
             "pattern": "^/"
+        },
+        "rootDirPath": {
+            "description": "The value must be a valid UNIX standard root filepath with trailing /",
+            "type": "string",
+            "pattern": "^/.*/$"
         },
         "conditionForPeriodicity": {
             "if": {

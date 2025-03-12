@@ -22,7 +22,7 @@ TEST_F(ManagerTest, ParseDataSyncCfg)
                 ],
                 "Directories": [
                     {
-                        "Path": "/directory/path/to/sync",
+                        "Path": "/directory/path/to/sync/",
                         "Description": "Parse test directory",
                         "SyncDirection": "Passive2Active",
                         "SyncType": "Periodic",

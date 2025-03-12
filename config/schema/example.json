@@ -21,7 +21,7 @@
     ],
     "Directories": [
         {
-            "Path": "/directory1/path/to/sync",
+            "Path": "/directory1/path/to/sync/",
             "Description": "Add details about the data and purpose of the synchronization",
             "SyncDirection": "Passive2Active",
             "SyncType": "Periodic",
@@ -32,7 +32,7 @@
             "IncludeFilesList": ["/Path/of/files/must/be/considered/for/sync"]
         },
         {
-            "Path": "/directory2/path/to/sync",
+            "Path": "/directory2/path/to/sync/",
             "Description": "Add details about the data and purpose of the synchronization",
             "SyncDirection": "Bidirectional",
             "SyncType": "Immediate"
