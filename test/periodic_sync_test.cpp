@@ -433,3 +433,82 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteInDir)
 
     EXPECT_FALSE(std::filesystem::exists(destDirFile));
 }
+
+TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteFile)
+{
+    using namespace std::literals;
+    namespace extData = data_sync::ext_data;
+
+    std::unique_ptr<extData::ExternalDataIFaces> extDataIface =
+        std::make_unique<extData::MockExternalDataIFaces>();
+
+    extData::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<extData::MockExternalDataIFaces*>(extDataIface.get());
+
+    ON_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillByDefault([&mockExtDataIfaces]() -> sdbusplus::async::task<> {
+        mockExtDataIfaces->setBMCRole(extData::BMCRole::Active);
+        co_return;
+    });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    nlohmann::json jsonData = {
+        {"Files",
+         {{{"Path",
+            ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/TestFile"},
+           {"DestinationPath",
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/TestFile"},
+           {"Description", "Directory to test periodic sync on file deletion"},
+           {"SyncDirection", "Active2Passive"},
+           {"SyncType", "Periodic"},
+           {"Periodicity", "PT1S"}}}}};
+
+    std::string srcPath{jsonData["Files"][0]["Path"]};
+    std::string destPath{jsonData["Files"][0]["DestinationPath"]};
+
+    // Create directories in source and destination
+    std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir.string() +
+                                      "/srcDir");
+    std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir.string() +
+                                      "/destDir");
+    writeConfig(jsonData);
+    sdbusplus::async::context ctx;
+
+    std::string data{"Src: Initial Data\n"};
+    std::string destData{"Dest: Initial Data\n"};
+    ManagerTest::writeData(srcPath, data);
+    ManagerTest::writeData(destPath, destData);
+
+    ASSERT_EQ(ManagerTest::readData(srcPath), data);
+    ASSERT_EQ(ManagerTest::readData(destPath), destData);
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
+    ASSERT_TRUE(std::filesystem::exists(srcPath));
+    ASSERT_TRUE(std::filesystem::exists(destPath));
+
+    ctx.spawn(sdbusplus::async::sleep_for(ctx, 1.1s) |
+              sdbusplus::async::execution::then([&srcPath, &destPath, &data]() {
+        EXPECT_EQ(ManagerTest::readData(destPath), data);
+        // remove the file
+        std::filesystem::remove(srcPath);
+        // check if it exists
+        ASSERT_FALSE(std::filesystem::exists(srcPath));
+    }));
+
+    ctx.spawn(
+        sdbusplus::async::sleep_for(ctx, 1.5s) |
+        sdbusplus::async::execution::then([&ctx]() { ctx.request_stop(); }));
+    ctx.run();
+
+    EXPECT_FALSE(std::filesystem::exists(destPath));
+}
