@@ -222,8 +222,9 @@ std::optional<DataOperation>
         // Case 2 : A file got created or modified inside a watching subdir
         return std::make_pair(_dataPathToWatch, DataOps::COPY);
     }
-    else if (eventReceivedFor / std::get<BaseName>(receivedEventInfo) ==
-             _dataPathToWatch)
+    else if (fs::equivalent(eventReceivedFor /
+                                std::get<BaseName>(receivedEventInfo),
+                            _dataPathToWatch))
     {
         // The configured file in the monitored parent directory has been
         // created, hence monitor the configured file and remove the parent
@@ -250,7 +251,7 @@ std::optional<DataOperation>
         lg2::debug("Processing an IN_CREATE for {PATH}", "PATH",
                    absCreatedPath);
         if (absCreatedPath.string().starts_with(_dataPathToWatch.string()) &&
-            (_dataPathToWatch != absCreatedPath))
+            !fs::equivalent(_dataPathToWatch, absCreatedPath))
         {
             // The created dir is a child directory inside the configured data
             // path add watch for the created child subdirectories.
@@ -269,7 +270,7 @@ std::optional<DataOperation>
                     // Created DIR is in the tree of the configured path.
                     // Hence, Add watch for the created DIR and remove its
                     // parent watch until the JSON configured DIR creates.
-                    if (_dataPathToWatch == entry)
+                    if (fs::equivalent(_dataPathToWatch, entry))
                     {
                         // Add configured event masks if created DIR is the
                         // configured path.
@@ -292,7 +293,7 @@ std::optional<DataOperation>
                     if (auto parent =
                             std::ranges::find_if(_watchDescriptors,
                                                  [&entry](const auto& wd) {
-                        return (wd.second == entry.parent_path());
+                        return (fs::equivalent(wd.second, entry.parent_path()));
                     });
                         parent != _watchDescriptors.end())
                     {
