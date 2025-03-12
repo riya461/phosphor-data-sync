@@ -151,7 +151,8 @@ sdbusplus::async::task<bool>
     Manager::syncData(const config::DataSyncConfig& dataSyncCfg)
 {
     using namespace std::string_literals;
-    std::string syncCmd{"rsync --archive --compress --delete"};
+    std::string syncCmd{
+        "rsync --archive --compress --delete --delete-missing-args"};
     syncCmd.append(" "s + dataSyncCfg._path);
 
 #ifdef UNIT_TEST
