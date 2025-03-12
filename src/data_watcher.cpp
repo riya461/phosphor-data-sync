@@ -240,14 +240,14 @@ std::optional<DataOperation>
 std::optional<DataOperation>
     DataWatcher::processCreate(const EventInfo& receivedEventInfo)
 {
-    fs::path absCreatedPath =
-        _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
-        std::get<BaseName>(receivedEventInfo);
-
     // Process IN_CREATE only for DIR and skip for files as
     // all the file events are handled using IN_CLOSE_WRITE
     if ((std::get<EventMask>(receivedEventInfo) & IN_ISDIR) != 0)
     {
+        fs::path absCreatedPath =
+            _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
+            std::get<BaseName>(receivedEventInfo) / "";
+
         lg2::debug("Processing an IN_CREATE for {PATH}", "PATH",
                    absCreatedPath);
         if (absCreatedPath.string().starts_with(_dataPathToWatch.string()) &&
