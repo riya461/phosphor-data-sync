@@ -68,9 +68,9 @@ TEST_F(ManagerTest, FullSyncA2PTest)
            {"SyncType", "Immediate"}}}},
 
         {"Directories",
-         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir"},
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Active to Passive bmc directory"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
@@ -148,8 +148,12 @@ TEST_F(ManagerTest, FullSyncA2PTest)
         EXPECT_EQ(ManagerTest::readData(destFile3), data3);
         EXPECT_EQ(ManagerTest::readData(destFile4), data4);
 
-        EXPECT_EQ(ManagerTest::readData(dirFile), "Data in directory file");
-        EXPECT_EQ(ManagerTest::readData(subDirFile),
+        std::string destdirFile = destDir + "/dirFile";
+        std::string destsubDirFile = (ManagerTest::tmpDataSyncDataDir /
+                                      destDir / "subDir" / "subDirFile")
+                                         .string();
+        EXPECT_EQ(ManagerTest::readData(destdirFile), "Data in directory file");
+        EXPECT_EQ(ManagerTest::readData(destsubDirFile),
                   "Data in source directory file");
 
         ctx.request_stop();
@@ -230,11 +234,11 @@ TEST_F(ManagerTest, FullSyncP2ATest)
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}},
         {"Directories",
-         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir"},
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "Parse test directory"},
-           {"SyncDirection", "Active2Passive"},
+           {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}}}}};
 
     std::string srcDir = jsonData["Directories"][0]["Path"];
@@ -314,8 +318,12 @@ TEST_F(ManagerTest, FullSyncP2ATest)
         EXPECT_EQ(ManagerTest::readData(destFile3), data3);
         EXPECT_NE(ManagerTest::readData(destFile4), data4);
 
-        EXPECT_EQ(ManagerTest::readData(dirFile), "Data in directory file");
-        EXPECT_EQ(ManagerTest::readData(subDirFile),
+        std::string destdirFile = destDir + "/dirFile";
+        std::string destsubDirFile = (ManagerTest::tmpDataSyncDataDir /
+                                      destDir / "subDir" / "subDirFile")
+                                         .string();
+        EXPECT_EQ(ManagerTest::readData(destdirFile), "Data in directory file");
+        EXPECT_EQ(ManagerTest::readData(destsubDirFile),
                   "Data in source directory file");
 
         ctx.request_stop();
@@ -396,9 +404,9 @@ TEST_F(ManagerTest, FullSyncInProgressTest)
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}}}},
         {"Directories",
-         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir"},
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "Parse test directory"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
