@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include "config.h"
+
 #include "manager.hpp"
 
 #include "data_watcher.hpp"
@@ -158,11 +160,17 @@ sdbusplus::async::task<bool>
 #ifdef UNIT_TEST
     syncCmd.append(" "s);
 #else
-    // TODO Support for remote (i,e sibling BMC) copying needs to be added.
+    syncCmd.append(" rsync://localhost:"s);
+    static const auto* siblingBMCRsyncdPort =
+        _extDataIfaces->siblingBmcPos() == 0 ? BMC0_RSYNC_PORT
+                                             : BMC1_RSYNC_PORT;
+    syncCmd.append(siblingBMCRsyncdPort);
 #endif
 
     // Add destination data path
     syncCmd.append(dataSyncCfg._destPath.value_or(dataSyncCfg._path));
+
+    lg2::debug("Rsync command: {CMD}", "CMD", syncCmd);
     int result = std::system(syncCmd.c_str()); // NOLINT
     if (result != 0)
     {

@@ -21,8 +21,8 @@ conf_files = [
 conf_files_data = configuration_data()
 
 conf_files_data.set('LOCAL_HOST_IP', '127.0.0.1')
-conf_files_data.set('BMC0_RSYNC_PORT', 1703)
-conf_files_data.set('BMC1_RSYNC_PORT', 1704)
+conf_files_data.set('BMC0_RSYNC_PORT', bmc0_rsync_port.to_int())
+conf_files_data.set('BMC1_RSYNC_PORT', bmc1_rsync_port.to_int())
 conf_files_data.set('BMC0_STUNNEL_PORT', 3071)
 conf_files_data.set('BMC1_STUNNEL_PORT', 4071)
 
