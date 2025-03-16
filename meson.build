@@ -67,4 +67,5 @@ if get_option('tests').enabled()
     subdir('test')
 else
     subdir('config')
+    subdir('service_files')
 endif
