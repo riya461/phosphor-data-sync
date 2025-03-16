@@ -16,7 +16,7 @@ etc_dir = get_option('sysconfdir') + '/phosphor-data-sync/'
 conf_files = ['rsync/rsyncd.conf.in', 'stunnel/stunnel.conf.in']
 
 conf_files_data = configuration_data()
-conf_files_data.set('RSYNCD_MODULE_NAME', 'bmc_fs')
+conf_files_data.set('RSYNCD_MODULE_NAME', rsyncd_module_name)
 
 processed_templates_files = []
 foreach conf_file : conf_files

@@ -189,9 +189,11 @@ class Manager
      *                      Will be empty if not available.
      * @param[out] cmd - string where the framed RSYNC command holds.
      */
-    static void getRsyncCmd(RsyncMode mode,
-                            const config::DataSyncConfig& dataSyncCfg,
-                            const std::string& srcPath, std::string& cmd);
+    // Disabled because this function conditionally accesses class members when
+    // unit tests are not enabled.
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void getRsyncCmd(RsyncMode mode, const config::DataSyncConfig& dataSyncCfg,
+                     const std::string& srcPath, std::string& cmd);
 
     /**
      * @brief A helper rsync wrapper API that syncs data to sibling

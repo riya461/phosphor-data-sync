@@ -15,6 +15,9 @@ project(
 )
 
 data_sync_config_dir = get_option('datadir') + '/phosphor-data-sync/config/data_sync_list/'
+rsyncd_module_name = 'bmc_fs'
+bmc0_rsync_port = ''
+bmc1_rsync_port = ''
 
 # Directory used to store files containing sibling notification requests.
 if get_option('tests').enabled()
@@ -23,6 +26,51 @@ if get_option('tests').enabled()
 else
     notify_sibling = get_option('localstatedir') + '/lib/phosphor-data-sync/notify-sibling/'
     notify_services = get_option('localstatedir') + '/lib/phosphor-data-sync/notify-services/'
+endif
+
+foreach name : get_option('data_sync_list')
+
+    #check whether the json file given in the list exist and if so, install the same
+    json_file = files('config/data_sync_list/' + name + '.json')
+
+    install_data(json_file, install_dir: data_sync_config_dir)
+
+    # Read configuration fields from each sync socket configuration file
+    # in the order specified by the "data_sync_list" option.
+    # Example:
+    #   Option: -Ddata_sync_list=common,<vendor>
+    #   Sync socket config files:
+    #     config/sync_socket/common_sync_socket.cfg
+    #     config/sync_socket/<vendor>_sync_socket.cfg
+    # Note: The vendor name always appears last in the "data_sync_list" option
+    #       (as defined by the OpenBMC meta layer) to allow vendor-specific
+    #       parameters to override common configuration values.
+    ss_cfg_file = join_paths(
+        meson.project_source_root(),
+        'config/sync_socket/' + name + '_sync_socket.cfg',
+    )
+    bmc0_rsync_port_t = run_command(
+        'bash',
+        '-c',
+        'if [ -f "' + ss_cfg_file + '" ]; then grep "^BMC0_RSYNC_PORT=" "' + ss_cfg_file + '" | cut -d"=" -f2; fi',
+    ).stdout().strip()
+    if bmc0_rsync_port_t != ''
+        bmc0_rsync_port = bmc0_rsync_port_t
+    endif
+    bmc1_rsync_port_t = run_command(
+        'bash',
+        '-c',
+        'if [ -f "' + ss_cfg_file + '" ]; then grep "^BMC1_RSYNC_PORT=" "' + ss_cfg_file + '" | cut -d"=" -f2; fi',
+    ).stdout().strip()
+    if bmc1_rsync_port_t != ''
+        bmc1_rsync_port = bmc1_rsync_port_t
+    endif
+endforeach
+# Ensure ports are set
+if bmc0_rsync_port == '' or bmc1_rsync_port == ''
+    error(
+        'BMC0_RSYNC_PORT or BMC1_RSYNC_PORT not defined in any sync socket file',
+    )
 endif
 
 # auto generate a config file with required build time configurations
@@ -54,6 +102,21 @@ conf_data.set(
     'DEFAULT_RETRY_INTERVAL',
     get_option('retry_interval'),
     description: 'Default retry interval for all data to be synced',
+)
+conf_data.set_quoted(
+    'RSYNCD_MODULE_NAME',
+    rsyncd_module_name,
+    description: 'Rsync daemon configured module name',
+)
+conf_data.set_quoted(
+    'BMC0_RSYNC_PORT',
+    bmc0_rsync_port,
+    description: 'BMC0 rsyncd port',
+)
+conf_data.set_quoted(
+    'BMC1_RSYNC_PORT',
+    bmc1_rsync_port,
+    description: 'BMC1 rsyncd port',
 )
 
 conf_h_dep = declare_dependency(

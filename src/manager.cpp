@@ -40,7 +40,7 @@ sdbusplus::async::task<> Manager::init()
     if (_syncBMCDataIface.disable_sync())
     {
         lg2::info(
-            "Sync is Disabled, data sync cannot be performed to the sibling BMC.");
+            "Sync is disabled, data sync cannot be performed to the sibling BMC.");
         co_return;
     }
 
@@ -170,6 +170,9 @@ sdbusplus::async::task<> Manager::startSyncEvents()
     co_return;
 }
 
+// Disabled because this function conditionally accesses class members when
+// unit tests are not enabled.
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 void Manager::getRsyncCmd(RsyncMode mode,
                           const config::DataSyncConfig& dataSyncCfg,
                           const std::string& srcPath, std::string& cmd)
@@ -237,20 +240,22 @@ void Manager::getRsyncCmd(RsyncMode mode,
 #ifdef UNIT_TEST
     cmd.append(" "s);
 #else
-    // TODO Support for remote (i,e sibling BMC) copying needs to be added.
+    static const std::string rsyncdURL(
+        std::format(" rsync://localhost:{}/{}",
+                    (_extDataIfaces->bmcPosition() == 0 ? BMC1_RSYNC_PORT
+                                                        : BMC0_RSYNC_PORT),
+                    RSYNCD_MODULE_NAME));
+    cmd.append(rsyncdURL);
 #endif
 
     if (mode == RsyncMode::Sync)
     {
         // Add destination data path if configured
-        // TODO: Change the default destPath to empty once remote sync is
-        // enabled.
-        cmd.append(" "s +
-                   dataSyncCfg._destPath.value_or(fs::path("/")).string());
+        cmd.append(dataSyncCfg._destPath.value_or(fs::path("")).string());
     }
     else if (mode == RsyncMode::Notify)
     {
-        cmd.append(" "s + NOTIFY_SERVICES_DIR);
+        cmd.append(NOTIFY_SERVICES_DIR);
     }
 }
 
@@ -432,8 +437,11 @@ sdbusplus::async::task<bool>
         case 14: // Error in IPC code
         case 22: // Error allocating core memory buffers
         {
-            lg2::error("Rsync failed with exit code [{CODE}] for [{SRC}]",
-                       "CODE", result.first, "SRC", currentSrcPath);
+            lg2::error(
+                "Error syncing [{PATH}], ErrCode: {ERRCODE}, Error: {ERROR}"
+                "RsyncCLI: [RSYNC_CMD]",
+                "PATH", currentSrcPath, "ERRCODE", result.first, "ERROR",
+                result.second, "RSYNC_CMD", syncCmd);
             co_return false;
         }
 
