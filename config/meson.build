@@ -27,3 +27,6 @@ foreach conf_file : rsync_conf_files
         install_dir: etc_dir + conf_file.split('/')[0],
     )
 endforeach
+
+# Install certificate and key files
+install_subdir('certs', install_dir: etc_dir, install_mode: 'rw-------')
