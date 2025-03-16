@@ -34,10 +34,6 @@ TEST_F(ManagerTest, testDataChangeInFile)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile"},
@@ -108,10 +104,6 @@ TEST_F(ManagerTest, testDataDeleteInDir)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcPos())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -193,10 +185,6 @@ TEST_F(ManagerTest, testDataDeletePathFile)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcPos())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -282,10 +270,6 @@ TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcPos())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -376,10 +360,6 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcPos())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 

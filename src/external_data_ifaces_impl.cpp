@@ -68,16 +68,4 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchSiblingBmcPos()
     co_return;
 }
 
-// NOLINTNEXTLINE
-sdbusplus::async::task<> ExternalDataIFacesImpl::fetchRbmcCredentials()
-{
-    // TODO: Currently, the username and password for BMCs are hardcoded.
-    // Once user management DBus exposes the username and the encrypted password
-    // available, update the logic to retrieve them dynamically.
-
-    // here, username hardcode as service and password as 0penBmc0
-    rbmcCredentials(std::make_pair("service", "0penBmc0"));
-    co_return;
-}
-
 } // namespace data_sync::ext_data

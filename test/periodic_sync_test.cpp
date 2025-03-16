@@ -23,10 +23,6 @@ TEST_F(ManagerTest, PeriodicDataSyncTest)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
@@ -94,10 +90,6 @@ TEST_F(ManagerTest, PeriodicDataSyncDelayFileTest)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
@@ -162,10 +154,6 @@ TEST_F(ManagerTest, PeriodicDataSyncMultiRWTest)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcPos())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -240,10 +228,6 @@ TEST_F(ManagerTest, PeriodicDataSyncP2ATest)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
@@ -300,10 +284,6 @@ TEST_F(ManagerTest, PeriodicDisablePropertyTest)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcPos())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -372,10 +352,6 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteInDir)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcPos())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -453,10 +429,6 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteFile)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcPos())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
