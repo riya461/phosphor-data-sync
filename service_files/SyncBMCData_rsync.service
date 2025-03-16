@@ -1,0 +1,18 @@
+[Unit]
+Description=Rsync daemon for Redundant BMC Data Synchronization
+Requires=SyncBMCData_stunnel.service
+After=SyncBMCData_stunnel.service
+
+[Service]
+ExecStart=/usr/bin/sh -c '\
+if [ -f /run/openbmc/bmc_position ]; then \
+    exec /usr/bin/rsync --no-detach --daemon --config=/etc/phosphor-data-sync/rsync/bmc$(cat /run/openbmc/bmc_position)_rsyncd.conf; \
+else \
+    echo "Failed to get the BMC position, /run/openbmc/bmc_position not found" >&2; \
+    exit 1; \
+fi'
+Restart=always
+
+[Install]
+WantedBy=obmc-bmc-active.target
+WantedBy=obmc-bmc-passive.target

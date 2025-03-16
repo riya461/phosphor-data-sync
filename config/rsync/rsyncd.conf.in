@@ -1,0 +1,12 @@
+read only = yes
+address = 127.0.0.1
+port = <BMC_RSYNC_PORT>
+log file = /dev/null
+
+[@RSYNCD_MODULE_NAME@]
+    path = /
+    use chroot = no
+    read only = false
+    uid = root
+    gid = root
+    filter = merge /etc/phosphor-data-sync/rsync/rsyncd_bmc_fs.filter
