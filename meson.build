@@ -52,6 +52,7 @@ conf_h_dep = declare_dependency(
 )
 
 subdir('src')
+subdir('service_files')
 subdir('config')
 
 if not get_option('tests').disabled()
