@@ -2,6 +2,7 @@
 
 service_files = [
     'xyz.openbmc_project.Control.SyncBMCData.service',
+    'SyncBMCData_stunnel.service',
     'SyncBMCData_rsync.service',
 ]
 

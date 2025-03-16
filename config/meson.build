@@ -11,19 +11,26 @@ endforeach
 
 etc_dir = get_option('sysconfdir') + '/phosphor-data-sync/'
 
-rsync_conf_files = ['rsync/bmc0_rsyncd.conf', 'rsync/bmc1_rsyncd.conf']
+conf_files = [
+    'rsync/bmc0_rsyncd.conf',
+    'rsync/bmc1_rsyncd.conf',
+    'stunnel/bmc0_stunnel.conf',
+    'stunnel/bmc1_stunnel.conf',
+]
 
-rsync_conf_data = configuration_data()
+conf_files_data = configuration_data()
 
-rsync_conf_data.set('LOCAL_HOST_IP', '127.0.0.1')
-rsync_conf_data.set('BMC0_RSYNC_PORT', 1703)
-rsync_conf_data.set('BMC1_RSYNC_PORT', 1704)
+conf_files_data.set('LOCAL_HOST_IP', '127.0.0.1')
+conf_files_data.set('BMC0_RSYNC_PORT', 1703)
+conf_files_data.set('BMC1_RSYNC_PORT', 1704)
+conf_files_data.set('BMC0_STUNNEL_PORT', 3071)
+conf_files_data.set('BMC1_STUNNEL_PORT', 4071)
 
-foreach conf_file : rsync_conf_files
+foreach conf_file : conf_files
     configure_file(
         input: conf_file + '.in',
         output: '@BASENAME@',
-        configuration: rsync_conf_data,
+        configuration: conf_files_data,
         install_dir: etc_dir + conf_file.split('/')[0],
     )
 endforeach

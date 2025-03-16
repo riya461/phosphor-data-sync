@@ -1,0 +1,14 @@
+[Unit]
+Description=Stunnel for Redundant BMC Data Synchronization
+Wants=xyz.openbmc_project.Control.SyncBMCData.service
+Before=xyz.openbmc_project.Control.SyncBMCData.service
+Wants=SyncBMCData_rsync.service
+After=SyncBMCData_rsync.service
+
+[Service]
+ExecStart=/usr/bin/sh -c "/usr/bin/stunnel /etc/phosphor-data-sync/stunnel/bmc$(fw_printenv -n bmc_position)_stunnel.conf"
+Restart=always
+
+[Install]
+WantedBy=obmc-bmc-active.target
+WantedBy=obmc-bmc-passive.target
