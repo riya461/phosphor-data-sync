@@ -18,19 +18,21 @@ SYNC_SOCKET_DIR="$3"
 shift 3 # Sync socket configuration files base name and $@ will be used in below
 
 RSYNC_TEMPLATE="$IN_CFG_DIR/rsyncd.conf.in"
+STUNNEL_TEMPLATE="$IN_CFG_DIR/stunnel.conf.in"
 
 CERT_DIR="/etc/phosphor-data-sync/certs"
 RSYNC_OUT_DIR="$OUT_CFG_DIR/rsync"
+STUNNEL_OUT_DIR="$OUT_CFG_DIR/stunnel"
 
 # Check template files exist
-for f in "$RSYNC_TEMPLATE"; do
+for f in "$RSYNC_TEMPLATE" "$STUNNEL_TEMPLATE"; do
     if [ ! -f "$f" ]; then
         echo "Missing required file: $f" >&2
         exit 1
     fi
 done
 
-mkdir -p "$RSYNC_OUT_DIR"
+mkdir -p "$RSYNC_OUT_DIR" "$STUNNEL_OUT_DIR"
 
 # Read configuration fields from each sync socket configuration file
 # in the order specified by the "data_sync_list" option.
@@ -61,7 +63,7 @@ for base in "$@"; do
 done
 
 # Required variables
-required_vars="BMC0_RSYNC_PORT BMC1_RSYNC_PORT"
+required_vars="BMC0_RSYNC_PORT BMC1_RSYNC_PORT BMC0_STUNNEL_PORT BMC1_STUNNEL_PORT BMC0_IP BMC1_IP"
 
 # Validate required variables
 missing_vars=""
@@ -101,15 +103,29 @@ generate_conf() {
     fi
 
     lbmc=$(tolower "$bmc")
-    lsib=$(tolower "$sib")
 
     eval RSYNC_PORT=\$${bmc}_RSYNC_PORT
+    eval STUNNEL_PORT=\$${bmc}_STUNNEL_PORT
+    eval SIB_RSYNC_PORT=\$${sib}_RSYNC_PORT
+    eval SIB_STUNNEL_PORT=\$${sib}_STUNNEL_PORT
+    eval SIB_IP=\$${sib}_IP
 
     RSYNC_OUT="$RSYNC_OUT_DIR/${lbmc}_rsyncd.conf"
+    STUNNEL_OUT="$STUNNEL_OUT_DIR/${lbmc}_stunnel.conf"
 
     sed "s|<BMC_RSYNC_PORT>|$RSYNC_PORT|g" "$RSYNC_TEMPLATE" > "$RSYNC_OUT"
+
+    sed -e "s|<LOCAL_BMC_STUNNEL_PORT>|$STUNNEL_PORT|g" \
+        -e "s|<LOCAL_BMC_RSYNC_PORT>|$RSYNC_PORT|g" \
+        -e "s|<SIBLING_BMC_RSYNC_PORT>|$SIB_RSYNC_PORT|g" \
+        -e "s|<SIBLING_BMC_IP>|$SIB_IP|g" \
+        -e "s|<SIBLING_BMC_STUNNEL_PORT>|$SIB_STUNNEL_PORT|g" \
+        -e "s|<LOCAL_BMC_CERT>|${CERT_DIR}/${lbmc}.crt|g" \
+        -e "s|<LOCAL_BMC_KEY>|${CERT_DIR}/${lbmc}.key|g" \
+        -e "s|<CA_CERT>|${CERT_DIR}/ca.crt|g" \
+        "$STUNNEL_TEMPLATE" > "$STUNNEL_OUT"
 }
 
-# Generate rsync configuration files for both BMCs
+# Generate rsync and stunnel configuration files for both BMCs
 generate_conf "BMC0"
 generate_conf "BMC1"

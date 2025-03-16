@@ -11,9 +11,9 @@ endforeach
 
 etc_dir = get_option('sysconfdir') + '/phosphor-data-sync/'
 
-# Process rsync configuration templates to substitute fields
+# Process rsync and stunnel configuration templates to substitute fields
 # defined by Meson
-conf_files = ['rsync/rsyncd.conf.in']
+conf_files = ['rsync/rsyncd.conf.in', 'stunnel/stunnel.conf.in']
 
 conf_files_data = configuration_data()
 conf_files_data.set('RSYNCD_MODULE_NAME', 'bmc_fs')
@@ -30,14 +30,14 @@ foreach conf_file : conf_files
 endforeach
 
 # Use processed configuration templates and sync socket configurations to
-# generate rsync files for each BMC in redundant systems
+# generate rsync and stunnel files for each BMC in redundant systems
 gen_cfg_files_path = join_paths(meson.current_build_dir(), 'gen_cfg_files')
 custom_target(
-    'generate_rsync_cfg',
+    'generate_rsync_stunnel_cfg',
     input: processed_templates_files,  # wait for processing template file
     output: ['dummy.txt'],
     command: [
-        files(meson.project_source_root() / 'scripts/gen_rsync_cfg.sh'),
+        files(meson.project_source_root() / 'scripts/gen_rsync_stunnel_cfg.sh'),
         meson.current_build_dir(),
         gen_cfg_files_path,
         join_paths(meson.current_source_dir(), 'sync_socket'),
@@ -46,7 +46,7 @@ custom_target(
     build_by_default: true,
 )
 
-# Install generated rsync configuration files
+# Install generated rsync and stunnel configuration files
 install_subdir(gen_cfg_files_path, install_dir: etc_dir, strip_directory: true)
 install_data(
     'rsync/rsyncd_bmc_fs.filter',

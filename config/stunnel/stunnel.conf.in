@@ -1,0 +1,22 @@
+foreground = quiet
+socket = l:TCP_NODELAY=1
+socket = r:TCP_NODELAY=1
+debug = 3
+
+[local_bmc]
+client = no
+accept = <LOCAL_BMC_STUNNEL_PORT>
+connect = 127.0.0.1:<LOCAL_BMC_RSYNC_PORT>
+cert = <LOCAL_BMC_CERT>
+key  = <LOCAL_BMC_KEY>
+CAfile = <CA_CERT>
+verify = 2
+
+[sibling_bmc]
+client = yes
+accept = 127.0.0.1:<SIBLING_BMC_RSYNC_PORT>
+connect = <SIBLING_BMC_IP>:<SIBLING_BMC_STUNNEL_PORT>
+cert = <LOCAL_BMC_CERT>
+key  = <LOCAL_BMC_KEY>
+CAfile = <CA_CERT>
+verify = 2

@@ -1,0 +1,17 @@
+[Unit]
+Description=Stunnel for Redundant BMC Data Synchronization
+PartOf=SyncBMCData_rsync.service
+
+[Service]
+ExecStart=/usr/bin/sh -c '\
+if [ -f /run/openbmc/bmc_position ]; then \
+    exec /usr/bin/stunnel /etc/phosphor-data-sync/stunnel/bmc$(cat /run/openbmc/bmc_position)_stunnel.conf; \
+else \
+    echo "Failed to get the BMC position, /run/openbmc/bmc_position not found" >&2; \
+    exit 1; \
+fi'
+Restart=always
+
+[Install]
+WantedBy=obmc-bmc-active.target
+WantedBy=obmc-bmc-passive.target
