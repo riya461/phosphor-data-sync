@@ -11,7 +11,7 @@ namespace data_sync::ext_data
 using RBMC = sdbusplus::common::xyz::openbmc_project::state::bmc::Redundancy;
 using BMCRole = RBMC::Role;
 using BMCRedundancy = bool;
-using SiblingBmcIP = std::string;
+using BMCPosition = size_t;
 using RbmcUserName = std::string;
 using RbmcPassword = std::string;
 using RbmcCredentials = std::pair<RbmcUserName, RbmcPassword>;
@@ -58,11 +58,11 @@ class ExternalDataIFaces
     BMCRedundancy bmcRedundancy() const;
 
     /**
-     * @brief Used to obtain the Sibling BMC IP.
+     * @brief Used to obtain the BMC Position.
      *
-     * @return The Sibling BMC IP
+     * @return The BMC Position
      */
-    const SiblingBmcIP& siblingBmcIP() const;
+    const BMCPosition& bmcPosition() const;
 
     /**
      * @brief Used to obtain the BMC username and password
@@ -78,9 +78,9 @@ class ExternalDataIFaces
     virtual sdbusplus::async::task<> fetchBMCRedundancyMgrProps() = 0;
 
     /**
-     * @brief Used to retrieve the Sibling BMC IP.
+     * @brief Used to retrieve the BMC Position.
      */
-    virtual sdbusplus::async::task<> fetchSiblingBmcIP() = 0;
+    virtual sdbusplus::async::task<> fetchBMCPosition() = 0;
 
     /**
      * @brief Used to retrieve the BMC Username and Password.
@@ -106,13 +106,13 @@ class ExternalDataIFaces
     void bmcRedundancy(const BMCRedundancy& bmcRedundancy);
 
     /**
-     * @brief A utility API to assign the retrieved Sibling BMC IP.
+     * @brief A utility API to assign the retrieved BMC Position.
      *
-     * @param[in] siblingBmcIP - The retrieved Sibling BMC IP.
+     * @param[in] bmcPosition - The retrieved BMC Position.
      *
      * @return None.
      */
-    void siblingBmcIP(const SiblingBmcIP& siblingBmcIP);
+    void bmcPosition(const BMCPosition& bmcPosition);
 
     /**
      * @brief A utility API to assign the retrieved BMC Username and Password.
@@ -136,9 +136,9 @@ class ExternalDataIFaces
     BMCRedundancy _bmcRedundancy{false};
 
     /**
-     * @brief hold the Sibling BMC IP
+     * @brief hold the BMC Position
      */
-    SiblingBmcIP _siblingBmcIP;
+    BMCPosition _bmcPosition;
 
     /**
      * @brief This is Pair, hold the BMCs Username and Password

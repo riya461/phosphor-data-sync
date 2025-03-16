@@ -22,7 +22,7 @@ TEST_F(ManagerTest, PeriodicDataSyncTest)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -93,7 +93,7 @@ TEST_F(ManagerTest, PeriodicDataSyncDelayFileTest)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -164,7 +164,7 @@ TEST_F(ManagerTest, PeriodicDataSyncMultiRWTest)
         co_return;
     });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -239,7 +239,7 @@ TEST_F(ManagerTest, PeriodicDataSyncP2ATest)
         co_return;
     });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -302,7 +302,7 @@ TEST_F(ManagerTest, PeriodicDisablePropertyTest)
         co_return;
     });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -374,7 +374,7 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteInDir)
         co_return;
     });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -455,7 +455,7 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteFile)
         co_return;
     });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -529,7 +529,7 @@ TEST_F(ManagerTest, PeriodicDataSyncTestWithExcludeList)
     ed::MockExternalDataIFaces* mockExtDataIfaces =
         dynamic_cast<ed::MockExternalDataIFaces*>(extDataIface.get());
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 

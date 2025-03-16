@@ -72,14 +72,17 @@ class Manager
     sdbusplus::async::task<> startFullSync();
 
     /**
-     * @brief Helper API that retrieves the sibling BMC IP and returns its
-     *        availability as a boolean.
+     * @brief Helper API that retrieves the sibling BMC availability
      *
-     * @return True if sibling BMC IP is empty; otherwise False.
+     * @return True if sibling BMC is not available; otherwise False.
      */
-    bool isSiblingBmcNotAvailable()
+    static bool isSiblingBmcNotAvailable()
     {
-        return _extDataIfaces->siblingBmcIP().empty();
+        // TODO: It should be decided based on
+        //       the xyz.openbmc_project.Network.Neighbor DBus interface,
+        //       managed by the network daemon.
+        //       For now, return as false to treat the sibling BMC is available.
+        return false;
     }
 
     /**

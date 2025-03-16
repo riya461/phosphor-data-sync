@@ -34,14 +34,27 @@ class ExternalDataIFacesImpl : public ExternalDataIFaces
 
   private:
     /**
+     * @brief Utility API to get the DBus service name of the given
+     *        object path and interface.
+     *
+     * @param[in] objPath - The object path
+     * @param[in] interface - The DBus interface name
+     *
+     * @return The service name
+     */
+    sdbusplus::async::task<std::string>
+        getDBusService(const std::string& objPath,
+                       const std::string& interface);
+
+    /**
      * @brief  Used to retrieve the BMC role from DBus.
      */
     sdbusplus::async::task<> fetchBMCRedundancyMgrProps() override;
 
     /**
-     * @brief Used to retrieve the Sibling BMC IP from Dbus.
+     * @brief Used to retrieve the BMC Position from Dbus.
      */
-    sdbusplus::async::task<> fetchSiblingBmcIP() override;
+    sdbusplus::async::task<> fetchBMCPosition() override;
 
     /**
      * @brief Used to retrieve the BMC Username and Password.
