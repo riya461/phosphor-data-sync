@@ -16,7 +16,6 @@ project(
 
 data_sync_config_dir = get_option('datadir') + '/phosphor-data-sync/config/data_sync_list/'
 
-
 foreach json_file_name : get_option('data_sync_list')
 
     #check whether the json file given in the list exist and if so, install the same
@@ -53,6 +52,7 @@ conf_h_dep = declare_dependency(
 )
 
 subdir('src')
+subdir('config')
 
 if not get_option('tests').disabled()
     subdir('test')
