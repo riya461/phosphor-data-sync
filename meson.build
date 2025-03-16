@@ -25,15 +25,6 @@ else
     notify_services = get_option('localstatedir') + '/lib/phosphor-data-sync/notify-services/'
 endif
 
-foreach json_file_name : get_option('data_sync_list')
-
-    #check whether the json file given in the list exist and if so, install the same
-    json_file = files('config/data_sync_list/' + json_file_name + '.json')
-
-    install_data(json_file, install_dir: data_sync_config_dir)
-
-endforeach
-
 # auto generate a config file with required build time configurations
 conf_data = configuration_data()
 
@@ -72,6 +63,8 @@ conf_h_dep = declare_dependency(
 
 subdir('src')
 
-if not get_option('tests').disabled()
+if get_option('tests').enabled()
     subdir('test')
+else
+    subdir('config')
 endif
