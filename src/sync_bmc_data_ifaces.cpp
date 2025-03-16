@@ -32,7 +32,7 @@ sdbusplus::async::task<>
             SyncDisabled();
     }
 
-    if (_manager.isSiblingBmcNotAvailable())
+    if (data_sync::Manager::isSiblingBmcNotAvailable())
     {
         lg2::error(
             "Sibling BMC is not available, Unable to retrieve the BMC IP ");

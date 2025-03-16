@@ -43,12 +43,8 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchBMCRedundancyMgrProps()
 }
 
 // NOLINTNEXTLINE
-sdbusplus::async::task<> ExternalDataIFacesImpl::fetchSiblingBmcIP()
+sdbusplus::async::task<> ExternalDataIFacesImpl::fetchSiblingBmcPos()
 {
-    // TODO: Currently, the IP addresses for both BMCs are hardcoded.
-    // Once the network DBus exposes the IPs, update the logic to retrieve
-    // them dynamically from Dbus.
-
     // TODO: Handle the exception and exit gracefully, as the data sync relies
     //      heavily on these DBus properties and cannot function effectively
     //      without them.
@@ -67,18 +63,7 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchSiblingBmcIP()
                              .service(SiblingBMC::interface)
                              .path(siblingBMCInstancePath);
 
-    auto siblingBMCPosition = co_await siblingBMCMgr.bmc_position();
-
-    if (siblingBMCPosition == 0)
-    {
-        // Using the simics bmc0 eth0 IP address
-        siblingBmcIP("10.0.2.100");
-    }
-    else
-    {
-        // Using the simics bmc1 eth0 IP address
-        siblingBmcIP("10.2.2.100");
-    }
+    siblingBmcPos(co_await siblingBMCMgr.bmc_position());
 
     co_return;
 }
