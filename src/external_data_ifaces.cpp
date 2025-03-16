@@ -10,8 +10,7 @@ sdbusplus::async::task<> ExternalDataIFaces::startExtDataFetches()
 {
     // NOLINTNEXTLINE
     co_return co_await sdbusplus::async::execution::when_all(
-        fetchBMCRedundancyMgrProps(), fetchBMCPosition(),
-        fetchRbmcCredentials());
+        fetchBMCRedundancyMgrProps(), fetchBMCPosition());
 }
 
 BMCRole ExternalDataIFaces::bmcRole() const
@@ -44,13 +43,4 @@ void ExternalDataIFaces::bmcPosition(const BMCPosition& bmcPosition)
     _bmcPosition = bmcPosition;
 }
 
-void ExternalDataIFaces::rbmcCredentials(const RbmcCredentials& rbmcCredentials)
-{
-    _rbmcCredentials = rbmcCredentials;
-}
-
-const RbmcCredentials& ExternalDataIFaces::rbmcCredentials() const
-{
-    return _rbmcCredentials;
-}
 } // namespace data_sync::ext_data

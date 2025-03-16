@@ -35,10 +35,6 @@ TEST_F(ManagerTest, testDataChangeInFile)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile"},
@@ -117,10 +113,6 @@ TEST_F(ManagerTest, testDataDeleteInDir)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -207,10 +199,6 @@ TEST_F(ManagerTest, testDataDeletePathFile)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -306,10 +294,6 @@ TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
@@ -402,10 +386,6 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
     nlohmann::json jsonData = {
         {"Directories",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
@@ -476,10 +456,6 @@ TEST_F(ManagerTest, testFileMoveToAnotherDir)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
@@ -592,10 +568,6 @@ TEST_F(ManagerTest, testExcludeFile)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 

@@ -60,10 +60,6 @@ TEST_F(ManagerTest, ParseDataSyncCfg)
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
     sdbusplus::async::context ctx;
 
     data_sync::Manager manager{ctx, std::move(extDataIface),
@@ -101,10 +97,6 @@ TEST_F(ManagerTest, testDBusDataPersistency)
     });
 
     EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
-        // NOLINTNEXTLINE
-        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
-
-    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
         // NOLINTNEXTLINE
         .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
 
