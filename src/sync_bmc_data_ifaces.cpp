@@ -62,6 +62,11 @@ bool SyncBMCDataIface::set_property([[maybe_unused]] disable_sync_t type,
     }
     disable_sync_ = disable;
     _manager.disableSyncPropChanged(disable);
+    if (sync_events_health_ != SyncEventsHealth::Critical)
+    {
+        _manager.setSyncEventsHealth(disable ? SyncEventsHealth::Paused
+                                             : SyncEventsHealth::Ok);
+    }
     return true;
 }
 

@@ -166,8 +166,11 @@ sdbusplus::async::task<bool>
     int result = std::system(syncCmd.c_str()); // NOLINT
     if (result != 0)
     {
-        // TODO:
-        // Retry and create error log and disable redundancy if retry is failed.
+        // TODOs:
+        // 1. Retry based on rsync error code
+        // 2. Create error log and Disable redundancy if retry fails
+        // 3. Perform a callout
+        setSyncEventsHealth(SyncEventsHealth::Critical);
         lg2::error("Error syncing: {PATH}", "PATH", dataSyncCfg._path);
 
         co_return false;
@@ -300,6 +303,7 @@ sdbusplus::async::task<void> Manager::startFullSync()
                             [](const auto& result) { return result; }))
     {
         _syncBMCDataIface.full_sync_status(FullSyncStatus::FullSyncCompleted);
+        setSyncEventsHealth(SyncEventsHealth::Ok);
         lg2::info("Full Sync completed successfully");
     }
     else

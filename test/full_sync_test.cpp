@@ -7,10 +7,14 @@ std::filesystem::path ManagerTest::tmpDataSyncDataDir;
 
 using FullSyncStatus = sdbusplus::common::xyz::openbmc_project::control::
     SyncBMCData::FullSyncStatus;
+using SyncEventsHealth = sdbusplus::common::xyz::openbmc_project::control::
+    SyncBMCData::SyncEventsHealth;
 
 /*
  * Test the Full sync is triggered from the Active BMC to the Passive BMC,
- * ensuring that the Full Sync status is successfully completed
+ * ensuring that the Full Sync status is successfully completed.
+ * Will be also testing that the DBus SyncEventsHealth property changes
+ * from 'Critical' to 'Ok' when Full Sync completes successfully.
  */
 
 TEST_F(ManagerTest, FullSyncA2PTest)
@@ -127,6 +131,9 @@ TEST_F(ManagerTest, FullSyncA2PTest)
     data_sync::Manager manager{ctx, std::move(extDataIface),
                                ManagerTest::dataSyncCfgDir};
 
+    // Setting the SyncEventsHealth to Critical to test status change after full
+    // sync completes.
+    manager.setSyncEventsHealth(SyncEventsHealth::Critical);
     auto waitingForFullSyncToFinish =
         // NOLINTNEXTLINE
         [&](sdbusplus::async::context& ctx) -> sdbusplus::async::task<void> {
@@ -173,6 +180,8 @@ TEST_F(ManagerTest, FullSyncA2PTest)
     ctx.spawn(waitingForFullSyncToFinish(ctx));
 
     ctx.run();
+    EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Ok)
+        << "SyncEventsHealth should be Ok after full sync completes successfully.";
 }
 
 /*
@@ -497,6 +506,8 @@ TEST_F(ManagerTest, FullSyncInProgressTest)
 /*
  * Test the Full sync is triggered from the Passive BMC to the Active BMC,
  * ensuring that the Full Sync status is Failed due to some ongoing issue.
+ * Will be also testing that the DBus SyncEventsHealth property changes
+ * to 'Critical' when Full Sync Fails.
  */
 
 TEST_F(ManagerTest, FullSyncFailed)
@@ -610,6 +621,8 @@ TEST_F(ManagerTest, FullSyncFailed)
 
         EXPECT_EQ(status, FullSyncStatus::FullSyncFailed)
             << "FullSync status is not Failed!!";
+        EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Critical)
+            << "SyncEventsHealth should be Critical.";
 
         EXPECT_EQ(ManagerTest::readData(destFile1), data1);
         EXPECT_EQ(ManagerTest::readData(destFile2), data2);

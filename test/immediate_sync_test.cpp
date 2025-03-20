@@ -254,9 +254,18 @@ TEST_F(ManagerTest, testDataDeletePathFile)
 
     ctx.run();
 }
+
+/*
+ * Test if the sync is triggered when Disable Sync DBus property is changed
+ * from True to False, i.e. sync is changed from disabled to enabled.
+ * Will be also testing that the DBus SyncEventsHealth property changes from
+ * 'Paused' to 'Ok' when Disable Sync property changes from True to False.
+ */
 TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
 {
     using namespace std::literals;
+    using SyncEventsHealth = sdbusplus::common::xyz::openbmc_project::control::
+        SyncBMCData::SyncEventsHealth;
     namespace extData = data_sync::ext_data;
 
     std::unique_ptr<extData::ExternalDataIFaces> extDataIface =
@@ -313,6 +322,8 @@ TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
 
     std::string dataToWrite{"Data is modified"};
     std::string dataToStopEvent{"Close spawned inotify event."};
+    EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Paused)
+        << "SyncEventsHealth should be Paused, as sync is disabled.";
 
     // write data to src path to create inotify event so that the spawned
     // process is closed.
@@ -330,7 +341,7 @@ TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
         manager.setDisableSyncStatus(false); // Trigger the sync events
     }));
 
-    // Write data after 2s so that the background sync events will be ready
+    // Write data after 1s so that the background sync events will be ready
     // to catch.
     ctx.spawn(
         sdbusplus::async::sleep_for(ctx, 1s) |
@@ -339,6 +350,8 @@ TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
         ctx.request_stop();
     }));
     ctx.run();
+    EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Ok)
+        << "SyncEventsHealth should be Ok, as sync was enabled.";
     EXPECT_EQ(ManagerTest::readData(destPath), dataToWrite)
         << "The data should match with the data as the src was modified"
         << " and sync should take place at every modification.";

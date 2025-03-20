@@ -15,6 +15,8 @@ namespace data_sync
 
 using FullSyncStatus = sdbusplus::common::xyz::openbmc_project::control::
     SyncBMCData::FullSyncStatus;
+using SyncEventsHealth = sdbusplus::common::xyz::openbmc_project::control::
+    SyncBMCData::SyncEventsHealth;
 
 namespace fs = std::filesystem;
 
@@ -107,6 +109,26 @@ class Manager
         _syncBMCDataIface.disable_sync(disableSync);
     }
 
+    /**
+     * @brief Helper API fetches the sync events health Dbus property.
+     *        Specifically, for unit testing purposes.
+     */
+    SyncEventsHealth getSyncEventsHealth() const
+    {
+        return _syncBMCDataIface.sync_events_health();
+    }
+
+    /**
+     * @brief Helper API sets the sync events health Dbus property.
+     *
+     * @param[in] syncEventsHealth - The sync events health property value being
+     * set.
+     */
+    void setSyncEventsHealth(const SyncEventsHealth& syncEventsHealth)
+    {
+        _syncBMCDataIface.sync_events_health(syncEventsHealth);
+    }
+
   private:
     /**
      * @brief A helper API to start the data sync operation.
@@ -141,7 +163,7 @@ class Manager
      * @return Returns true if sync succeeds; otherwise, returns false
      *
      */
-    static sdbusplus::async::task<bool>
+    sdbusplus::async::task<bool>
         syncData(const config::DataSyncConfig& dataSyncCfg);
 
     /**
