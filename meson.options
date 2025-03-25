@@ -5,36 +5,22 @@
 # By default only common.json will get installed
 option(
     'data_sync_list',
-    type : 'array',
-    choices : ['common','open-power','ibm'],
-    value : ['common'],
-    description : 'The set of files and directories to be synced within BMCs'
+    type: 'array',
+    choices: ['common', 'open-power', 'ibm'],
+    value: ['common'],
+    description: 'The set of files and directories to be synced within BMCs',
 )
 
 # The retry attempt which is applicable for all files/directories in case of sync
 # failure unless overridden from respective JSON file configuration.
 # Default value will be 3.
 # A retry attempt value of zero indicates no retries will be performed.
-option(
-    'retry_attempts',
-    type : 'integer',
-    min : 0,
-    value : 3
-)
+option('retry_attempts', type: 'integer', min: 0, value: 3)
 
 # The retry interval in seconds which is applicable for all files/directories
 # during sync retry unless overridden from respective JSON file configuration.
 # Default value is 5secs.
-option(
-    'retry_interval',
-    type : 'integer',
-    value : 5
-)
+option('retry_interval', type: 'integer', value: 5)
 
 #The option to enable the test suite
-option(
-    'tests',
-    type: 'feature',
-    value : 'enabled',
-    description: 'Build tests'
-)
+option('tests', type: 'feature', value: 'enabled', description: 'Build tests')
