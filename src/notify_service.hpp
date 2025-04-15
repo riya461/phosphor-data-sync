@@ -23,6 +23,8 @@ namespace fs = std::filesystem;
 class NotifyService
 {
   public:
+    using CleanupCallback = std::function<void(NotifyService*)>;
+
     /**
      * @brief Construct a new Notify Service object
      *
@@ -30,10 +32,12 @@ class NotifyService
      * @param[in] extDataIfaces - The external data interface object to get
      *                            the external data
      * @param[in] notifyFilePath - The root path of the received notify request
+     * @param[in] cleanup - Callback function to remove the object from parent
+     *                      container
      */
     NotifyService(sdbusplus::async::context& ctx,
                   data_sync::ext_data::ExternalDataIFaces& extDataIfaces,
-                  const fs::path& notifyFilePath);
+                  const fs::path& notifyFilePath, CleanupCallback cleanup);
 
   private:
     /**
@@ -70,6 +74,13 @@ class NotifyService
      *        external dependent data.
      */
     data_sync::ext_data::ExternalDataIFaces& _extDataIfaces;
+
+    /**
+     * @brief  Callback function invoked when notification processing
+     *         completes to remove the NotifyService object from the
+     *         parent container
+     */
+    CleanupCallback _cleanup;
 };
 
 } // namespace data_sync::notify

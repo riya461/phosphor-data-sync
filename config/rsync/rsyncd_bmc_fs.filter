@@ -2,4 +2,5 @@
 + /var/**
 + /etc/
 + /etc/**
++ notifyReq_*.json
 - /*

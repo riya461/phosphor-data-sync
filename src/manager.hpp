@@ -4,6 +4,7 @@
 
 #include "data_sync_config.hpp"
 #include "external_data_ifaces.hpp"
+#include "notify_service.hpp"
 #include "persistent.hpp"
 #include "sync_bmc_data_ifaces.hpp"
 
@@ -157,6 +158,13 @@ class Manager
     sdbusplus::async::task<> parseConfiguration();
 
     /**
+     * @brief API which will monitor the notify directory for sibling
+     * notification requests, and will trigger the callback upon receiving the
+     * same.
+     */
+    sdbusplus::async::task<> monitorServiceNotifications();
+
+    /**
      * @brief A helper API to initiate sync events, covering the following
      *        scenarios. These event will be initiated based on the BMC role.
      *
@@ -278,6 +286,13 @@ class Manager
      * @brief SyncBMCData Server Interface object
      */
     dbus_ifaces::SyncBMCDataIface _syncBMCDataIface;
+
+    /**
+     * @brief To store the list of notification requests.
+     *        Auto cleanup will be done once notification
+     *        completes.
+     */
+    std::vector<std::unique_ptr<notify::NotifyService>> _notifyReqs;
 };
 
 } // namespace data_sync

@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <phosphor-logging/lg2.hpp>
 
+#include <experimental/scope>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -27,7 +28,8 @@ nlohmann::json readFromFile(const fs::path& notifyFilePath)
 NotifyService::NotifyService(
     sdbusplus::async::context& ctx,
     data_sync::ext_data::ExternalDataIFaces& extDataIfaces,
-    const fs::path& notifyFilePath) : _ctx(ctx), _extDataIfaces(extDataIfaces)
+    const fs::path& notifyFilePath, CleanupCallback cleanup) :
+    _ctx(ctx), _extDataIfaces(extDataIfaces), _cleanup(std::move(cleanup))
 {
     _ctx.spawn(init(notifyFilePath));
 }
@@ -67,6 +69,15 @@ sdbusplus::async::task<>
 // NOLINTNEXTLINE
 sdbusplus::async::task<> NotifyService::init(fs::path notifyFilePath)
 {
+    // Ensure cleanup is called when coroutine completes
+    using std::experimental::scope_exit;
+    auto cleanupGuard = scope_exit([this] {
+        if (_cleanup)
+        {
+            _cleanup(this);
+        }
+    });
+
     nlohmann::json notifyRqstJson{};
     try
     {
@@ -81,7 +92,7 @@ sdbusplus::async::task<> NotifyService::init(fs::path notifyFilePath)
     }
     if (notifyRqstJson["NotifyInfo"]["Mode"] == "DBus")
     {
-        // TODO : Implement DBUS notification method
+        // TODO : Implement DBus notification method
         lg2::warning(
             "Unable to process the notify request[{PATH}], as DBus mode is"
             " not available!!!. Received rqst : {RQSTJSON}",
@@ -100,7 +111,16 @@ sdbusplus::async::task<> NotifyService::init(fs::path notifyFilePath)
             nlohmann::to_string(notifyRqstJson));
         co_return;
     }
-    fs::remove(notifyFilePath);
+
+    try
+    {
+        fs::remove(notifyFilePath);
+    }
+    catch (const std::exception& exc)
+    {
+        lg2::error("Failed to remove notify file[{PATH}], Error: {ERR}", "PATH",
+                   notifyFilePath, "ERR", exc);
+    }
 
     co_return;
 }
