@@ -4,6 +4,7 @@
 
 #include "external_data_ifaces.hpp"
 
+#include <nlohmann/json.hpp>
 #include <sdbusplus/async.hpp>
 
 namespace data_sync::ext_data
@@ -31,6 +32,19 @@ class ExternalDataIFacesImpl : public ExternalDataIFaces
      * @param[in] ctx - The async context
      */
     explicit ExternalDataIFacesImpl(sdbusplus::async::context& ctx);
+
+    /**
+     *  @brief API to initiate the systemd reload/restart to the given service.
+     *         It will trigger either reload or restart depends on the
+     *         given method.
+     *
+     * @param[in] service - The name of the service to be reloaded/restarted
+     * @param[in] method - The method to trigger, can have either "RestartUnit"
+     *                     or "ReloadUnit".
+     */
+    sdbusplus::async::task<>
+        systemDServiceAction(const std::string& service,
+                             const std::string& systemdMethod) override;
 
   private:
     /**

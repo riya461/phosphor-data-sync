@@ -41,6 +41,19 @@ class ExternalDataIFaces
     sdbusplus::async::task<> startExtDataFetches();
 
     /**
+     *  @brief API to initiate the systemd reload/restart to the given service.
+     *         It will trigger either reload or restart depends on the
+     *         given method.
+     *
+     * @param[in] service - The name of the service to be reloaded/restarted
+     * @param[in] method - The method to trigger, can have either "RestartUnit"
+     *                     or "ReloadUnit".
+     */
+    virtual sdbusplus::async::task<>
+        systemDServiceAction(const std::string& service,
+                             const std::string& systemdMethod) = 0;
+
+    /**
      * @brief Used to obtain the BMC role.
      *
      * @return The BMC role

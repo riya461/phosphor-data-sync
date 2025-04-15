@@ -109,4 +109,26 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchBMCPosition()
     co_return;
 }
 
+sdbusplus::async::task<> ExternalDataIFacesImpl::systemDServiceAction(
+    const std::string& service, const std::string& systemdMethod)
+{
+    try
+    {
+        auto systemdReload = sdbusplus::async::proxy()
+                                 .service("org.freedesktop.systemd1")
+                                 .path("/org/freedesktop/systemd1")
+                                 .interface("org.freedesktop.systemd1.Manager");
+
+        using objectPath = sdbusplus::message::object_path;
+        lg2::info("Requesting systemd to {METHOD}:{SERVICE} due to data update",
+                  "METHOD", systemdMethod, "SERVICE", service);
+        co_await systemdReload.call<objectPath>(_ctx, systemdMethod, service,
+                                                "replace");
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::format("DBus call failed, {}", e.what()));
+    }
+    co_return;
+}
 } // namespace data_sync::ext_data

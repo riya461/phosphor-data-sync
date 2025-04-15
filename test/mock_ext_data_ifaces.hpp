@@ -15,6 +15,8 @@ class MockExternalDataIFaces : public ExternalDataIFaces
     MOCK_METHOD(sdbusplus::async::task<>, fetchBMCRedundancyMgrProps, (),
                 (override));
     MOCK_METHOD(sdbusplus::async::task<>, fetchBMCPosition, (), (override));
+    MOCK_METHOD(sdbusplus::async::task<>, systemDServiceAction,
+                (const std::string&, const std::string&), (override));
     void setBMCRole(const BMCRole& role)
     {
         return bmcRole(role);
