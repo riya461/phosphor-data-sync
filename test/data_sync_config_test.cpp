@@ -40,6 +40,7 @@ TEST(DataSyncConfigParserTest, TestImmediateFileSyncWithNoRetry)
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
@@ -74,6 +75,7 @@ TEST(DataSyncConfigParserTest, TestPeriodicFileSyncWithRetry)
               data_sync::config::SyncDirection::Passive2Active);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Periodic);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::chrono::seconds(70));
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts, 1);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
               std::chrono::seconds(60));
@@ -107,6 +109,7 @@ TEST(DataSyncConfigParserTest, TestImmediateDirectorySyncWithNoRetry)
               data_sync::config::SyncDirection::Passive2Active);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
     EXPECT_EQ(dataSyncConfig._excludeList->first,
               configJSON["ExcludeList"].get<std::unordered_set<fs::path>>());
@@ -141,6 +144,7 @@ TEST(DataSyncConfigParserTest, TestImmediateAndBidirectionalDirectorySync)
               data_sync::config::SyncDirection::Bidirectional);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
@@ -176,6 +180,7 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidPeriodicity)
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Periodic);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::chrono::seconds(60));
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts, 1);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
               std::chrono::seconds(60));
@@ -216,6 +221,7 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidRetryInterval)
     EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts, 1);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
               std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }
@@ -248,6 +254,7 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncDirection)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }
@@ -280,6 +287,7 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncType)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }
@@ -312,6 +320,95 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithValidDestination)
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
+}
+
+/*
+ * Test when the input JSON contains the details of the directory to be synced
+ * immediately in bidirectional way with sibling notification enabled.
+ */
+TEST(DataSyncConfigParserTest, TestSyncConfigWithSiblingNotify)
+{
+    const auto configJSON = R"(
+        {
+            "Path": "/directory/path/to/sync/",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Bidirectional",
+            "SyncType": "Immediate",
+            "NotifySibling" : {
+		        "Mode": "DBus",
+		        "NotifyServices": ["service1"]
+            }
+        }
+    )"_json;
+
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, true);
+
+    EXPECT_EQ(dataSyncConfig._path, "/directory/path/to/sync/");
+    EXPECT_EQ(dataSyncConfig._isPathDir, true);
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._syncDirection,
+              data_sync::config::SyncDirection::Bidirectional);
+    EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
+    EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling.value()._paths, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling.value()
+                  ._notifyReqInfo.at("Mode")
+                  .get<std::string>(),
+              "DBus");
+    EXPECT_EQ(dataSyncConfig._notifySibling.value()
+                  ._notifyReqInfo.at("NotifyServices")
+                  .get<std::vector<std::string>>(),
+              (std::vector<std::string>{"service1"}));
+    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
+}
+
+/*
+ * Test when the input JSON contains the details of the directory to be synced
+ * immediately in bidirectional way with sibling notification configured for a
+ * particular file
+ */
+TEST(DataSyncConfigParserTest, TestSyncConfigWithSelectivePathSiblingNotify)
+{
+    const auto configJSON = R"(
+        {
+            "Path": "/directory/path/to/sync/",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Bidirectional",
+            "SyncType": "Immediate",
+            "NotifySibling" : {
+		        "NotifyOnPaths" : ["/file/inside/directory/for/notification"],
+		        "Mode": "Systemd",
+		        "NotifyServices": ["service1","service2"]
+            }
+        }
+    )"_json;
+
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, true);
+
+    EXPECT_EQ(dataSyncConfig._path, "/directory/path/to/sync/");
+    EXPECT_EQ(dataSyncConfig._isPathDir, true);
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._syncDirection,
+              data_sync::config::SyncDirection::Bidirectional);
+    EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
+    EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._notifySibling.value()._paths,
+              configJSON["NotifySibling"]["NotifyOnPaths"]
+                  .get<std::unordered_set<fs::path>>());
+    EXPECT_EQ(dataSyncConfig._notifySibling.value()
+                  ._notifyReqInfo.at("Mode")
+                  .get<std::string>(),
+              "Systemd");
+    EXPECT_EQ(dataSyncConfig._notifySibling.value()
+                  ._notifyReqInfo.at("NotifyServices")
+                  .get<std::vector<std::string>>(),
+              (std::vector<std::string>{"service1", "service2"}));
     EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);

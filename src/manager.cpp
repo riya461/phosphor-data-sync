@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include "config.h"
+
 #include "manager.hpp"
 
 #include "async_command_exec.hpp"
 #include "data_watcher.hpp"
+#include "notify_sibling.hpp"
 
 #include <nlohmann/json.hpp>
 #include <phosphor-logging/lg2.hpp>
@@ -164,55 +167,130 @@ sdbusplus::async::task<> Manager::startSyncEvents()
     co_return;
 }
 
-sdbusplus::async::task<bool>
-    // NOLINTNEXTLINE
-    Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
-                      fs::path srcPath)
+void Manager::getRsyncCmd(RsyncMode mode,
+                          const config::DataSyncConfig& dataSyncCfg,
+                          const std::string& srcPath, std::string& cmd)
 {
     using namespace std::string_literals;
 
-    // For more details about CLI options, refer rsync man page.
-    // https://download.samba.org/pub/rsync/rsync.1#OPTION_SUMMARY
-    std::string syncCmd{
-        "rsync --compress --recursive --perms --group --owner --times --atimes"
-        " --update --relative --delete --delete-missing-args "};
-
-    if (dataSyncCfg._excludeList.has_value())
+    cmd.append("rsync --compress --recursive --perms --group --owner --times "
+               "--atimes --update"s);
+    if (mode == RsyncMode::Sync)
     {
-        syncCmd.append(dataSyncCfg._excludeList->second);
+        // Appending required flags to sync data between BMCs
+        // For more details about CLI options, refer rsync man page.
+        // https://download.samba.org/pub/rsync/rsync.1#OPTION_SUMMARY
+
+        cmd.append(" --relative --delete --delete-missing-args"s);
+
+        if (dataSyncCfg._excludeList.has_value())
+        {
+            cmd.append(dataSyncCfg._excludeList->second);
+        }
+    }
+    else if (mode == RsyncMode::Notify)
+    {
+        // Appending the required flags to notify the siblng
+        cmd.append(" --remove-source-files"s);
     }
 
     if (!srcPath.empty())
     {
-        syncCmd.append(" "s + srcPath.string());
+        // Append the modified path name as its available
+        cmd.append(" "s + srcPath);
     }
     else if ((dataSyncCfg._includeList.has_value()) && (srcPath.empty()))
     {
         // Configure the paths in include List as SRC paths
-        auto appendToCmd = [&syncCmd](const auto& path) {
-            syncCmd.append(" "s + path.string());
+        auto appendToCmd = [&cmd](const auto& path) {
+            cmd.append(" "s + path.string());
         };
         std::ranges::for_each(dataSyncCfg._includeList.value(), appendToCmd);
     }
     else
     {
-        syncCmd.append(" "s + dataSyncCfg._path.string());
+        cmd.append(" "s + dataSyncCfg._path.string());
     }
 
 #ifdef UNIT_TEST
-    syncCmd.append(" "s);
+    cmd.append(" "s);
 #else
     // TODO Support for remote (i,e sibling BMC) copying needs to be added.
 #endif
 
-    // Add destination data path if configured
-    // TODO: Change the default destPath to empty once remote sync is enabled.
-    syncCmd.append(dataSyncCfg._destPath.value_or(fs::path(" /")).string());
-    lg2::debug("RSYNC CMD : {CMD}", "CMD", syncCmd);
+    if (mode == RsyncMode::Sync)
+    {
+        // Add destination data path if configured
+        // TODO: Change the default destPath to empty once remote sync is
+        // enabled.
+        cmd.append(" "s +
+                   dataSyncCfg._destPath.value_or(fs::path("/")).string());
+    }
+    else if (mode == RsyncMode::Notify)
+    {
+        cmd.append(" "s + NOTIFY_SERVICES_DIR);
+    }
+}
+
+sdbusplus::async::task<void>
+    // NOLINTNEXTLINE
+    Manager::triggerSiblingNotification(
+        const config::DataSyncConfig& dataSyncCfg, const std::string& srcPath)
+{
+    if (dataSyncCfg._notifySibling.value()._paths.has_value())
+    {
+        if (!(dataSyncCfg._notifySibling.value()._paths.value().contains(
+                srcPath)))
+        {
+            // Modified path doesn't need to notify
+            lg2::debug("Sibling notification not configured for the path : "
+                       "[{SRCPATH}] under the configured Path : [{CFGPATH}]",
+                       "SRCPATH", srcPath, "CFGPATH", dataSyncCfg._path);
+            co_return;
+        }
+    }
+    // initiate sibling notification
+    notify::NotifySibling notifySibling(dataSyncCfg, srcPath);
+    std::string notifyCmd{};
+    getRsyncCmd(RsyncMode::Notify, dataSyncCfg,
+                notifySibling.getNotifyFilePath().string(), notifyCmd);
+    lg2::debug("Rsync sibling notify cmd : {CMD}", "CMD", notifyCmd);
+
+    data_sync::async::AsyncCommandExecutor executor(_ctx);
+    auto result = co_await executor.execCmd(notifyCmd);
+    if (result.first != 0)
+    {
+        // TODO : Need to retry if notify command fails.
+        lg2::error(
+            "Failed to send notify request for the path [{PATH}], under the "
+            "configured path: [{CFGPATH}] ErrCode : {ERRCODE}, Error : {ERROR}",
+            "PATH", srcPath, "CFGPATH", dataSyncCfg._path, "ERRCODE",
+            result.first, "ERROR", result.second);
+    }
+    else
+    {
+        lg2::debug(
+            "Successfully send notify request for the path [{SRCPATH}], under "
+            "the configured path : [{CFGPATH}]",
+            "SRCPATH", srcPath, "CFGPATH", dataSyncCfg._path);
+    }
+    co_return;
+}
+
+sdbusplus::async::task<bool>
+    // NOLINTNEXTLINE
+    Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
+                      fs::path srcPath)
+{
+    std::string syncCmd{};
+    getRsyncCmd(RsyncMode::Sync, dataSyncCfg, srcPath.string(), syncCmd);
+    lg2::debug("Rsync command: {CMD}", "CMD", syncCmd);
 
     data_sync::async::AsyncCommandExecutor executor(_ctx);
     auto result = co_await executor.execCmd(syncCmd); // NOLINT
-    lg2::debug("Rsync cmd output : {OUTPUT}", "OUTPUT", result.second);
+    lg2::debug("Rsync cmd return code : {RET} : output : {OUTPUT}", "RET",
+               result.first, "OUTPUT", result.second);
+
     if (result.first != 0)
     {
         // TODOs:
@@ -232,6 +310,11 @@ sdbusplus::async::task<bool>
             result.second);
 
         co_return false;
+    }
+    else if (dataSyncCfg._notifySibling.has_value())
+    {
+        // initiate sibling notification
+        co_await triggerSiblingNotification(dataSyncCfg, srcPath);
     }
     co_return true;
 }

@@ -21,10 +21,11 @@ endif
 
 test_source_files = [
     'data_sync_config_test',
-    'manager_test',
-    'periodic_sync_test',
     'full_sync_test',
     'immediate_sync_test',
+    'manager_test',
+    'notify_sibling_test',
+    'periodic_sync_test',
     'persistent_data_test',
 ]
 
