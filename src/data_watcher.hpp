@@ -299,6 +299,18 @@ class DataWatcher
         processCreate(const EventInfo& receivedEventInfo);
 
     /**
+     * @brief API to handle the received IN_MOVED_TO inotify events
+     *
+     * @param[in] receivedEventInfo : eventInfo type which has the information
+     *                                of received  inotify event.
+     *
+     * @returns DataOperation : If the received event need to handle in rsync
+     *          std::nullopt  : If the received event doesn't need to handle.
+     */
+    std::optional<DataOperation>
+        processMovedTo(const EventInfo& receivedEventInfo);
+
+    /**
      * @brief API to handle the received IN_DELETE inotify events
      *
      * @param[in] receivedEventInfo : eventInfo type which has the information
