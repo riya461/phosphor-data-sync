@@ -72,6 +72,37 @@ struct Retry
 };
 
 /**
+ * @brief Configuration for notifying the sibling BMC after a successful sync.
+ *
+ * Stores information on which paths to notify and how to notify the sibling
+ * BMC.
+ */
+using NotifyOnPaths = std::unordered_set<fs::path>;
+
+struct NotifySiblingConfig
+{
+    /**
+     * @brief Constructor
+     *
+     * @param[in] notifySibling  JSON object containing notification config
+     *                           for the sibling BMC.
+     */
+    NotifySiblingConfig(const nlohmann::json& notifySibling);
+
+    /**
+     * @brief The list of paths which need to considered for notification to the
+     *        sibling BMC upon successful sync.
+     */
+    std::optional<NotifyOnPaths> _paths;
+
+    /**
+     * @brief JSON object describing the notification mode and the list of
+     *        services to be notified.
+     */
+    nlohmann::json _notifyReqInfo;
+};
+
+/**
  * @brief The structure contains data sync configuration specified
  *        in the configuration file for each file or directory to be
  *        synchronized between BMCs.
@@ -174,6 +205,13 @@ struct DataSyncConfig
      * @note Holds a value if the synchronization type is set to Periodic.
      */
     std::optional<std::chrono::seconds> _periodicityInSec;
+
+    /**
+     * @brief The details of sibling notification
+     *
+     * Holds value only if notification is required.
+     */
+    std::optional<NotifySiblingConfig> _notifySibling;
 
     /**
      * @brief The Retry specific details.
