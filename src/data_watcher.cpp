@@ -211,6 +211,12 @@ std::optional<DataOperation>
 std::optional<DataOperation>
     DataWatcher::processCloseWrite(const EventInfo& receivedEventInfo)
 {
+    if (std::get<BaseName>(receivedEventInfo).starts_with("."))
+    {
+        lg2::debug("Ignoring the IN_CLOSE_WRITE for the hidden file");
+        return std::nullopt;
+    }
+
     fs::path eventReceivedFor =
         _watchDescriptors.at(std::get<WD>(receivedEventInfo));
     lg2::debug("Processing an IN_CLOSE_WRITE for {PATH}", "PATH",
