@@ -167,7 +167,7 @@ std::optional<std::vector<EventInfo>> DataWatcher::readEvents()
         auto* receivedEvent = reinterpret_cast<inotify_event*>(&buffer[offset]);
 
         receivedEvents.emplace_back(receivedEvent->wd, receivedEvent->name,
-                                    receivedEvent->mask);
+                                    receivedEvent->mask, receivedEvent->cookie);
 
         offset += offsetof(inotify_event, name) + receivedEvent->len;
     }
@@ -189,30 +189,34 @@ void DataWatcher::processEvents(
 std::optional<DataOperation>
     DataWatcher::processEvent(const EventInfo& receivedEventInfo)
 {
-    if ((std::get<EventMask>(receivedEventInfo) & IN_CLOSE_WRITE) != 0)
+    if ((std::get<2>(receivedEventInfo) & IN_CLOSE_WRITE) != 0)
     {
         return processCloseWrite(receivedEventInfo);
     }
-    else if ((std::get<EventMask>(receivedEventInfo) &
-              (IN_CREATE | IN_ISDIR)) == (IN_CREATE | IN_ISDIR))
+    else if ((std::get<2>(receivedEventInfo) & (IN_CREATE | IN_ISDIR)) ==
+             (IN_CREATE | IN_ISDIR))
     {
         /**
          * Handle the creation of directories inside a monitoring DIR
          */
         return processCreate(receivedEventInfo);
     }
-    else if ((std::get<EventMask>(receivedEventInfo) & IN_DELETE_SELF) != 0)
+    else if ((std::get<2>(receivedEventInfo) & IN_MOVED_TO) != 0)
+    {
+        return processMovedTo(receivedEventInfo);
+    }
+    else if ((std::get<2>(receivedEventInfo) & IN_DELETE_SELF) != 0)
     {
         return processDeleteSelf(receivedEventInfo);
     }
-    else if ((std::get<EventMask>(receivedEventInfo) & IN_DELETE) != 0)
+    else if ((std::get<2>(receivedEventInfo) & IN_DELETE) != 0)
     {
         return processDelete(receivedEventInfo);
     }
     else
     {
         lg2::debug("Received an uninterested inotify event with mask : {MASK} ",
-                   "MASK", std::get<EventMask>(receivedEventInfo));
+                   "MASK", std::get<2>(receivedEventInfo));
         return std::nullopt;
     }
     return std::nullopt;
@@ -260,7 +264,7 @@ std::optional<DataOperation>
 {
     // Process IN_CREATE only for DIR and skip for files as
     // all the file events are handled using IN_CLOSE_WRITE
-    if ((std::get<EventMask>(receivedEventInfo) & IN_ISDIR) != 0)
+    if ((std::get<2>(receivedEventInfo) & IN_ISDIR) != 0)
     {
         fs::path absCreatedPath =
             _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
@@ -342,6 +346,25 @@ std::optional<DataOperation>
 }
 
 std::optional<DataOperation>
+    DataWatcher::processMovedTo(const EventInfo& receivedEventInfo)
+{
+    // Case 1 : If a file inside a configured and watching directory is renamed.
+    // Case 2 : A file is moved to a configured and watching directory.
+    fs::path absCopiedPath =
+        _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
+        std::get<BaseName>(receivedEventInfo);
+
+    if (absCopiedPath.string().starts_with(_dataPathToWatch.string()))
+    {
+        lg2::debug("Processing IN_MOVED_TO for {PATH} with  cookie : {COOKIE}",
+                   "PATH", absCopiedPath, "COOKIE",
+                   std::get<3>(receivedEventInfo));
+        return std::make_pair(absCopiedPath, DataOps::COPY);
+    }
+    return std::nullopt;
+}
+
+std::optional<DataOperation>
     DataWatcher::processDeleteSelf(const EventInfo& receivedEventInfo)
 {
     // Case 1 : A monitoring file got deleted.
@@ -388,7 +411,7 @@ std::optional<DataOperation>
     // Deleting sub directories will emit IN_DELETE_SELF as all the
     // subdirectories have unique watches. Hence skipping IN_DELETE for
     // subdirectories.
-    if ((std::get<EventMask>(receivedEventInfo) & IN_ISDIR) == 0)
+    if ((std::get<2>(receivedEventInfo) & IN_ISDIR) == 0)
     {
         // A file inside a monitoring directory got deleted.
         lg2::debug("Processing IN_DELETE for {PATH}", "PATH", deletedPath);
