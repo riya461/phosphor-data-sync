@@ -178,6 +178,7 @@ sdbusplus::async::task<bool>
     syncCmd.append(dataSyncCfg._destPath.value_or(fs::path("")));
     lg2::debug("RSYNC CMD : {CMD}", "CMD", syncCmd);
     int result = std::system(syncCmd.c_str()); // NOLINT
+
     if (result != 0)
     {
         // TODOs:
@@ -204,7 +205,7 @@ sdbusplus::async::task<>
 {
     try
     {
-        uint32_t eventMasksToWatch = IN_CLOSE_WRITE | IN_DELETE_SELF;
+        uint32_t eventMasksToWatch = IN_CLOSE_WRITE | IN_MOVE | IN_DELETE_SELF;
         if (dataSyncCfg._isPathDir)
         {
             eventMasksToWatch |= IN_CREATE | IN_DELETE;
