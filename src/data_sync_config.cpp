@@ -72,24 +72,24 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
         _retry = std::nullopt;
     }
 
-    if (config.contains("ExcludeFilesList"))
+    if (config.contains("ExcludeList"))
     {
-        _excludeFileList =
-            config["ExcludeFilesList"].get<std::vector<std::string>>();
+        _excludeList =
+            config["ExcludeList"].get<std::unordered_set<fs::path>>();
     }
     else
     {
-        _excludeFileList = std::nullopt;
+        _excludeList = std::nullopt;
     }
 
-    if (config.contains("IncludeFilesList"))
+    if (config.contains("IncludeList"))
     {
-        _includeFileList =
-            config["IncludeFilesList"].get<std::vector<std::string>>();
+        _includeList =
+            config["IncludeList"].get<std::unordered_set<fs::path>>();
     }
     else
     {
-        _includeFileList = std::nullopt;
+        _includeList = std::nullopt;
     }
 }
 
@@ -101,8 +101,8 @@ bool DataSyncConfig::operator==(const DataSyncConfig& dataSyncCfg) const
            _syncType == dataSyncCfg._syncType &&
            _periodicityInSec == dataSyncCfg._periodicityInSec &&
            _retry == dataSyncCfg._retry &&
-           _excludeFileList == dataSyncCfg._excludeFileList &&
-           _includeFileList == dataSyncCfg._includeFileList;
+           _excludeList == dataSyncCfg._excludeList &&
+           _includeList == dataSyncCfg._includeList;
 }
 
 std::optional<SyncDirection>

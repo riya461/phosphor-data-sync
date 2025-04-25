@@ -98,14 +98,18 @@
                 "RetryInterval": {
                     "$ref": "#/$defs/retryInterval"
                 },
-                "ExcludeFilesList": {
-                    "$ref": "#/$defs/excludeFilesList"
+                "ExcludeList": {
+                    "$ref": "#/$defs/excludeList"
                 },
-                "IncludeFilesList": {
-                    "$ref": "#/$defs/includeFilesList"
+                "IncludeList": {
+                    "$ref": "#/$defs/includeList"
                 }
             },
             "required": ["Path", "Description", "SyncDirection", "SyncType"],
+            "dependentSchemas": {
+                "ExcludeList": { "not": { "required": ["IncludeList"] } },
+                "IncludeList": { "not": { "required": ["ExcludeList"] } }
+            },
             "additionalProperties": false,
             "allOf": [
                 { "$ref": "#/$defs/conditionForPeriodicity" },
@@ -155,8 +159,8 @@
             "type": "string",
             "format": "duration"
         },
-        "excludeFilesList": {
-            "description": "The list of files in the directory that should be excluded while sync operation",
+        "excludeList": {
+            "description": "The list of paths in the directory that should be excluded while sync operation",
             "type": "array",
             "items": {
                 "$ref": "#/$defs/rootFilePath"
@@ -164,8 +168,8 @@
             "minItems": 1,
             "uniqueItems": true
         },
-        "includeFilesList": {
-            "description": "The list of files in the directory that should be synced.Rest of the files will be excluded",
+        "includeList": {
+            "description": "The list of paths in the directory that should be synced.Rest of the paths will be excluded",
             "type": "array",
             "items": {
                 "$ref": "#/$defs/rootFilePath"

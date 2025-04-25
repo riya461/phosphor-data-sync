@@ -27,7 +27,7 @@
             "Description": "Fan presence persisted data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate",
-            "ExcludeFilesList": ["/var/lib/phosphor-fan-presence/control/"]
+            "ExcludeList": ["/var/lib/phosphor-fan-presence/control/"]
         },
         {
             "Path": "/var/lib/phosphor-post-code-manager/",
