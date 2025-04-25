@@ -29,8 +29,8 @@ TEST_F(ManagerTest, ParseDataSyncCfg)
                         "Periodicity": "PT1S",
                         "RetryAttempts": 1,
                         "RetryInterval": "PT10M",
-                        "ExcludeFilesList": ["/directory/file/to/ignore"],
-                        "IncludeFilesList": ["/directory/file/to/consider"]
+                        "ExcludeList": ["/directory/file/to/ignore"],
+                        "IncludeList": ["/directory/file/to/consider"]
                     }
                 ]
             }

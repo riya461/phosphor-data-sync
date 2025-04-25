@@ -5,12 +5,15 @@
 #include <nlohmann/json.hpp>
 
 #include <chrono>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
 
 namespace data_sync::config
 {
+
+namespace fs = std::filesystem;
 
 /**
  * @brief The enum contains all the sync directions.
@@ -130,7 +133,7 @@ struct DataSyncConfig
     /**
      * @brief The file or directory path to be synchronized.
      */
-    std::string _path;
+    fs::path _path;
 
     /**
      * @brief Bool flag to indicate whether the path is file or directory
@@ -140,7 +143,7 @@ struct DataSyncConfig
     /**
      * @brief The file or directory path to the destination to be synchronized.
      */
-    std::optional<std::string> _destPath;
+    std::optional<fs::path> _destPath;
 
     /**
      * @brief Used to get sync direction.
@@ -171,17 +174,18 @@ struct DataSyncConfig
      * @brief The list of paths to exclude from synchronization.
      *
      * @note Holds a value if the specific directory prefer to
-     *       exclude some file from synchronization.
+     *       exclude some file/directory from synchronization.
      */
-    std::optional<std::vector<std::string>> _excludeFileList;
+    std::optional<std::vector<fs::path>> _excludeList;
 
     /**
      * @brief The list of paths to include from synchronization.
      *
      * @note Holds a value if the specific directory opts to
-     *       include only certain file during the synchronization.
+     *       include only certain file/directory during the
+     *       synchronization.
      */
-    std::optional<std::vector<std::string>> _includeFileList;
+    std::optional<std::vector<fs::path>> _includeList;
 
   private:
     /**
