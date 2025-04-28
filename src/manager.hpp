@@ -157,6 +157,13 @@ class Manager
     sdbusplus::async::task<> startSyncEvents();
 
     /**
+     * @brief API to frame the exclude list with paths relative to the
+     * configured path to handle exclude list in RSYNC CLI
+     */
+     std::string frameExcludeString(const fs::path& cfgPath, const
+        std::vector<fs::path> excludeList);
+
+    /**
      * @brief A helper rsync wrapper API that syncs data to sibling
      *        BMC, with different behavior in the unit test environment,
      *        performing a local copy instead.

@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 #include <phosphor-logging/lg2.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 #include <exception>
 #include <fstream>
@@ -144,7 +145,25 @@ sdbusplus::async::task<> Manager::startSyncEvents()
     });
     co_return;
 }
+std::string Manager::frameExcludeString(const fs::path& cfgPath, const
+        std::vector<fs::path> excludeList)
+{
+    using namespace std::string_literals;
+    std::string excludeListStr{};
+    auto commaSeparatedFold = [&cfgPath](std::string listToStr,
+                                    const fs::path& entry)
+    {
+        return std::move(listToStr) + " --exclude=" +
+                    fs::relative(entry,cfgPath).string();
+    };
+    excludeListStr.append(std::ranges::fold_left(excludeList, excludeListStr,
+                                commaSeparatedFold));
 
+    lg2::debug("The converted list string : {LISTSTRING}", "LISTSTRING",
+                    excludeListStr);
+
+    return excludeListStr;
+}
 // TODO: This isn't truly an async operation — Need to use popen/posix_spawn to
 // run the rsync command asynchronously but it will be handled as part of
 // concurrent sync changes.
@@ -155,6 +174,13 @@ sdbusplus::async::task<bool>
     using namespace std::string_literals;
     std::string syncCmd{
         "rsync --archive --compress --delete --delete-missing-args"};
+
+    if (dataSyncCfg._excludeList.has_value())
+    {
+        std::string excludeStr =  frameExcludeString(dataSyncCfg._path,
+                                            dataSyncCfg._excludeList.value());
+        syncCmd.append(excludeStr);
+    }
     syncCmd.append(" "s + dataSyncCfg._path.string());
 
 #ifdef UNIT_TEST
@@ -206,7 +232,8 @@ sdbusplus::async::task<>
 
         // Create watcher for the dataSyncCfg._path
         watch::inotify::DataWatcher dataWatcher(
-            _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path);
+            _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path,
+            dataSyncCfg._excludeList);
 
         while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
         {

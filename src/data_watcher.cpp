@@ -12,9 +12,11 @@ namespace data_sync::watch::inotify
 
 DataWatcher::DataWatcher(sdbusplus::async::context& ctx, const int inotifyFlags,
                          const uint32_t eventMasksToWatch,
-                         const fs::path& dataPathToWatch) :
+                         const fs::path& dataPathToWatch, const
+                         std::optional<std::vector<fs::path>> excludeList ) :
     _inotifyFlags(inotifyFlags), _eventMasksToWatch(eventMasksToWatch),
-    _dataPathToWatch(dataPathToWatch), _inotifyFileDescriptor(inotifyInit()),
+    _dataPathToWatch(dataPathToWatch), _excludeList(excludeList),
+    _inotifyFileDescriptor(inotifyInit()),
     _fdioInstance(
         std::make_unique<sdbusplus::async::fdio>(ctx, _inotifyFileDescriptor()))
 {
@@ -95,6 +97,18 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
             auto addWatchIfDir = [this](const fs::path& entry) {
                 if (fs::is_directory(entry))
                 {
+                    if (_excludeList.has_value())
+                    {
+                        auto matchesWithEntry = [&entry](const auto& excludePath)
+                        {
+                            return (entry/"").string().starts_with(excludePath.string());
+                        };
+                        if (std::ranges::any_of(_excludeList.value(),
+                                matchesWithEntry))
+                        {
+                            return;
+                        }
+                    }
                     addToWatchList(entry, _eventMasksToWatch);
                 }
             };
@@ -179,6 +193,25 @@ void DataWatcher::processEvents(
 std::optional<DataOperation>
     DataWatcher::processEvent(const EventInfo& receivedEventInfo)
 {
+    fs::path eventReceivedFor =
+        _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
+        std::get<BaseName>(receivedEventInfo);
+    if (fs::is_directory(eventReceivedFor))
+    {
+        eventReceivedFor /= "";
+    }
+
+    // Skip the events received for the paths which are in excluded list.
+    if (_excludeList.has_value())
+    {
+        if (std::ranges::contains(_excludeList.value(), eventReceivedFor))
+        {
+            lg2::debug("Event received for  {PATH} and is in excludedList",
+            "PATH", eventReceivedFor);
+            return std::nullopt;
+        }
+    }
+
     if ((std::get<EventMask>(receivedEventInfo) & IN_CLOSE_WRITE) != 0)
     {
         return processCloseWrite(receivedEventInfo);

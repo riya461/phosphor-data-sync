@@ -109,7 +109,8 @@ class DataWatcher
      */
     DataWatcher(sdbusplus::async::context& ctx, int inotifyFlags,
                 uint32_t eventMasksToWatch,
-                const std::filesystem::path& dataPathToWatch);
+                const fs::path& dataPathToWatch,
+                const std::optional<std::vector<fs::path>> excludeList);
 
     /**
      * @brief Destructor
@@ -152,7 +153,12 @@ class DataWatcher
     /**
      * @brief File/Directory path to be watched
      */
-    std::filesystem::path _dataPathToWatch;
+    fs::path _dataPathToWatch;
+
+    /**
+     * @brief List of paths to be excluded from watching
+     */
+    std::optional<std::vector<fs::path>> _excludeList;
 
     /**
      * @brief The map of unique watch descriptors associated with an configured
