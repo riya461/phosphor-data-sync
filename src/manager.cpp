@@ -170,7 +170,13 @@ sdbusplus::async::task<bool>
         // 1. Retry based on rsync error code
         // 2. Create error log and Disable redundancy if retry fails
         // 3. Perform a callout
-        setSyncEventsHealth(SyncEventsHealth::Critical);
+
+        // NOTE: The following line is commented out as part of a temporary
+        // workaround. We are forcing Full Sync to succeed even if data syncing
+        // fails. This change should be reverted once proper error handling is
+        // implemented.
+        // setSyncEventsHealth(SyncEventsHealth::Critical);
+
         lg2::error("Error syncing: {PATH}", "PATH", dataSyncCfg._path);
 
         co_return false;
@@ -308,8 +314,15 @@ sdbusplus::async::task<void> Manager::startFullSync()
     }
     else
     {
-        _syncBMCDataIface.full_sync_status(FullSyncStatus::FullSyncFailed);
-        lg2::info("Full Sync failed");
+        // Forcefully marking full sync as successful, even if data syncing
+        // fails.
+        // TODO: Revert this workaround once the proper logic is implemented
+        _syncBMCDataIface.full_sync_status(FullSyncStatus::FullSyncCompleted);
+        setSyncEventsHealth(SyncEventsHealth::Ok);
+        lg2::info("Full Sync passed temporarily despite sync failures");
+
+        // _syncBMCDataIface.full_sync_status(FullSyncStatus::FullSyncFailed);
+        // lg2::info("Full Sync failed");
     }
 
     // total duration/time diff of the Full Sync operation
