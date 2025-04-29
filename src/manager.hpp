@@ -157,6 +157,13 @@ class Manager
     sdbusplus::async::task<> startSyncEvents();
 
     /**
+     * @brief API to frame the include list with paths relative to the
+     * configured path to handle include list in RSYNC CLI
+     */
+     std::string frameIncludeString(const fs::path& cfgPath, const
+        std::vector<fs::path>& includeList);
+
+    /**
      * @brief API to frame the exclude list with paths relative to the
      * configured path to handle exclude list in RSYNC CLI
      */

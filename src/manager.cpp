@@ -145,6 +145,28 @@ sdbusplus::async::task<> Manager::startSyncEvents()
     });
     co_return;
 }
+
+std::string Manager::frameIncludeString(const fs::path& cfgPath, const
+        std::vector<fs::path>& includeList)
+{
+    using namespace std::string_literals;
+    std::string includeListStr{};
+    auto commaSeparatedFold = [&cfgPath](std::string listToStr,
+                                    const fs::path& entry)
+    {
+        return std::move(listToStr) + " --include=" +
+                    fs::relative(entry,cfgPath).string() + "/***";
+    };
+    includeListStr.append(std::ranges::fold_left(includeList, includeListStr,
+                                commaSeparatedFold));
+
+    includeListStr.append(" --exclude=*"s);
+    lg2::debug("The converted list string : {LISTSTRING}", "LISTSTRING",
+                    includeListStr);
+
+    return includeListStr;
+}
+
 std::string Manager::frameExcludeString(const fs::path& cfgPath, const
         std::vector<fs::path> excludeList)
 {
@@ -175,7 +197,13 @@ sdbusplus::async::task<bool>
     std::string syncCmd{
         "rsync --archive --compress --delete --delete-missing-args"};
 
-    if (dataSyncCfg._excludeList.has_value())
+    if (dataSyncCfg._includeList.has_value())
+    {
+        std::string includeStr =  frameIncludeString(dataSyncCfg._path,
+                                            dataSyncCfg._includeList.value());
+        syncCmd.append(includeStr);
+    }
+    else if (dataSyncCfg._excludeList.has_value())
     {
         std::string excludeStr =  frameExcludeString(dataSyncCfg._path,
                                             dataSyncCfg._excludeList.value());
@@ -233,7 +261,7 @@ sdbusplus::async::task<>
         // Create watcher for the dataSyncCfg._path
         watch::inotify::DataWatcher dataWatcher(
             _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path,
-            dataSyncCfg._excludeList);
+            dataSyncCfg._includeList, dataSyncCfg._excludeList);
 
         while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
         {
