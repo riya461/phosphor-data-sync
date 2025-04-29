@@ -4,6 +4,7 @@
 
 #include "data_sync_config.hpp"
 #include "external_data_ifaces.hpp"
+#include "persistent.hpp"
 #include "sync_bmc_data_ifaces.hpp"
 
 #include <filesystem>
@@ -90,6 +91,13 @@ class Manager
     }
 
     /**
+     * @brief Helper API sets the full sync Dbus status-property.
+     *
+     * @param[in] fullSyncStatus - The Full Sync Status property being set.
+     */
+    void setFullSyncStatus(const FullSyncStatus& fullSyncStatus);
+
+    /**
      * @brief Helper API to start events when Disable sync property is changed.
      *        - If the Disable sync property is set to true, it stops all sync
      *          events. Otherwise, it starts all sync events.
@@ -124,10 +132,7 @@ class Manager
      * @param[in] syncEventsHealth - The sync events health property value being
      * set.
      */
-    void setSyncEventsHealth(const SyncEventsHealth& syncEventsHealth)
-    {
-        _syncBMCDataIface.sync_events_health(syncEventsHealth);
-    }
+    void setSyncEventsHealth(const SyncEventsHealth& syncEventsHealth);
 
   private:
     /**

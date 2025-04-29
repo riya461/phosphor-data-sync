@@ -17,6 +17,8 @@ class ManagerTest : public ::testing::Test
         dataSyncCfgDir = mkdtemp(tmpdir);
         char tmpDataDir[] = "/tmp/pdsDataDirXXXXXX";
         tmpDataSyncDataDir = mkdtemp(tmpDataDir);
+        data_sync::persist::DBusPropDataFile = tmpDataSyncDataDir /
+                                               "persistentData.json";
     }
 
     // Set up each individual test

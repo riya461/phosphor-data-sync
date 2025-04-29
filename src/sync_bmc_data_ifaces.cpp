@@ -18,7 +18,44 @@ SyncBMCDataIface::SyncBMCDataIface(sdbusplus::async::context& ctx,
         SyncBMCDataIface>(ctx, SyncBMCData::instance_path),
     _manager(manager), _ctx(ctx)
 {
+    restoreDBusProperties();
     emit_added();
+}
+
+void SyncBMCDataIface::restoreDBusProperties()
+{
+    try
+    {
+        auto json =
+            data_sync::persist::readFile(data_sync::persist::DBusPropDataFile);
+        if (!json)
+        {
+            return;
+        }
+        if (auto it = json->find(data_sync::persist::key::disable);
+            it != json->end())
+        {
+            disable_sync_ = it->get<bool>();
+        }
+        if (auto it = json->find(data_sync::persist::key::fullSyncStatus);
+            it != json->end())
+        {
+            full_sync_status_ = static_cast<FullSyncStatus>(
+                it->get<std::underlying_type_t<FullSyncStatus>>());
+        }
+        if (auto it = json->find(data_sync::persist::key::syncEventsHealth);
+            it != json->end())
+        {
+            sync_events_health_ = static_cast<SyncEventsHealth>(
+                it->get<std::underlying_type_t<SyncEventsHealth>>());
+        }
+    }
+    catch (const std::exception& e)
+    {
+        lg2::error(
+            "Error trying to restore previous values of DBus properties: {ERROR}",
+            "ERROR", e);
+    }
 }
 
 sdbusplus::async::task<>
@@ -66,6 +103,16 @@ bool SyncBMCDataIface::set_property([[maybe_unused]] disable_sync_t type,
     {
         _manager.setSyncEventsHealth(disable ? SyncEventsHealth::Paused
                                              : SyncEventsHealth::Ok);
+    }
+    try
+    {
+        data_sync::persist::update(data_sync::persist::key::disable, disable);
+    }
+    catch (const std::exception& e)
+    {
+        lg2::info(
+            "Could not serialize DBus Disable Sync value of {DISABLE}: {ERROR}",
+            "DISABLE", disable, "ERROR", e);
     }
     return true;
 }

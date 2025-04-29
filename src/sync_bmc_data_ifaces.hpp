@@ -44,6 +44,12 @@ class SyncBMCDataIface :
                      data_sync::Manager& manager);
 
     /**
+     * @brief Reads from the persistence file and sets the property values if
+     * available.
+     */
+    void restoreDBusProperties();
+
+    /**
      * @brief Handles the FullSync method call for the SyncBmcData interface,
      *
      * @param[in] type Method type identifier.

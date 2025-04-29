@@ -266,10 +266,51 @@ void Manager::disableSyncPropChanged(bool disableSync)
     }
 }
 
+void Manager::setFullSyncStatus(const FullSyncStatus& fullSyncStatus)
+{
+    if (_syncBMCDataIface.full_sync_status() == fullSyncStatus)
+    {
+        return;
+    }
+    _syncBMCDataIface.full_sync_status(fullSyncStatus);
+
+    try
+    {
+        data_sync::persist::update(data_sync::persist::key::fullSyncStatus,
+                                   fullSyncStatus);
+    }
+    catch (const std::exception& e)
+    {
+        lg2::error(
+            "Error writing fullSyncStatus property to JSON file: {ERROR}",
+            "ERROR", e);
+    }
+}
+
+void Manager::setSyncEventsHealth(const SyncEventsHealth& syncEventsHealth)
+{
+    if (_syncBMCDataIface.sync_events_health() == syncEventsHealth)
+    {
+        return;
+    }
+    _syncBMCDataIface.sync_events_health(syncEventsHealth);
+    try
+    {
+        data_sync::persist::update(data_sync::persist::key::syncEventsHealth,
+                                   syncEventsHealth);
+    }
+    catch (const std::exception& e)
+    {
+        lg2::error(
+            "Error writing syncEventsHealth property to JSON file: {ERROR}",
+            "ERROR", e);
+    }
+}
+
 // NOLINTNEXTLINE
 sdbusplus::async::task<void> Manager::startFullSync()
 {
-    _syncBMCDataIface.full_sync_status(FullSyncStatus::FullSyncInProgress);
+    setFullSyncStatus(FullSyncStatus::FullSyncInProgress);
     lg2::info("Full Sync started");
 
     auto fullSyncStartTime = std::chrono::steady_clock::now();
@@ -308,7 +349,7 @@ sdbusplus::async::task<void> Manager::startFullSync()
     if (std::ranges::all_of(syncResults,
                             [](const auto& result) { return result; }))
     {
-        _syncBMCDataIface.full_sync_status(FullSyncStatus::FullSyncCompleted);
+        setFullSyncStatus(FullSyncStatus::FullSyncCompleted);
         setSyncEventsHealth(SyncEventsHealth::Ok);
         lg2::info("Full Sync completed successfully");
     }
@@ -317,11 +358,11 @@ sdbusplus::async::task<void> Manager::startFullSync()
         // Forcefully marking full sync as successful, even if data syncing
         // fails.
         // TODO: Revert this workaround once the proper logic is implemented
-        _syncBMCDataIface.full_sync_status(FullSyncStatus::FullSyncCompleted);
+        setFullSyncStatus(FullSyncStatus::FullSyncCompleted);
         setSyncEventsHealth(SyncEventsHealth::Ok);
         lg2::info("Full Sync passed temporarily despite sync failures");
 
-        // _syncBMCDataIface.full_sync_status(FullSyncStatus::FullSyncFailed);
+        // setFullSyncStatus(FullSyncStatus::FullSyncFailed);
         // lg2::info("Full Sync failed");
     }
 
