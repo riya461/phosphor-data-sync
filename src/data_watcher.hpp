@@ -129,6 +129,32 @@ class DataWatcher
      */
     sdbusplus::async::task<DataOperations> onDataChange();
 
+    /**
+     * @brief A wrapper to convert the iiotify event mask to MACRO
+     *
+     */
+     constexpr std::string_view eventName(const int& mask) const
+     {
+        switch(mask)
+        {
+            case 1 : return "IN_ACCESS";
+            case 2 : return "IN_MODIFY";
+            case 4 : return "IN_ATTRIB";
+            case 8 : return "IN_CLOSE_WRITE";
+            case 16 : return "IN_CLOSE_NOWRITE";
+            case 32 : return "IN_OPEN";
+            case 64 : return "IN_MOVED_FROM";
+            case 128 : return "IN_MOVED_TO";
+            case 256 : return "IN_CREATE";
+            case 512 : return "IN_DELETE";
+            case 1024 : return "IN_DELETE_SELF";
+            case 2048 : return "IN_MOVE_SELF";
+            case 32768 : return "IN_FILE_IGNORED";
+            case 1073741824 : return "IN_ISDIR";
+        }
+        return "Unmapped_event";
+     }
+
   private:
     /**
      * @brief inotify flags
