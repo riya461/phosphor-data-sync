@@ -181,8 +181,7 @@ void DataWatcher::processEvents(
         std::optional<DataOperation> dataOperation = processEvent(event);
         if (dataOperation.has_value())
         {
-            _dataOperations.insert_or_assign(dataOperation.value().first,
-                                             dataOperation.value().second);
+            _dataOperations.emplace_back(dataOperation.value());
         }
     });
 }

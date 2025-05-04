@@ -38,14 +38,17 @@ enum class DataOps
 };
 
 /**
- * @brief A map which tells what type of operations need to perform on the data
- * path against an intersted inotify event.
+ * @brief Container holding data paths and their corresponding operations.
  *
- * fs::path - absolute path of the modified data
- * DataOps  - Type of action need to perform on the data path
+ * Represents a list of data paths and the type of operation,that needs to be
+ * performed on each path.
+ *
+ * Each entry is a pair of :
+ * - fs::path : Absolute path of the file or directory
+ * - DataOps  : Operation to perform on the given path
  */
-using DataOperations = std::map<fs::path, DataOps>;
 using DataOperation = std::pair<fs::path, DataOps>;
+using DataOperations = std::vector<DataOperation>;
 
 /** @class FD
  *

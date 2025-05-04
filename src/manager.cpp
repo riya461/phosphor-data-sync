@@ -148,7 +148,8 @@ sdbusplus::async::task<> Manager::startSyncEvents()
 // concurrent sync changes.
 sdbusplus::async::task<bool>
     // NOLINTNEXTLINE
-    Manager::syncData(const config::DataSyncConfig& dataSyncCfg)
+    Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
+                      fs::path srcPath)
 {
     using namespace std::string_literals;
 
@@ -158,7 +159,14 @@ sdbusplus::async::task<bool>
         "rsync --compress --recursive --perms --group --owner --times --atimes"
         " --update --relative --delete --delete-missing-args "};
 
-    syncCmd.append(" "s + dataSyncCfg._path);
+    if (!srcPath.empty())
+    {
+        syncCmd.append(" "s + srcPath.string());
+    }
+    else
+    {
+        syncCmd.append(" "s + dataSyncCfg._path.string());
+    }
 
 #ifdef UNIT_TEST
     syncCmd.append(" "s);
@@ -168,7 +176,7 @@ sdbusplus::async::task<bool>
 
     // Add destination data path if configured
     syncCmd.append(dataSyncCfg._destPath.value_or(fs::path("")));
-
+    lg2::debug("RSYNC CMD : {CMD}", "CMD", syncCmd);
     int result = std::system(syncCmd.c_str()); // NOLINT
     if (result != 0)
     {
@@ -219,9 +227,9 @@ sdbusplus::async::task<>
                 {
                     break;
                 }
-                for ([[maybe_unused]] const auto& dataOp : dataOperations)
+                for (const auto& [path, dataOp] : dataOperations)
                 {
-                    co_await syncData(dataSyncCfg);
+                    co_await syncData(dataSyncCfg, path);
                 }
             }
         }
