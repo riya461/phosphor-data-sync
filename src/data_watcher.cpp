@@ -201,6 +201,10 @@ std::optional<DataOperation>
          */
         return processCreate(receivedEventInfo);
     }
+    else if ((std::get<2>(receivedEventInfo) & IN_MOVED_FROM) != 0)
+    {
+        return processMovedFrom(receivedEventInfo);
+    }
     else if ((std::get<2>(receivedEventInfo) & IN_MOVED_TO) != 0)
     {
         return processMovedTo(receivedEventInfo);
@@ -341,6 +345,26 @@ std::optional<DataOperation>
                 modifyWatchIfExpected);
             return std::make_pair(absCreatedPath, DataOps::COPY);
         }
+    }
+    return std::nullopt;
+}
+
+std::optional<DataOperation>
+    DataWatcher::processMovedFrom(const EventInfo& receivedEventInfo)
+{
+    // Case 1 : A file inside a watching directory is moved to some other
+    // directory
+    // Case 2 : A file inside a watching directory is renamed to new name.
+
+    fs::path absMovedPath =
+        _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
+        std::get<BaseName>(receivedEventInfo);
+    if (absMovedPath.string().starts_with(_dataPathToWatch.string()))
+    {
+        lg2::debug("Processing IN_MOVED_FROM for {PATH} with cookie : {COOKIE}",
+                   "PATH", absMovedPath, "COOKIE",
+                   std::get<3>(receivedEventInfo));
+        return std::make_pair(absMovedPath, DataOps::DELETE);
     }
     return std::nullopt;
 }
