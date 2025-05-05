@@ -4,7 +4,8 @@ Wants=xyz.openbmc_project.Control.SyncBMCData.service
 Before=xyz.openbmc_project.Control.SyncBMCData.service
 
 [Service]
-ExecStart=/usr/bin/sh -c "/usr/bin/rsync --no-detach --daemon --config=/etc/phosphor-data-sync/rsync/bmc$(fw_printenv -n bmc_position)_rsyncd.conf"
+#ExecStart=/usr/bin/sh -c "/usr/bin/rsync --no-detach --daemon --config=/etc/phosphor-data-sync/rsync/bmc$(fw_printenv -n bmc_position)_rsyncd.conf"
+ExecStart=/usr/bin/sh -c "/usr/bin/rsync --no-detach --daemon --config=/etc/phosphor-data-sync/rsync/bmc$(cat /tmp/pds/bmc_pos)_rsyncd.conf"
 Restart=always
 
 [Install]

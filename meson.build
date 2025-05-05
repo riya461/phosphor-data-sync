@@ -17,6 +17,7 @@ project(
 data_sync_config_dir = get_option('datadir') + '/phosphor-data-sync/config/data_sync_list/'
 bmc0_rsync_port = '1703'
 bmc1_rsync_port = '1704'
+rsyncd_module_name = 'bmc_fs'
 
 foreach json_file_name : get_option('data_sync_list')
 
@@ -46,6 +47,11 @@ conf_data.set(
     'DEFAULT_RETRY_INTERVAL',
     get_option('retry_interval'),
     description: 'Default retry interval for all data to be synced',
+)
+conf_data.set_quoted(
+    'RSYNCD_MODULE_NAME',
+    rsyncd_module_name,
+    description: 'Rsync daemon configured module name',
 )
 conf_data.set_quoted(
     'BMC0_RSYNC_PORT',

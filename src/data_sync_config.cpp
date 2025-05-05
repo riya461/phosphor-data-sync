@@ -31,10 +31,21 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
     _syncType(convertSyncTypeToEnum(config["SyncType"].get<std::string>())
                   .value_or(SyncType::Immediate))
 {
+    if (fs::is_symlink(_path))
+    {
+        _path = fs::canonical(_path);
+    }
+
     // Initiailze optional members
     if (config.contains("DestinationPath"))
     {
         _destPath = config["DestinationPath"].get<std::string>();
+        // Add "." after the root path so that we could sync in the same
+        // hierarchy into the destination path.
+        // Its expected by the rsync --relative option.
+        //std::string relativePath(_path.string());
+        //relativePath.insert(1, "./");
+        //_path = relativePath;
     }
     else
     {

@@ -56,7 +56,7 @@ int DataWatcher::inotifyInit() const
 fs::path DataWatcher::getExistingParentPath(const fs::path& dataPath)
 {
     fs::path parentPath = dataPath.parent_path();
-    while (!fs::exists(parentPath))
+    while (!parentPath.empty() && !fs::exists(parentPath))
     {
         parentPath = parentPath.parent_path();
     }
@@ -79,8 +79,8 @@ void DataWatcher::addToWatchList(const fs::path& pathToWatch,
     }
     else
     {
-        lg2::debug("Watch added. PATH : {PATH}, wd : {WD}", "PATH", pathToWatch,
-                   "WD", wd);
+        //lg2::debug("Watch added. PATH : {PATH}, wd : {WD}", "PATH", pathToWatch,
+        //           "WD", wd);
         _watchDescriptors.emplace(wd, pathToWatch);
     }
 }
@@ -95,12 +95,12 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
          */
         if (fs::is_directory(pathToWatch))
         {
-            auto addWatchIfDir = [this](const fs::path& entry) {
+            auto addWatchIfDir = [this, &pathToWatch](const fs::path& entry) {
                 if (fs::is_directory(entry))
                 {
                     if (_excludeList.has_value())
                     {
-                        auto matchesWithEntry = [&entry](const auto& excludePath)
+                        auto matchesWithEntry = [&entry, &pathToWatch](const auto& excludePath)
                         {
                             return (entry/"").string().starts_with(excludePath.string());
                         };
@@ -112,7 +112,7 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
                     }
                     else if (_includeList.has_value())
                     {
-                        auto matchesOrChildOfEntry = [&entry](const auto&
+                        auto matchesOrChildOfEntry = [&entry, &pathToWatch](const auto&
                                                                 includePath)
                         {
                             return includePath.string().starts_with(entry.string());
@@ -120,8 +120,6 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
                         if (std::ranges::none_of(_includeList.value(),
                                 matchesOrChildOfEntry))
                         {
-                            lg2::debug("{ENTRY} not in includeList", "ENTRY",
-                            entry);
                             return;
                         }
                     }
@@ -134,12 +132,21 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
     }
     else
     {
-        lg2::debug("Given path [{PATH}] doesn't exist to watch", "PATH",
-                   pathToWatch);
+        auto parentPath = getExistingParentPath(pathToWatch);
+        if (parentPath.empty())
+        {
+            lg2::error("Parent path is not found for the path [{PATH}]",
+                       "PATH", pathToWatch);
+            return;
+        }
+        lg2::warning("The configured path [{PATH}] does not exist, so watching "
+                     "its existing parent or grandparent path [{PARENT_PATH}]",
+                     "PATH", pathToWatch, "PARENT_PATH", parentPath);
 
-        addToWatchList(getExistingParentPath(pathToWatch),
-                       _eventMasksIfNotExists);
+        addToWatchList(parentPath, _eventMasksIfNotExists);
     }
+    lg2::debug("No of watchers: {NO_WACTHERS} for {PATH}",
+               "NO_WACTHERS", noOfWatch(), "PATH", pathToWatch);
 }
 
 // NOLINTNEXTLINE
@@ -174,7 +181,10 @@ std::optional<std::vector<EventInfo>> DataWatcher::readEvents()
     if (0 > bytes)
     {
         // Failed to read inotify event
-        lg2::error("Failed to read inotify event");
+        if ( errno != EAGAIN &&  errno != EWOULDBLOCK)
+        {
+            lg2::error("Failed to read inotify event, error: {ERROR}", "ERROR", strerror(errno));
+        }
         return std::nullopt;
     }
 
@@ -185,11 +195,6 @@ std::optional<std::vector<EventInfo>> DataWatcher::readEvents()
         // NOLINTNEXTLINE to avoid cppcoreguidelines-pro-type-reinterpret-cast
         auto* receivedEvent = reinterpret_cast<inotify_event*>(&buffer[offset]);
 
-        lg2::debug("receivedEvent->name : {NAME}", "NAME", receivedEvent->name);
-        lg2::debug("receivedEvent->mask : {MASK}({NAME})", "MASK",
-            receivedEvent->mask, "NAME", eventName(receivedEvent->mask));
-        lg2::debug("receivedEvent->cookie : {COOKIE}", "COOKIE",
-        receivedEvent->cookie);
         receivedEvents.emplace_back(receivedEvent->wd, receivedEvent->name,
                                     receivedEvent->mask);
 
@@ -227,7 +232,7 @@ std::optional<DataOperation>
         // Skip the events received for the paths which are in excluded list.
         if (std::ranges::contains(_excludeList.value(), eventReceivedFor))
         {
-            lg2::debug("Event received for  {PATH} and is in excludedList",
+            lg2::debug("Event received for {PATH} and is in excludedList",
             "PATH", eventReceivedFor);
             return std::nullopt;
         }
@@ -278,8 +283,8 @@ std::optional<DataOperation>
     }
     else
     {
-        lg2::debug("Received an uninterested inotify event with mask : {MASK} ",
-                   "MASK", std::get<EventMask>(receivedEventInfo));
+        lg2::debug("Received an uninterested inotify event with mask : {MASK}({NAME})",
+                   "MASK", std::get<EventMask>(receivedEventInfo), "NAME", eventName(std::get<EventMask>(receivedEventInfo)));
         return std::nullopt;
     }
     return std::nullopt;
@@ -296,14 +301,15 @@ std::optional<DataOperation>
 
     fs::path eventReceivedFor =
         _watchDescriptors.at(std::get<WD>(receivedEventInfo));
-    lg2::debug("Processing an IN_CLOSE_WRITE for {PATH}", "PATH",
-               eventReceivedFor / std::get<BaseName>(receivedEventInfo));
+    fs::path absPathOfEvent = eventReceivedFor / std::get<BaseName>(receivedEventInfo);
+
+    lg2::debug("Processing an IN_CLOSE_WRITE for {PATH}", "PATH", absPathOfEvent);
 
     if (eventReceivedFor.string().starts_with(_dataPathToWatch.string()))
     {
         // Case 1 : The file configured in the JSON exists and is modified
         // Case 2 : A file got created or modified inside a watching subdir
-        return std::make_pair(_dataPathToWatch, DataOps::COPY);
+        return std::make_pair(absPathOfEvent, DataOps::COPY);
     }
     else if (fs::equivalent(eventReceivedFor /
                                 std::get<BaseName>(receivedEventInfo),
@@ -314,7 +320,7 @@ std::optional<DataOperation>
         // watcher as it is no longer needed.
         addToWatchList(_dataPathToWatch, _eventMasksToWatch);
         removeWatch(std::get<WD>(receivedEventInfo));
-        return std::make_pair(_dataPathToWatch, DataOps::COPY);
+        return std::make_pair(absPathOfEvent, DataOps::COPY);
     }
 
     return std::nullopt;
@@ -463,8 +469,17 @@ std::optional<DataOperation>
         // finally will get IN_DELETE_SELF for the configured dir also which
         // makes the size of _watchDescriptors 1.
 
-        addToWatchList(getExistingParentPath(deletedPath),
-                       _eventMasksIfNotExists);
+        auto parentPath = getExistingParentPath(deletedPath);
+        if (parentPath.empty())
+        {
+            lg2::error("Parent path is not found for the deleted path [{PATH}]",
+                       "PATH", deletedPath);
+            return std::nullopt;
+        }
+        lg2::warning("The configured path [{PATH}] does not exist, so watching "
+                     "its existing parent or grandparent path [{PARENT_PATH}]",
+                     "PATH", deletedPath, "PARENT_PATH", parentPath);
+        addToWatchList(parentPath, _eventMasksIfNotExists);
     }
 
     // Remove the watch for the deleted path

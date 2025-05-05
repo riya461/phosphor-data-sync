@@ -129,6 +129,11 @@ class DataWatcher
      */
     sdbusplus::async::task<DataOperations> onDataChange();
 
+    size_t noOfWatch() const
+    {
+        return _watchDescriptors.size();
+    }
+
     /**
      * @brief A wrapper to convert the iiotify event mask to MACRO
      *

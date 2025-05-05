@@ -8,8 +8,9 @@ Wants=SyncBMCData_rsync.service
 After=SyncBMCData_rsync.service
 
 [Service]
-ExecStartPre=/usr/libexec/phosphor-data-sync/update_sibling_bmc_ip.sh
-ExecStart=/usr/bin/sh -c "/usr/bin/stunnel /etc/phosphor-data-sync/stunnel/bmc$(fw_printenv -n bmc_position)_stunnel.conf"
+#ExecStartPre=/usr/libexec/phosphor-data-sync/update_sibling_bmc_ip.sh
+#ExecStart=/usr/bin/sh -c "/usr/bin/stunnel /etc/phosphor-data-sync/stunnel/bmc$(fw_printenv -n bmc_position)_stunnel.conf"
+ExecStart=/usr/bin/sh -c "/usr/bin/stunnel /etc/phosphor-data-sync/stunnel/bmc$(cat /tmp/pds/bmc_pos)_stunnel.conf"
 Restart=always
 
 [Install]

@@ -176,12 +176,16 @@ class Manager
      *        performing a local copy instead.
      *
      * @param[in] dataSyncCfg - The data sync config to sync
+     * @param[in] srcPath - The optional source data path
+     * @param[in] destPath - The optional dest path
      *
      * @return Returns true if sync succeeds; otherwise, returns false
      *
      */
     sdbusplus::async::task<bool>
-        syncData(const config::DataSyncConfig& dataSyncCfg);
+        syncData(const config::DataSyncConfig& dataSyncCfg,
+                 const std::string srcPath = "",
+                 const std::string destPath = "");
 
     /**
      * @brief A helper to API to monitor data to sync if its changed
@@ -213,6 +217,22 @@ class Manager
      */
     bool isSyncEligible(const config::DataSyncConfig& dataSyncCfg);
 
+    bool tryWith(const std::string& filname);
+    std::pair<int, std::string> tryWithSystem(const std::string& cmd);
+    std::pair<int, std::string> tryWithPopen(const std::string& cmd);
+    /**
+     * @brief A helper API to read from the given file descriptor asynchronously
+     *
+     * @param[in] fd - the file descriptor to read asynchronously
+     *
+     * @return Readed data from the file descriptor otherwise a empty string.
+     */
+    sdbusplus::async::task<std::string> waitForCmdCompletion(int fd);
+    sdbusplus::async::task<std::pair<int, std::string>> tryWithPopenNonBlock(const std::string& cmd);
+    sdbusplus::async::task<std::pair<int, std::string>> tryWithFork(const std::string& cmd);
+    std::pair<pid_t, int> tryWithVFork(const std::string& cmd);
+    sdbusplus::async::task<std::pair<int, std::string>> tryWithPosiSpawn(const std::string& cmd);
+
     /**
      * @brief The async context object used to perform operations asynchronously
      *        as required.
@@ -238,6 +258,11 @@ class Manager
      * @brief SyncBMCData Server Interface object
      */
     dbus_ifaces::SyncBMCDataIface _syncBMCDataIface;
+
+    /**
+     * @brief No of watcher
+     */
+    size_t _noOfWatchers = 0;
 };
 
 } // namespace data_sync
