@@ -5,6 +5,8 @@ std::filesystem::path ManagerTest::dataSyncCfgDir;
 std::filesystem::path ManagerTest::tmpDataSyncDataDir;
 nlohmann::json ManagerTest::commonJsonData;
 
+namespace fs = std::filesystem;
+
 using FullSyncStatus = sdbusplus::common::xyz::openbmc_project::control::
     SyncBMCData::FullSyncStatus;
 using SyncEventsHealth = sdbusplus::common::xyz::openbmc_project::control::
@@ -110,23 +112,23 @@ TEST_F(ManagerTest, testDBusDataPersistency)
          {
              {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
               {"DestinationPath",
-               ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+               ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
               {"Description", "FullSync from Active to Passive bmc"},
               {"SyncDirection", "Active2Passive"},
               {"SyncType", "Immediate"}},
              {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
               {"DestinationPath",
-               ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+               ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
               {"Description", "FullSync from Active to Passive bmc"},
               {"SyncDirection", "Active2Passive"},
               {"SyncType", "Immediate"}},
          }}};
 
-    std::string srcFile1{jsonData["Files"][0]["Path"]};
-    std::string srcFile2{jsonData["Files"][1]["Path"]};
+    fs::path srcFile1{jsonData["Files"][0]["Path"]};
+    fs::path srcFile2{jsonData["Files"][1]["Path"]};
 
-    std::string destFile1{jsonData["Files"][0]["DestinationPath"]};
-    std::string destFile2{jsonData["Files"][1]["DestinationPath"]};
+    fs::path destDir1{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destDir2{jsonData["Files"][1]["DestinationPath"]};
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -178,8 +180,10 @@ TEST_F(ManagerTest, testDBusDataPersistency)
         EXPECT_EQ(status, FullSyncStatus::FullSyncCompleted)
             << "FullSync status is not Completed!";
 
-        EXPECT_EQ(ManagerTest::readData(destFile1), data1);
-        EXPECT_EQ(ManagerTest::readData(destFile2), data2);
+        EXPECT_EQ(ManagerTest::readData(destDir1 / fs::relative(srcFile1, "/")),
+                  data1);
+        EXPECT_EQ(ManagerTest::readData(destDir2 / fs::relative(srcFile2, "/")),
+                  data2);
 
         ctx.request_stop();
 

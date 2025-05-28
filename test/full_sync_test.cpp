@@ -2,6 +2,8 @@
 
 #include "manager_test.hpp"
 
+namespace fs = std::filesystem;
+
 std::filesystem::path ManagerTest::dataSyncCfgDir;
 std::filesystem::path ManagerTest::tmpDataSyncDataDir;
 
@@ -48,25 +50,25 @@ TEST_F(ManagerTest, FullSyncA2PTest)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Active to Passive bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Active to Passive bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile3"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Active to Passive bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile4"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile4"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Active to Passive bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}},
@@ -79,8 +81,8 @@ TEST_F(ManagerTest, FullSyncA2PTest)
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcDir = jsonData["Directories"][0]["Path"];
-    std::string destDir = jsonData["Directories"][0]["DestinationPath"];
+    fs::path srcDir = jsonData["Directories"][0]["Path"];
+    fs::path destDir = jsonData["Directories"][0]["DestinationPath"];
 
     std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir /
                                       "srcDir");
@@ -88,10 +90,9 @@ TEST_F(ManagerTest, FullSyncA2PTest)
     std::filesystem::create_directories(ManagerTest::tmpDataSyncDataDir /
                                         "srcDir" / "subDir");
 
-    std::string dirFile = srcDir + "/dirFile";
-    std::string subDirFile =
-        (ManagerTest::tmpDataSyncDataDir / srcDir / "subDir" / "subDirFile")
-            .string();
+    fs::path dirFile = srcDir / "dirFile";
+    fs::path subDirFile = ManagerTest::tmpDataSyncDataDir / srcDir / "subDir" /
+                          "subDirFile";
 
     ManagerTest::writeData(dirFile, "Data in directory file");
     ManagerTest::writeData(subDirFile, "Data in source directory file");
@@ -100,15 +101,15 @@ TEST_F(ManagerTest, FullSyncA2PTest)
     ASSERT_EQ(ManagerTest::readData(subDirFile),
               "Data in source directory file");
 
-    std::string srcFile1{jsonData["Files"][0]["Path"]};
-    std::string srcFile2{jsonData["Files"][1]["Path"]};
-    std::string srcFile3{jsonData["Files"][2]["Path"]};
-    std::string srcFile4{jsonData["Files"][3]["Path"]};
+    fs::path srcFile1{jsonData["Files"][0]["Path"]};
+    fs::path srcFile2{jsonData["Files"][1]["Path"]};
+    fs::path srcFile3{jsonData["Files"][2]["Path"]};
+    fs::path srcFile4{jsonData["Files"][3]["Path"]};
 
-    std::string destFile1{jsonData["Files"][0]["DestinationPath"]};
-    std::string destFile2{jsonData["Files"][1]["DestinationPath"]};
-    std::string destFile3{jsonData["Files"][2]["DestinationPath"]};
-    std::string destFile4{jsonData["Files"][3]["DestinationPath"]};
+    fs::path destDir1{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destDir2{jsonData["Files"][1]["DestinationPath"]};
+    fs::path destDir3{jsonData["Files"][2]["DestinationPath"]};
+    fs::path destDir4{jsonData["Files"][3]["DestinationPath"]};
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -150,15 +151,18 @@ TEST_F(ManagerTest, FullSyncA2PTest)
         EXPECT_EQ(status, FullSyncStatus::FullSyncCompleted)
             << "FullSync status is not Completed!";
 
-        EXPECT_EQ(ManagerTest::readData(destFile1), data1);
-        EXPECT_EQ(ManagerTest::readData(destFile2), data2);
-        EXPECT_EQ(ManagerTest::readData(destFile3), data3);
-        EXPECT_EQ(ManagerTest::readData(destFile4), data4);
+        EXPECT_EQ(ManagerTest::readData(destDir1 / fs::relative(srcFile1, "/")),
+                  data1);
+        EXPECT_EQ(ManagerTest::readData(destDir2 / fs::relative(srcFile2, "/")),
+                  data2);
+        EXPECT_EQ(ManagerTest::readData(destDir3 / fs::relative(srcFile3, "/")),
+                  data3);
+        EXPECT_EQ(ManagerTest::readData(destDir4 / fs::relative(srcFile4, "/")),
+                  data4);
 
-        std::string destdirFile = destDir + "/dirFile";
-        std::string destsubDirFile = (ManagerTest::tmpDataSyncDataDir /
-                                      destDir / "subDir" / "subDirFile")
-                                         .string();
+        fs::path destdirFile = destDir / fs::relative(dirFile, "/");
+        fs::path destsubDirFile = destDir / fs::relative(subDirFile, "/");
+
         EXPECT_EQ(ManagerTest::readData(destdirFile), "Data in directory file");
         EXPECT_EQ(ManagerTest::readData(destsubDirFile),
                   "Data in source directory file");
@@ -220,25 +224,25 @@ TEST_F(ManagerTest, FullSyncP2ATest)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile3"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile4"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile4"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}},
@@ -250,8 +254,8 @@ TEST_F(ManagerTest, FullSyncP2ATest)
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcDir = jsonData["Directories"][0]["Path"];
-    std::string destDir = jsonData["Directories"][0]["DestinationPath"];
+    fs::path srcDir = jsonData["Directories"][0]["Path"];
+    fs::path destDir = jsonData["Directories"][0]["DestinationPath"];
 
     std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir /
                                       "srcDir");
@@ -259,10 +263,9 @@ TEST_F(ManagerTest, FullSyncP2ATest)
     std::filesystem::create_directories(ManagerTest::tmpDataSyncDataDir /
                                         "srcDir" / "subDir");
 
-    std::string dirFile = srcDir + "/dirFile";
-    std::string subDirFile =
-        (ManagerTest::tmpDataSyncDataDir / srcDir / "subDir" / "subDirFile")
-            .string();
+    fs::path dirFile = srcDir / "dirFile";
+    fs::path subDirFile = ManagerTest::tmpDataSyncDataDir / srcDir / "subDir" /
+                          "subDirFile";
 
     ManagerTest::writeData(dirFile, "Data in directory file");
     ManagerTest::writeData(subDirFile, "Data in source directory file");
@@ -271,17 +274,17 @@ TEST_F(ManagerTest, FullSyncP2ATest)
     ASSERT_EQ(ManagerTest::readData(subDirFile),
               "Data in source directory file");
 
-    std::string srcFile1{jsonData["Files"][0]["Path"]};
-    std::string destFile1{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcFile1{jsonData["Files"][0]["Path"]};
+    fs::path destDir1{jsonData["Files"][0]["DestinationPath"]};
 
-    std::string srcFile2{jsonData["Files"][1]["Path"]};
-    std::string destFile2{jsonData["Files"][1]["DestinationPath"]};
+    fs::path srcFile2{jsonData["Files"][1]["Path"]};
+    fs::path destDir2{jsonData["Files"][1]["DestinationPath"]};
 
-    std::string srcFile3{jsonData["Files"][2]["Path"]};
-    std::string destFile3{jsonData["Files"][2]["DestinationPath"]};
+    fs::path srcFile3{jsonData["Files"][2]["Path"]};
+    fs::path destDir3{jsonData["Files"][2]["DestinationPath"]};
 
-    std::string srcFile4{jsonData["Files"][3]["Path"]};
-    std::string destFile4{jsonData["Files"][3]["DestinationPath"]};
+    fs::path srcFile4{jsonData["Files"][3]["Path"]};
+    fs::path destDir4{jsonData["Files"][3]["DestinationPath"]};
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -322,15 +325,18 @@ TEST_F(ManagerTest, FullSyncP2ATest)
         EXPECT_EQ(status, FullSyncStatus::FullSyncCompleted)
             << "FullSync status is not Completed!";
 
-        EXPECT_EQ(ManagerTest::readData(destFile1), data1);
-        EXPECT_EQ(ManagerTest::readData(destFile2), data2);
-        EXPECT_EQ(ManagerTest::readData(destFile3), data3);
-        EXPECT_NE(ManagerTest::readData(destFile4), data4);
+        EXPECT_EQ(ManagerTest::readData(destDir1 / fs::relative(srcFile1, "/")),
+                  data1);
+        EXPECT_EQ(ManagerTest::readData(destDir2 / fs::relative(srcFile2, "/")),
+                  data2);
+        EXPECT_EQ(ManagerTest::readData(destDir3 / fs::relative(srcFile3, "/")),
+                  data3);
+        EXPECT_NE(ManagerTest::readData(destDir4 / fs::relative(srcFile4, "/")),
+                  data4);
 
-        std::string destdirFile = destDir + "/dirFile";
-        std::string destsubDirFile = (ManagerTest::tmpDataSyncDataDir /
-                                      destDir / "subDir" / "subDirFile")
-                                         .string();
+        fs::path destdirFile = destDir / fs::relative(dirFile, "/");
+        fs::path destsubDirFile = destDir / fs::relative(subDirFile, "/");
+
         EXPECT_EQ(ManagerTest::readData(destdirFile), "Data in directory file");
         EXPECT_EQ(ManagerTest::readData(destsubDirFile),
                   "Data in source directory file");
@@ -390,25 +396,25 @@ TEST_F(ManagerTest, FullSyncInProgressTest)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile3"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile4"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile4"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}}}},
@@ -420,8 +426,8 @@ TEST_F(ManagerTest, FullSyncInProgressTest)
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcDir = jsonData["Directories"][0]["Path"];
-    std::string destDir = jsonData["Directories"][0]["DestinationPath"];
+    fs::path srcDir = jsonData["Directories"][0]["Path"];
+    fs::path destDir = jsonData["Directories"][0]["DestinationPath"];
 
     std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir /
                                       "srcDir");
@@ -429,22 +435,22 @@ TEST_F(ManagerTest, FullSyncInProgressTest)
     std::filesystem::create_directories(ManagerTest::tmpDataSyncDataDir /
                                         "srcDir" / "subDir");
 
-    std::string dirFile = srcDir + "/dirFile";
+    fs::path dirFile = srcDir / "dirFile";
     ManagerTest::writeData(dirFile, "Data in directory file");
 
     ASSERT_EQ(ManagerTest::readData(dirFile), "Data in directory file");
 
-    std::string srcFile1{jsonData["Files"][0]["Path"]};
-    std::string destFile1{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcFile1{jsonData["Files"][0]["Path"]};
+    fs::path destDir1{jsonData["Files"][0]["DestinationPath"]};
 
-    std::string srcFile2{jsonData["Files"][1]["Path"]};
-    std::string destFile2{jsonData["Files"][1]["DestinationPath"]};
+    fs::path srcFile2{jsonData["Files"][1]["Path"]};
+    fs::path destDir2{jsonData["Files"][1]["DestinationPath"]};
 
-    std::string srcFile3{jsonData["Files"][2]["Path"]};
-    std::string destFile3{jsonData["Files"][2]["DestinationPath"]};
+    fs::path srcFile3{jsonData["Files"][2]["Path"]};
+    fs::path destDir3{jsonData["Files"][2]["DestinationPath"]};
 
-    std::string srcFile4{jsonData["Files"][3]["Path"]};
-    std::string destFile4{jsonData["Files"][3]["DestinationPath"]};
+    fs::path srcFile4{jsonData["Files"][3]["Path"]};
+    fs::path destDir4{jsonData["Files"][3]["DestinationPath"]};
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -541,41 +547,41 @@ TEST_F(ManagerTest, FullSyncFailed)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile3"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path",
             ManagerTest::tmpDataSyncDataDir.string() + "/test/srcFile4"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/test/destFile4"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/test/destDir"},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcFile1{jsonData["Files"][0]["Path"]};
-    std::string destFile1{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcFile1{jsonData["Files"][0]["Path"]};
+    fs::path destDir1{jsonData["Files"][0]["DestinationPath"]};
 
-    std::string srcFile2{jsonData["Files"][1]["Path"]};
-    std::string destFile2{jsonData["Files"][1]["DestinationPath"]};
+    fs::path srcFile2{jsonData["Files"][1]["Path"]};
+    fs::path destDir2{jsonData["Files"][1]["DestinationPath"]};
 
-    std::string srcFile3{jsonData["Files"][2]["Path"]};
-    std::string destFile3{jsonData["Files"][2]["DestinationPath"]};
+    fs::path srcFile3{jsonData["Files"][2]["Path"]};
+    fs::path destDir3{jsonData["Files"][2]["DestinationPath"]};
 
-    std::string srcFile4{jsonData["Files"][3]["Path"]};
-    std::string destFile4{jsonData["Files"][3]["DestinationPath"]};
+    fs::path srcFile4{jsonData["Files"][3]["Path"]};
+    fs::path destDir4{jsonData["Files"][3]["DestinationPath"]};
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -630,10 +636,13 @@ TEST_F(ManagerTest, FullSyncFailed)
         // EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Critical)
         // << "SyncEventsHealth should be Critical.";
 
-        EXPECT_EQ(ManagerTest::readData(destFile1), data1);
-        EXPECT_EQ(ManagerTest::readData(destFile2), data2);
-        EXPECT_EQ(ManagerTest::readData(destFile3), data3);
-        EXPECT_FALSE(std::filesystem::exists(destFile4));
+        EXPECT_EQ(ManagerTest::readData(destDir1 / fs::relative(srcFile1, "/")),
+                  data1);
+        EXPECT_EQ(ManagerTest::readData(destDir2 / fs::relative(srcFile2, "/")),
+                  data2);
+        EXPECT_EQ(ManagerTest::readData(destDir3 / fs::relative(srcFile3, "/")),
+                  data3);
+        EXPECT_FALSE(fs::exists(destDir4 / fs::relative(srcFile4, "/")));
 
         ctx.request_stop();
 

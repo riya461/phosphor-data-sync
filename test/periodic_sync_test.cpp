@@ -1,5 +1,7 @@
 #include "manager_test.hpp"
 
+namespace fs = std::filesystem;
+
 std::filesystem::path ManagerTest::dataSyncCfgDir;
 std::filesystem::path ManagerTest::tmpDataSyncDataDir;
 nlohmann::json ManagerTest::commonJsonData;
@@ -31,14 +33,15 @@ TEST_F(ManagerTest, PeriodicDataSyncTest)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "Parse test file"},
            {"SyncDirection", "Bidirectional"},
            {"SyncType", "Periodic"},
            {"Periodicity", "PT1S"}}}}};
 
-    std::string srcFile{jsonData["Files"][0]["Path"]};
-    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcFile{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destFile = destDir / fs::relative(srcFile, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -102,14 +105,15 @@ TEST_F(ManagerTest, PeriodicDataSyncDelayFileTest)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile1"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "Parse test file"},
            {"SyncDirection", "Bidirectional"},
            {"SyncType", "Periodic"},
            {"Periodicity", "PT1S"}}}}};
 
-    std::string srcFile{jsonData["Files"][0]["Path"]};
-    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcFile{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destFile = destDir / fs::relative(srcFile, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -173,14 +177,15 @@ TEST_F(ManagerTest, PeriodicDataSyncMultiRWTest)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "Parse test file"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Periodic"},
            {"Periodicity", "PT1S"}}}}};
 
-    std::string srcFile{jsonData["Files"][0]["Path"]};
-    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcFile{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destFile = destDir / fs::relative(srcFile, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -248,14 +253,15 @@ TEST_F(ManagerTest, PeriodicDataSyncP2ATest)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile3"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "Parse test file"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Periodic"},
            {"Periodicity", "PT1S"}}}}};
 
-    std::string srcFile{jsonData["Files"][0]["Path"]};
-    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcFile{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destFile = destDir / fs::relative(srcFile, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -311,14 +317,15 @@ TEST_F(ManagerTest, PeriodicDisablePropertyTest)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "Parse test file"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Periodic"},
            {"Periodicity", "PT1S"}}}}};
 
-    std::string srcFile{jsonData["Files"][0]["Path"]};
-    std::string destFile{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcFile{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destFile = destDir / fs::relative(srcFile, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
@@ -389,17 +396,18 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteInDir)
            {"SyncType", "Periodic"},
            {"Periodicity", "PT1S"}}}}};
 
-    std::string srcDir{jsonData["Directories"][0]["Path"]};
-    std::string destDir{jsonData["Directories"][0]["DestinationPath"]};
+    fs::path srcDir{jsonData["Directories"][0]["Path"]};
+    fs::path destDir{jsonData["Directories"][0]["DestinationPath"]};
+    fs::path destDirPath = destDir / fs::relative(srcDir, "/");
 
     // Create directories in source and destination
     std::filesystem::create_directory(srcDir);
-    std::filesystem::create_directory(destDir);
+    std::filesystem::create_directories(destDirPath);
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
 
-    std::string srcDirFile = srcDir + "Test";
-    std::string destDirFile = destDir + "Test";
+    fs::path srcDirFile = srcDir / "Test";
+    fs::path destDirFile = destDirPath / "Test";
 
     std::string data{"Src: Initial Data\n"};
     std::string destData{"Dest: Initial Data\n"};
@@ -465,20 +473,22 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteFile)
          {{{"Path",
             ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/TestFile"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/TestFile"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "Directory to test periodic sync on file deletion"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Periodic"},
            {"Periodicity", "PT1S"}}}}};
 
-    std::string srcPath{jsonData["Files"][0]["Path"]};
-    std::string destPath{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcPath{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destPath = destDir / fs::relative(srcPath, "/");
 
     // Create directories in source and destination
     std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir.string() +
                                       "/srcDir");
-    std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir.string() +
-                                      "/destDir");
+    std::filesystem::create_directories(
+        destDir / fs::relative(srcPath.parent_path(), "/"));
+
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
 
@@ -488,7 +498,8 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteFile)
     ManagerTest::writeData(destPath, destData);
 
     ASSERT_EQ(ManagerTest::readData(srcPath), data);
-    ASSERT_EQ(ManagerTest::readData(destPath), destData);
+    ASSERT_EQ(ManagerTest::readData(destPath), destData)
+        << "DestPath data not matching..";
 
     data_sync::Manager manager{ctx, std::move(extDataIface),
                                ManagerTest::dataSyncCfgDir};

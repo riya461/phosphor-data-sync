@@ -42,23 +42,26 @@ TEST_F(ManagerTest, testDataChangeInFile)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "File to test immediate sync upon data write"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcPath{jsonData["Files"][0]["Path"]};
-    std::string destPath{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcPath{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destPath = destDir / fs::relative(srcPath, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
 
     std::string data{"Src: Initial Data\n"};
-    // Just for create path in the dest to watch for expectation check
-    std::string destData{"Dest: Initial Data\n"};
     ManagerTest::writeData(srcPath, data);
-    ManagerTest::writeData(destPath, destData);
     ASSERT_EQ(ManagerTest::readData(srcPath), data);
+    // Create dest path for adding watch.
+    std::string destData{"Dest: Initial Data\n"};
+    fs::create_directories(destPath.parent_path());
+    ASSERT_TRUE(fs::exists(destPath.parent_path()));
+    ManagerTest::writeData(destPath, destData);
     ASSERT_EQ(ManagerTest::readData(destPath), destData);
 
     data_sync::Manager manager{ctx, std::move(extDataIface),
@@ -124,39 +127,38 @@ TEST_F(ManagerTest, testDataDeleteInDir)
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcDir{jsonData["Directories"][0]["Path"]};
-    std::string destDir{jsonData["Directories"][0]["DestinationPath"]};
-
-    // Create directories in source and destination
-    std::filesystem::create_directory(srcDir);
-    std::filesystem::create_directory(destDir);
+    fs::path srcDir{jsonData["Directories"][0]["Path"]};
+    fs::path destDir{jsonData["Directories"][0]["DestinationPath"]};
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
 
     std::string data{"Src: Initial Data\n"};
-    // Just for create path in the dest to watch for expectation check
-    std::string destData{"Dest: Initial Data\n"};
-
-    std::string srcDirFile = srcDir + "Test";
-    std::string destDirFile = destDir + "Test";
-
+    fs::create_directory(srcDir);
+    fs::path srcDirFile = srcDir / "Test";
+    // Write data at the src side.
     ManagerTest::writeData(srcDirFile, data);
-    ManagerTest::writeData(destDirFile, destData);
     ASSERT_EQ(ManagerTest::readData(srcDirFile), data);
+
+    // Replicate the src folder structure at destination side.
+    std::string destData{"Dest: Initial Data\n"};
+    fs::path destDirFile = destDir / fs::relative(srcDir, "/") / "Test";
+    fs::create_directories(destDirFile.parent_path());
+    ASSERT_TRUE(fs::exists(destDirFile.parent_path()));
+    // Write data at dest side
+    ManagerTest::writeData(destDirFile, destData);
     ASSERT_EQ(ManagerTest::readData(destDirFile), destData);
 
     data_sync::Manager manager{ctx, std::move(extDataIface),
                                ManagerTest::dataSyncCfgDir};
 
     // Watch for dest path data change
-    data_sync::watch::inotify::DataWatcher dataWatcher(ctx, IN_NONBLOCK,
-                                                       IN_DELETE, destDir);
+    data_sync::watch::inotify::DataWatcher dataWatcher(
+        ctx, IN_NONBLOCK, IN_DELETE, destDirFile.parent_path());
     ctx.spawn(dataWatcher.onDataChange() |
               sdbusplus::async::execution::then(
                   [&destDirFile]([[maybe_unused]] const auto& dataOps) {
         // the file should not exists
-
         EXPECT_FALSE(std::filesystem::exists(destDirFile));
     }));
 
@@ -205,29 +207,30 @@ TEST_F(ManagerTest, testDataDeletePathFile)
          {{{"Path",
             ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/TestFile"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/TestFile"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
            {"Description", "File to test immediate sync on self delete"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcPath{jsonData["Files"][0]["Path"]};
-    std::string destPath{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcPath{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destPath = destDir / fs::relative(srcPath, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
 
-    // Create directories in source and destination
-    std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir /
-                                      "srcDir");
-    std::filesystem::create_directory(ManagerTest::tmpDataSyncDataDir /
-                                      "destDir");
+    // Create directories in source
+    fs::create_directory(ManagerTest::tmpDataSyncDataDir / "srcDir");
 
     std::string data{"Src: Initial Data\n"};
-    // Just for create path in the dest to watch for expectation check
-    std::string destData{"Dest: Initial Data\n"};
     ManagerTest::writeData(srcPath, data);
-    ManagerTest::writeData(destPath, destData);
     ASSERT_EQ(ManagerTest::readData(srcPath), data);
+
+    // Replicate the src folder structure at destination side.
+    std::string destData{"Dest: Initial Data\n"};
+    fs::create_directories(destPath.parent_path());
+    ASSERT_TRUE(fs::exists(destPath.parent_path()));
+    ManagerTest::writeData(destPath, destData);
     ASSERT_EQ(ManagerTest::readData(destPath), destData);
 
     data_sync::Manager manager{ctx, std::move(extDataIface),
@@ -293,23 +296,26 @@ TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
            {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destFile2"},
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
            {"Description", "File to test immediate sync when sync is disabled"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcPath{jsonData["Files"][0]["Path"]};
-    std::string destPath{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcPath{jsonData["Files"][0]["Path"]};
+    fs::path destDir{jsonData["Files"][0]["DestinationPath"]};
+    fs::path destPath = destDir / fs::relative(srcPath, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
 
     std::string data{"Src: Initial Data\n"};
-    // Just for create path in the dest to watch for expectation check
-    std::string destData{"Dest: Initial Data\n"};
     ManagerTest::writeData(srcPath, data);
-    ManagerTest::writeData(destPath, destData);
     ASSERT_EQ(ManagerTest::readData(srcPath), data);
+
+    // Replicate the src folder structure at destination side.
+    std::string destData{"Dest: Initial Data\n"};
+    fs::create_directories(destPath.parent_path());
+    ManagerTest::writeData(destPath, destData);
     ASSERT_EQ(ManagerTest::readData(destPath), destData);
 
     data_sync::Manager manager{ctx, std::move(extDataIface),
@@ -393,8 +399,8 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
 
-    std::string srcDir{jsonData["Directories"][0]["Path"]};
-    std::string destDir{jsonData["Directories"][0]["DestinationPath"]};
+    fs::path srcDir{jsonData["Directories"][0]["Path"]};
+    fs::path destDir{jsonData["Directories"][0]["DestinationPath"]};
 
     // Create directories in source and destination
     std::filesystem::create_directory(srcDir);
@@ -411,8 +417,8 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
                                                        IN_CREATE, destDir);
     ctx.spawn(dataWatcher.onDataChange() |
               sdbusplus::async::execution::then(
-                  [&destDir]([[maybe_unused]] const auto& dataOps) {
-        std::string destSubDir = destDir + "/Test/";
+                  [&destDir, &srcDir]([[maybe_unused]] const auto& dataOps) {
+        fs::path destSubDir = destDir / fs::relative(srcDir, "/") / "Test";
         EXPECT_TRUE(std::filesystem::exists(destSubDir));
     }));
 
@@ -420,8 +426,8 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
     // to catch.
     ctx.spawn(sdbusplus::async::sleep_for(ctx, 1s) |
               sdbusplus::async::execution::then([&ctx, &srcDir]() {
-        std::filesystem::create_directory(srcDir + "/Test");
-        ASSERT_TRUE(std::filesystem::exists(srcDir + "/Test/"));
+        std::filesystem::create_directory(srcDir / "Test");
+        ASSERT_TRUE(std::filesystem::exists(srcDir / "Test"));
         ctx.request_stop();
     }));
 
