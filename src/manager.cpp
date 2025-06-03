@@ -2,7 +2,11 @@
 
 #include "manager.hpp"
 
+#include "async_command_exec.hpp"
 #include "data_watcher.hpp"
+
+#include <fcntl.h>
+#include <spawn.h>
 
 #include <nlohmann/json.hpp>
 #include <phosphor-logging/lg2.hpp>
@@ -143,9 +147,6 @@ sdbusplus::async::task<> Manager::startSyncEvents()
     co_return;
 }
 
-// TODO: This isn't truly an async operation — Need to use popen/posix_spawn to
-// run the rsync command asynchronously but it will be handled as part of
-// concurrent sync changes.
 sdbusplus::async::task<bool>
     // NOLINTNEXTLINE
     Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
@@ -182,9 +183,10 @@ sdbusplus::async::task<bool>
     // Add destination data path if configured
     syncCmd.append(dataSyncCfg._destPath.value_or(fs::path("")));
     lg2::debug("RSYNC CMD : {CMD}", "CMD", syncCmd);
-    int result = std::system(syncCmd.c_str()); // NOLINT
 
-    if (result != 0)
+    data_sync::async::AsyncCommandExecutor executor(_ctx);
+    auto result = co_await executor.execCmd(syncCmd); // NOLINT
+    if (result.first != 0)
     {
         // TODOs:
         // 1. Retry based on rsync error code
