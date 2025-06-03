@@ -5,6 +5,7 @@ namespace fs = std::filesystem;
 std::filesystem::path ManagerTest::dataSyncCfgDir;
 std::filesystem::path ManagerTest::tmpDataSyncDataDir;
 nlohmann::json ManagerTest::commonJsonData;
+std::filesystem::path ManagerTest::destDir;
 
 TEST_F(ManagerTest, PeriodicDataSyncTest)
 {
@@ -32,8 +33,7 @@ TEST_F(ManagerTest, PeriodicDataSyncTest)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Parse test file"},
            {"SyncDirection", "Bidirectional"},
            {"SyncType", "Periodic"},
@@ -104,8 +104,7 @@ TEST_F(ManagerTest, PeriodicDataSyncDelayFileTest)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Parse test file"},
            {"SyncDirection", "Bidirectional"},
            {"SyncType", "Periodic"},
@@ -176,8 +175,7 @@ TEST_F(ManagerTest, PeriodicDataSyncMultiRWTest)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Parse test file"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Periodic"},
@@ -252,8 +250,7 @@ TEST_F(ManagerTest, PeriodicDataSyncP2ATest)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Parse test file"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Periodic"},
@@ -316,8 +313,7 @@ TEST_F(ManagerTest, PeriodicDisablePropertyTest)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Parse test file"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Periodic"},
@@ -389,8 +385,7 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteInDir)
     nlohmann::json jsonData = {
         {"Directories",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Directory to test periodic sync on file deletion"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Periodic"},
@@ -472,8 +467,7 @@ TEST_F(ManagerTest, PeriodicDataSyncTestDataDeleteFile)
         {"Files",
          {{{"Path",
             ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/TestFile"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Directory to test periodic sync on file deletion"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Periodic"},

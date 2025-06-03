@@ -11,6 +11,7 @@ namespace fs = std::filesystem;
 std::filesystem::path ManagerTest::dataSyncCfgDir;
 std::filesystem::path ManagerTest::tmpDataSyncDataDir;
 nlohmann::json ManagerTest::commonJsonData;
+std::filesystem::path ManagerTest::destDir;
 
 TEST_F(ManagerTest, testDataChangeInFile)
 {
@@ -41,8 +42,7 @@ TEST_F(ManagerTest, testDataChangeInFile)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "File to test immediate sync upon data write"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
@@ -127,8 +127,7 @@ TEST_F(ManagerTest, testDataDeleteInDir)
     nlohmann::json jsonData = {
         {"Directories",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Directory to test immediate sync on file deletion"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
@@ -219,8 +218,7 @@ TEST_F(ManagerTest, testDataDeletePathFile)
         {"Files",
          {{{"Path",
             ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/TestFile"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "File to test immediate sync on self delete"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
@@ -315,8 +313,7 @@ TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "File to test immediate sync when sync is disabled"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
@@ -412,8 +409,7 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
     nlohmann::json jsonData = {
         {"Directories",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description",
             "File to test immediate sync on non existent dest path"},
            {"SyncDirection", "Active2Passive"},

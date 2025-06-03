@@ -3,6 +3,7 @@
 
 std::filesystem::path ManagerTest::dataSyncCfgDir;
 std::filesystem::path ManagerTest::tmpDataSyncDataDir;
+std::filesystem::path ManagerTest::destDir;
 
 using FullSyncStatus = sdbusplus::common::xyz::openbmc_project::control::
     SyncBMCData::FullSyncStatus;

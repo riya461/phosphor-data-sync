@@ -6,6 +6,7 @@ namespace fs = std::filesystem;
 
 std::filesystem::path ManagerTest::dataSyncCfgDir;
 std::filesystem::path ManagerTest::tmpDataSyncDataDir;
+std::filesystem::path ManagerTest::destDir;
 
 using FullSyncStatus = sdbusplus::common::xyz::openbmc_project::control::
     SyncBMCData::FullSyncStatus;
@@ -49,34 +50,29 @@ TEST_F(ManagerTest, FullSyncA2PTest)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Active to Passive bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Active to Passive bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Active to Passive bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile4"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Active to Passive bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}},
 
         {"Directories",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Active to Passive bmc directory"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
@@ -167,6 +163,11 @@ TEST_F(ManagerTest, FullSyncA2PTest)
         EXPECT_EQ(ManagerTest::readData(destsubDirFile),
                   "Data in source directory file");
 
+        // Wait to ensure the immediate and periodic sync tasks configured
+        // in the test setup are spawned. If the context is stopped while
+        // spawning is still in progress, the spawn will fail.
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(50));
         ctx.request_stop();
 
         // Forcing to trigger inotify events so that all running immediate
@@ -223,33 +224,28 @@ TEST_F(ManagerTest, FullSyncP2ATest)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile4"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}},
         {"Directories",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Parse test directory"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}}}}};
@@ -341,6 +337,11 @@ TEST_F(ManagerTest, FullSyncP2ATest)
         EXPECT_EQ(ManagerTest::readData(destsubDirFile),
                   "Data in source directory file");
 
+        // Wait to ensure the immediate and periodic sync tasks configured
+        // in the test setup are spawned. If the context is stopped while
+        // spawning is still in progress, the spawn will fail.
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(50));
         ctx.request_stop();
 
         // Forcing to trigger inotify events so that all running immediate
@@ -395,33 +396,28 @@ TEST_F(ManagerTest, FullSyncInProgressTest)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile4"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}}}},
         {"Directories",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "Parse test directory"},
            {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
@@ -491,6 +487,12 @@ TEST_F(ManagerTest, FullSyncInProgressTest)
 
         EXPECT_EQ(status, FullSyncStatus::FullSyncInProgress)
             << "FullSync status is not InProgress!";
+
+        // Wait to ensure the immediate and periodic sync tasks configured
+        // in the test setup are spawned. If the context is stopped while
+        // spawning is still in progress, the spawn will fail.
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(50));
         ctx.request_stop();
 
         // Forcing to trigger inotify events so that all running immediate
@@ -546,20 +548,17 @@ TEST_F(ManagerTest, FullSyncFailed)
     nlohmann::json jsonData = {
         {"Files",
          {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
           {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile3"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir"},
+           {"DestinationPath", ManagerTest::destDir.string()},
            {"Description", "FullSync from Passive to Active bmc"},
            {"SyncDirection", "Passive2Active"},
            {"SyncType", "Immediate"}},
@@ -644,6 +643,11 @@ TEST_F(ManagerTest, FullSyncFailed)
                   data3);
         EXPECT_FALSE(fs::exists(destDir4 / fs::relative(srcFile4, "/")));
 
+        // Wait to ensure the immediate and periodic sync tasks configured
+        // in the test setup are spawned. If the context is stopped while
+        // spawning is still in progress, the spawn will fail.
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(50));
         ctx.request_stop();
 
         // Forcing to trigger inotify events so that all running immediate
@@ -777,6 +781,11 @@ TEST_F(ManagerTest, FullSyncA2PWithExcludeDirTest)
         EXPECT_EQ(ManagerTest::readData(destSubDir1File), dataSubDir1File);
         EXPECT_FALSE(fs::exists(destExcludeDirX));
 
+        // Wait to ensure the immediate and periodic sync tasks configured
+        // in the test setup are spawned. If the context is stopped while
+        // spawning is still in progress, the spawn will fail.
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(50));
         ctx.request_stop();
 
         // Forcing to trigger inotify events so that all running immediate
@@ -901,6 +910,11 @@ TEST_F(ManagerTest, FullSyncA2PWithExcludeFileTest)
         EXPECT_EQ(ManagerTest::readData(destDirFile1), dataDirFile1);
         EXPECT_FALSE(fs::exists(destExcludeFile));
 
+        // Wait to ensure the immediate and periodic sync tasks configured
+        // in the test setup are spawned. If the context is stopped while
+        // spawning is still in progress, the spawn will fail.
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(50));
         ctx.request_stop();
 
         // Forcing to trigger inotify events so that all running immediate

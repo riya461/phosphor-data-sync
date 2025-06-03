@@ -7,6 +7,7 @@ nlohmann_json_dep = dependency('nlohmann_json')
 
 rbmc_data_sync_sources = [
     files(
+        'async_command_exec.cpp',
         'data_sync_config.cpp',
         'data_watcher.cpp',
         'external_data_ifaces.cpp',
@@ -14,6 +15,7 @@ rbmc_data_sync_sources = [
         'manager.cpp',
         'persistent.cpp',
         'sync_bmc_data_ifaces.cpp',
+        'utility.cpp',
     ),
 ]
 

@@ -4,6 +4,7 @@
 std::filesystem::path ManagerTest::dataSyncCfgDir;
 std::filesystem::path ManagerTest::tmpDataSyncDataDir;
 nlohmann::json ManagerTest::commonJsonData;
+std::filesystem::path ManagerTest::destDir;
 
 namespace fs = std::filesystem;
 
@@ -111,14 +112,12 @@ TEST_F(ManagerTest, testDBusDataPersistency)
         {"Files",
          {
              {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
-              {"DestinationPath",
-               ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+              {"DestinationPath", ManagerTest::destDir.string()},
               {"Description", "FullSync from Active to Passive bmc"},
               {"SyncDirection", "Active2Passive"},
               {"SyncType", "Immediate"}},
              {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile2"},
-              {"DestinationPath",
-               ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+              {"DestinationPath", ManagerTest::destDir.string()},
               {"Description", "FullSync from Active to Passive bmc"},
               {"SyncDirection", "Active2Passive"},
               {"SyncType", "Immediate"}},

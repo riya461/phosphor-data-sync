@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include "utility.hpp"
+
 #include <sys/inotify.h>
-#include <unistd.h>
 
 #include <data_sync_config.hpp>
 #include <sdbusplus/async.hpp>
@@ -18,6 +19,7 @@ namespace data_sync::watch::inotify
 using DataSyncCfg = data_sync::config::DataSyncConfig;
 
 namespace fs = std::filesystem;
+namespace utility = data_sync::utility;
 
 /**
  * @brief A tuple which has the info related to the occured inotify event
@@ -54,42 +56,6 @@ enum class DataOps
  */
 using DataOperation = std::pair<fs::path, DataOps>;
 using DataOperations = std::vector<DataOperation>;
-
-/** @class FD
- *
- *  @brief RAII wrapper for file descriptor.
- */
-class FD
-{
-  public:
-    FD(const FD&) = delete;
-    FD& operator=(const FD&) = delete;
-    FD(FD&&) = delete;
-    FD& operator=(FD&&) = delete;
-
-    /** @brief Saves File descriptor and uses it to do file operation
-     *
-     *  @param[in] fd - File descriptor
-     */
-    explicit FD(int fd) : fd(fd) {}
-
-    ~FD()
-    {
-        if (fd >= 0)
-        {
-            close(fd);
-        }
-    }
-
-    int operator()() const
-    {
-        return fd;
-    }
-
-  private:
-    /** @brief File descriptor */
-    int fd = -1;
-};
 
 /** @class DataWatcher
  *
@@ -172,7 +138,7 @@ class DataWatcher
     /**
      * @brief file descriptor referring to the inotify instance
      */
-    FD _inotifyFileDescriptor;
+    utility::FD _inotifyFileDescriptor;
 
     /**
      * @brief fdio instance

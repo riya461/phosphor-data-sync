@@ -25,6 +25,14 @@ class ManagerTest : public ::testing::Test
     void SetUp() override
     {
         dataSyncCfgFile = dataSyncCfgDir / "testcase_config.json";
+        destDir = tmpDataSyncDataDir.string() + "/destDir/";
+
+        // The data-sync using rsync with --relative, it reconstructs
+        // the source path tree and attempts to create destination directory
+        // on every rsync. The first call succeeds, but subsequent calls may
+        // fail with "File exists (17)". To avoid this, ensure the destination
+        // directory is created beforehand, or use a different destination path.
+        std::filesystem::create_directories(destDir);
     }
 
     // Tear down each individual test
@@ -79,5 +87,6 @@ class ManagerTest : public ::testing::Test
     static std::filesystem::path dataSyncCfgDir;
     static nlohmann::json commonJsonData;
     static std::filesystem::path tmpDataSyncDataDir;
+    static std::filesystem::path destDir;
     std::filesystem::path dataSyncCfgFile;
 };
