@@ -159,6 +159,7 @@ TEST_F(ManagerTest, testDataDeleteInDir)
                                ManagerTest::dataSyncCfgDir};
 
     // Watch for dest path data change
+<<<<<<< HEAD
     nlohmann::json jsonForDest = {
         {"Path", destDirFile.parent_path()},
         {"Description", "Json to create an inotify watcher on destPath"},
@@ -168,6 +169,10 @@ TEST_F(ManagerTest, testDataDeleteInDir)
 
     data_sync::watch::inotify::DataWatcher dataWatcher(ctx, IN_NONBLOCK,
                                                        IN_DELETE, dataSyncCfg);
+    data_sync::watch::inotify::DataWatcher dataWatcher(
+        ctx, IN_NONBLOCK, IN_DELETE, destDir,
+        std::optional<std::vector<std::filesystem::path>>{},
+        std::optional<std::vector<std::filesystem::path>>{});
     ctx.spawn(dataWatcher.onDataChange() |
               sdbusplus::async::execution::then(
                   [&destDirFile]([[maybe_unused]] const auto& dataOps) {

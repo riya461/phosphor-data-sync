@@ -164,13 +164,18 @@ class Manager
      *        performing a local copy instead.
      *
      * @param[in] dataSyncCfg - The data sync config to sync
+     * @param[in] srcPath - The optional source data path
+     * @param[in] destPath - The optional dest path
+     * @param[in] retryCount - The current retry attempt number
      *
      * @return Returns true if sync succeeds; otherwise, returns false
      *
      */
     sdbusplus::async::task<bool>
         syncData(const config::DataSyncConfig& dataSyncCfg,
-                 fs::path srcPath = fs::path{});
+                 fs::path srcPath = fs::path{},
+                 const std::string destPath = "",
+                 size_t retryCount = 0);
 
     /**
      * @brief A helper to API to monitor data to sync if its changed
