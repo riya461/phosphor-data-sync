@@ -64,7 +64,9 @@ TEST_F(ManagerTest, testDataChangeInFile)
 
     // Watch for dest path data change
     data_sync::watch::inotify::DataWatcher dataWatcher(
-        ctx, IN_NONBLOCK, IN_CLOSE_WRITE, destPath);
+        ctx, IN_NONBLOCK, IN_CLOSE_WRITE, destPath,
+        std::optional<std::vector<std::filesystem::path>>{},
+        std::optional<std::vector<std::filesystem::path>>{});
     ctx.spawn(
         dataWatcher.onDataChange() |
         sdbusplus::async::execution::then(
@@ -142,8 +144,10 @@ TEST_F(ManagerTest, testDataDeleteInDir)
                                ManagerTest::dataSyncCfgDir};
 
     // Watch for dest path data change
-    data_sync::watch::inotify::DataWatcher dataWatcher(ctx, IN_NONBLOCK,
-                                                       IN_DELETE, destDir);
+    data_sync::watch::inotify::DataWatcher dataWatcher(
+        ctx, IN_NONBLOCK, IN_DELETE, destDir,
+        std::optional<std::vector<std::filesystem::path>>{},
+        std::optional<std::vector<std::filesystem::path>>{});
     ctx.spawn(dataWatcher.onDataChange() |
               sdbusplus::async::execution::then(
                   [&destDirFile]([[maybe_unused]] const auto& dataOps) {
@@ -223,7 +227,9 @@ TEST_F(ManagerTest, testDataDeletePathFile)
 
     // Watch for dest path data change
     data_sync::watch::inotify::DataWatcher dataWatcher(
-        ctx, IN_NONBLOCK, IN_DELETE_SELF, destPath);
+        ctx, IN_NONBLOCK, IN_DELETE_SELF, destPath,
+        std::optional<std::vector<std::filesystem::path>>{},
+        std::optional<std::vector<std::filesystem::path>>{});
     ctx.spawn(dataWatcher.onDataChange() |
               sdbusplus::async::execution::then(
                   [&destPath]([[maybe_unused]] const auto& dataOps) {
@@ -387,8 +393,10 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
                                ManagerTest::dataSyncCfgDir};
 
     // Watch for dest path data change
-    data_sync::watch::inotify::DataWatcher dataWatcher(ctx, IN_NONBLOCK,
-                                                       IN_CREATE, destDir);
+    data_sync::watch::inotify::DataWatcher dataWatcher(
+        ctx, IN_NONBLOCK, IN_CREATE, destDir,
+        std::optional<std::vector<std::filesystem::path>>{},
+        std::optional<std::vector<std::filesystem::path>>{});
     ctx.spawn(dataWatcher.onDataChange() |
               sdbusplus::async::execution::then(
                   [&destDir]([[maybe_unused]] const auto& dataOps) {
