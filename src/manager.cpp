@@ -194,6 +194,11 @@ sdbusplus::async::task<bool>
                       size_t retryCount)
 {
     const auto currentSrcPath = srcPath;
+    if (_syncBMCDataIface.disable_sync())
+    {
+        co_return false;
+    }
+
     const auto currentDestPath =
         destPath.empty()
             ? dataSyncCfg._destPath.value_or(dataSyncCfg._path).string()
