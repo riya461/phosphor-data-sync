@@ -542,10 +542,14 @@ std::string getVanishedSrcPath(const std::string& rsyncCmdOut)
 sdbusplus::async::task<bool>
     // NOLINTNEXTLINE
     Manager::syncData(config::DataSyncConfig& dataSyncCfg,
-                      const std::string srcPath,
-                      const std::string destPath,
+                      const std::string srcPath, const std::string destPath,
                       size_t retryCount)
 {
+    if (_syncBMCDataIface.disable_sync())
+    {
+        return false;
+    }
+
     const auto currentSrcPath = srcPath.empty() ? dataSyncCfg._path.string()
                                                 : srcPath;
     const auto currentDestPath =
