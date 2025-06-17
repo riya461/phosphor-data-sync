@@ -206,6 +206,15 @@ struct DataSyncConfig
      */
     std::optional<std::unordered_set<fs::path>> _includeList;
 
+    /**
+     * @brief Tracks file or directory paths currently being processed for
+     *        sync.
+     *
+     *        This container holds paths that are actively undergoing sync. Once
+     *        processing completes, the path is removed from this set.
+     */
+    std::unordered_set<fs::path> _syncInProgressPaths;
+
   private:
     /**
      * @brief A helper API to retrieve the corresponding enum type
