@@ -142,7 +142,7 @@ sdbusplus::async::task<> Manager::startSyncEvents()
             std::views::filter([this](const auto& dataSyncCfg) {
         return this->isSyncEligible(dataSyncCfg);
     }),
-        [this](const auto& dataSyncCfg) {
+        [this](auto& dataSyncCfg) {
         using enum config::SyncType;
         if (dataSyncCfg._syncType == Immediate)
         {
@@ -541,7 +541,7 @@ std::string getVanishedSrcPath(const std::string& rsyncCmdOut)
 // concurrent sync changes.
 sdbusplus::async::task<bool>
     // NOLINTNEXTLINE
-    Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
+    Manager::syncData(config::DataSyncConfig& dataSyncCfg,
                       const std::string srcPath,
                       const std::string destPath,
                       size_t retryCount)
@@ -552,6 +552,20 @@ sdbusplus::async::task<bool>
         destPath.empty()
             ? dataSyncCfg._destPath.value_or(dataSyncCfg._path).string()
             : destPath;
+
+    // On first try only, if this path is already in retry/syncing, skip that
+    if (retryCount == 0)
+    {
+        if (dataSyncCfg._syncInProgressPaths.count(currentSrcPath))
+        {
+            lg2::debug(
+                "Skipping sync for [{SRC}]: a sync is already in progress",
+                "SRC", currentSrcPath);
+            co_return true;
+        }
+        // Mark the path as in-progress so subsequent retries know to skip it
+        dataSyncCfg._syncInProgressPaths.insert(currentSrcPath);
+    }
 
     const size_t maxAttempts = dataSyncCfg._retry->_retryAttempts;
     const size_t retryIntervalSec =
@@ -700,8 +714,10 @@ sdbusplus::async::task<bool>
     lg2::debug("Elapsed time for sync: [{DURATION_SECONDS}] seconds for {CMD}",
               "DURATION_SECONDS", syncElapsedTime.count(), "CMD", syncCmd);
 
+    // On success, clear in-progress and return
     if (ret.first == 0)
     {
+        dataSyncCfg._syncInProgressPaths.erase(currentSrcPath);
         co_return true;
     }
 
@@ -729,6 +745,15 @@ sdbusplus::async::task<bool>
 
         co_await sleep_for(_ctx, std::chrono::seconds(retryIntervalSec));
 
+        // Recheck vanished path after retry interval
+        if (ret.first == 24 && fs::exists(currentSrcPath))
+        {
+            lg2::debug(
+                "Vanish recovery: path [{SRC}] is now present retrying sync on this path",
+                "SRC", currentSrcPath);
+            retrySrcPath = currentSrcPath;
+        }
+
         co_return co_await syncData(dataSyncCfg, retrySrcPath, destPath,
                                     retryCount + 1);
     }
@@ -740,12 +765,13 @@ sdbusplus::async::task<bool>
                "SRC", currentSrcPath, 
                "DEST", currentDestPath);
 
+    dataSyncCfg._syncInProgressPaths.erase(currentSrcPath);
     co_return false;
 }
 
 sdbusplus::async::task<>
     // NOLINTNEXTLINE
-    Manager::monitorDataToSync(const config::DataSyncConfig& dataSyncCfg)
+    Manager::monitorDataToSync(config::DataSyncConfig& dataSyncCfg)
 {
     try
     {
@@ -797,7 +823,7 @@ sdbusplus::async::task<>
 
 sdbusplus::async::task<>
     // NOLINTNEXTLINE
-    Manager::monitorTimerToSync(const config::DataSyncConfig& dataSyncCfg)
+    Manager::monitorTimerToSync(config::DataSyncConfig& dataSyncCfg)
 {
     while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
     {
@@ -913,7 +939,7 @@ sdbusplus::async::task<void> Manager::startFullSync()
         auto syncResults = std::vector<bool>();
         size_t spawnedTasks = 0;
 
-        for (const auto& cfg : _dataSyncConfiguration)
+        for (auto& cfg : _dataSyncConfiguration)
         {
             // TODO: add receiver logic to stop fullsync when disable sync is set to
             // true.

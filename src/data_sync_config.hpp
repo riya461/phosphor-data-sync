@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 
 namespace data_sync::config
 {
@@ -186,6 +187,15 @@ struct DataSyncConfig
      *       synchronization.
      */
     std::optional<std::vector<fs::path>> _includeList;
+
+    /**
+     * @brief Tracks file or directory paths currently being processed for
+     *        sync.
+     *
+     *        This container holds paths that are actively undergoing sync. Once
+     *        processing completes, the path is removed from this set.
+     */
+    std::unordered_set<fs::path> _syncInProgressPaths;
 
   private:
     /**
