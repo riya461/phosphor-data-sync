@@ -184,7 +184,7 @@ class Manager
      *
      */
     sdbusplus::async::task<bool>
-        syncData(const config::DataSyncConfig& dataSyncCfg,
+        syncData(config::DataSyncConfig& dataSyncCfg,
                  const std::string srcPath = "",
                  const std::string destPath = "",
                  size_t retryCount = 0);
@@ -196,7 +196,7 @@ class Manager
      *
      */
     sdbusplus::async::task<>
-        monitorDataToSync(const config::DataSyncConfig& dataSyncCfg);
+        monitorDataToSync(config::DataSyncConfig& dataSyncCfg);
 
     /**
      * @brief A helper to API to sync data periodically.
@@ -204,7 +204,7 @@ class Manager
      * @param[in] dataSyncCfg - The data sync config to sync
      */
     sdbusplus::async::task<>
-        monitorTimerToSync(const config::DataSyncConfig& dataSyncCfg);
+        monitorTimerToSync(config::DataSyncConfig& dataSyncCfg);
 
     /**
      * @brief A helper to API Checks if the data can be synchronize.
