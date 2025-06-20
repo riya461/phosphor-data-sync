@@ -634,8 +634,11 @@ sdbusplus::async::task<bool>
 
     lg2::debug("Rsync command: {CMD}", "CMD", syncCmd);
 
-    auto syncStartTime = std::chrono::steady_clock::now();
     std::pair<int, std::string> ret;
+#ifdef UNIT_TEST
+    ret = co_await tryWithPosiSpawn(syncCmd);
+#else
+    auto syncStartTime = std::chrono::steady_clock::now();
     if (tryWith("system"))
     {
         ret = tryWithSystem(syncCmd);
@@ -718,7 +721,7 @@ sdbusplus::async::task<bool>
             syncEndTime - syncStartTime);
     lg2::debug("Elapsed time for sync: [{DURATION_SECONDS}] seconds for {CMD}",
               "DURATION_SECONDS", syncElapsedTime.count(), "CMD", syncCmd);
-
+#endif
     // On success, clear in-progress and return
     if (ret.first == 0)
     {

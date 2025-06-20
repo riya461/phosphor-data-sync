@@ -10,6 +10,9 @@
 #include <ranges>
 #include <vector>
 
+#ifdef UNIT_TEST
+#include <gtest/gtest.h>
+#endif
 namespace data_sync
 {
 
@@ -133,6 +136,10 @@ class Manager
     }
 
   private:
+
+#ifdef UNIT_TEST
+    FRIEND_TEST(ManagerTest, SyncDataHandlesVanishedFileRetry);
+#endif
     /**
      * @brief A helper API to start the data sync operation.
      */
