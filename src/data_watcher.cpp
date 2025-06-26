@@ -223,9 +223,17 @@ std::optional<DataOperation>
 
     if (eventReceivedFor.string().starts_with(_dataPathToWatch.string()))
     {
-        // Case 1 : The file configured in the JSON exists and is modified
+        if (std::get<BaseName>(receivedEventInfo).empty())
+        {
+            // Case 1 : The configured file in the JSON was watching and is
+            // modified.
+            return std::make_pair(eventReceivedFor, DataOps::COPY);
+        }
+
         // Case 2 : A file got created or modified inside a watching subdir
-        return std::make_pair(_dataPathToWatch, DataOps::COPY);
+        return std::make_pair(eventReceivedFor /
+                                  std::get<BaseName>(receivedEventInfo),
+                              DataOps::COPY);
     }
     else if (fs::equivalent(eventReceivedFor /
                                 std::get<BaseName>(receivedEventInfo),
