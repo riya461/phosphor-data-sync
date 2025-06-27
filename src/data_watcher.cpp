@@ -53,7 +53,7 @@ int DataWatcher::inotifyInit() const
 fs::path DataWatcher::getExistingParentPath(const fs::path& dataPath)
 {
     fs::path parentPath = dataPath.parent_path();
-    while (!fs::exists(parentPath))
+    while ((!parentPath.empty()) && (!fs::exists(parentPath)))
     {
         parentPath = parentPath.parent_path();
     }
@@ -107,8 +107,14 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
         lg2::debug("Given path [{PATH}] doesn't exist to watch", "PATH",
                    pathToWatch);
 
-        addToWatchList(getExistingParentPath(pathToWatch),
-                       _eventMasksIfNotExists);
+        auto parentPath = getExistingParentPath(pathToWatch);
+        if (parentPath.empty())
+        {
+            lg2::error("Parent path not found for the path [{PATH}]", "PATH",
+                       pathToWatch);
+            return;
+        }
+        addToWatchList(parentPath, _eventMasksIfNotExists);
     }
 }
 
@@ -357,8 +363,14 @@ std::optional<DataOperation>
         // finally will get IN_DELETE_SELF for the configured dir also which
         // makes the size of _watchDescriptors 1.
 
-        addToWatchList(getExistingParentPath(deletedPath),
-                       _eventMasksIfNotExists);
+        auto parentPath = getExistingParentPath(deletedPath);
+        if (parentPath.empty())
+        {
+            lg2::error("Parent path not found for the deleted path [{PATH}]",
+                       "PATH", deletedPath);
+            return std::nullopt;
+        }
+        addToWatchList(parentPath, _eventMasksIfNotExists);
     }
 
     // Remove the watch for the deleted path
