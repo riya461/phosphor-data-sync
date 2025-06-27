@@ -143,8 +143,13 @@ std::optional<std::vector<EventInfo>> DataWatcher::readEvents()
     auto bytes = read(_inotifyFileDescriptor(), buffer, maxBytes);
     if (0 > bytes)
     {
-        // Failed to read inotify event
-        lg2::error("Failed to read inotify event");
+        // In non blocking mode, read returns immediately with EAGAIN /
+        // EWOULDBLOCK when no data is available, instead of waiting.
+        if (errno != EAGAIN && errno != EWOULDBLOCK)
+        {
+            lg2::error("Failed to read inotify event, error: {ERROR}", "ERROR",
+                       strerror(errno));
+        }
         return std::nullopt;
     }
 
