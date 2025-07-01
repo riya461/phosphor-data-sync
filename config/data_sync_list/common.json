@@ -5,6 +5,13 @@
             "Description": "Host State Persisted data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/phosphor-fan-presence/",
+            "Description": "Fan presence persisted data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate",
+            "ExcludeList": ["/var/lib/phosphor-fan-presence/control/"]
         }
     ]
 }
