@@ -11,6 +11,8 @@
 namespace data_sync::config
 {
 
+namespace fs = std::filesystem;
+
 Retry::Retry(uint8_t retryAttempts,
              const std::chrono::seconds& retryIntervalInSec) :
     _retryAttempts(retryAttempts), _retryIntervalInSec(retryIntervalInSec)
@@ -31,6 +33,11 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
     _syncType(convertSyncTypeToEnum(config["SyncType"].get<std::string>())
                   .value_or(SyncType::Immediate))
 {
+    if (fs::is_symlink(_path))
+    {
+        _path = fs::canonical(_path);
+    }
+
     // Initiailze optional members
     if (config.contains("DestinationPath"))
     {
