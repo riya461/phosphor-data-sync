@@ -180,6 +180,14 @@ class DataWatcher
     DataOperations _dataOperations;
 
     /**
+     * @brief Map of Cookie and DataOperation to save the inotify event info.
+     *
+     * Eg : The IN_MOVED_FROM info during the rename or move operations can be
+     * saved for map to the corresponding IN_MOVED_TO signals.
+     */
+    std::map<Cookie, DataOperation> _movedFromDataOps;
+
+    /**
      * @brief initialize an inotify instance and returns file descriptor
      */
     int inotifyInit() const;

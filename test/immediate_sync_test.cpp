@@ -462,81 +462,74 @@ TEST_F(ManagerTest, testFileMoveToAnotherDir)
 
     nlohmann::json jsonData = {
         {"Directories",
-         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir1/"},
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/Dir1/"},
            {"DestinationPath",
             ManagerTest::tmpDataSyncDataDir.string() + "/destDir1/"},
            {"Description", "Directory to test immediate sync on file move"},
            {"SyncDirection", "Active2Passive"},
-           {"SyncType", "Immediate"}},
-          {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir2/"},
-           {"DestinationPath",
-            ManagerTest::tmpDataSyncDataDir.string() + "/destDir2/"},
-           {"Description", "Directory to test immediate sync on file move"},
-           {"SyncDirection", "Active2Passive"},
            {"SyncType", "Immediate"}}}}};
 
-    fs::path srcPath1{jsonData["Directories"][0]["Path"]};
-    fs::path srcPath2{jsonData["Directories"][1]["Path"]};
-    fs::path destDir1{jsonData["Directories"][0]["DestinationPath"]};
-    fs::path destDir2{jsonData["Directories"][1]["DestinationPath"]};
-    fs::path destPath1 = destDir1 / fs::relative(srcPath1, "/");
-    fs::path destPath2 = destDir2 / fs::relative(srcPath2, "/");
+    fs::path srcDir{jsonData["Directories"][0]["Path"]};
+    fs::path destDir{jsonData["Directories"][0]["DestinationPath"]};
+    fs::path destPath = destDir / fs::relative(srcDir, "/");
 
     writeConfig(jsonData);
     sdbusplus::async::context ctx;
 
-    std::string data{"Src: Initial Data\n"};
-    fs::create_directory(srcPath1);
-    fs::create_directory(srcPath2);
-    ManagerTest::writeData(srcPath1 / "Test", data);
-    ASSERT_EQ(ManagerTest::readData(srcPath1 / "Test"), data);
-    ASSERT_FALSE(fs::exists(srcPath2 / "Test"));
+    std::string data{"Data written to the file\n"};
+    fs::create_directory(srcDir);
+
+    // Create directories to simulate move operation
+    // File "Test" is present in dir1 and will get moved to dir2.
+    fs::create_directories(srcDir / "dir1");
+    fs::create_directories(srcDir / "dir2");
+    ManagerTest::writeData(srcDir / "dir1" / "Test", data);
+    ASSERT_EQ(ManagerTest::readData(srcDir / "dir1" / "Test"), data);
+    ASSERT_FALSE(fs::exists(srcDir / "dir2" / "Test"));
 
     // Create dest paths
-    std::string destData{"Dest: Initial Data\n"};
-    fs::create_directories(destPath1);
-    fs::create_directories(destPath2);
-    ASSERT_TRUE(fs::exists(destPath1));
-    ASSERT_TRUE(fs::exists(destPath2));
-    ManagerTest::writeData(destPath1 / "Test", destData);
-    ASSERT_EQ(ManagerTest::readData(destPath1 / "Test"), destData);
-    ASSERT_FALSE(fs::exists(destPath2 / "Test"));
+    fs::create_directories(destPath);
+    fs::create_directories(destPath / "dir1");
+    fs::create_directories(destPath / "dir2");
+    ASSERT_TRUE(fs::exists(destPath));
+    ManagerTest::writeData(destPath / "dir1" / "Test", data);
+    ASSERT_EQ(ManagerTest::readData(destPath / "dir1" / "Test"), data);
+    ASSERT_FALSE(fs::exists(destPath / "dir2" / "Test"));
 
     data_sync::Manager manager{ctx, std::move(extDataIface),
                                ManagerTest::dataSyncCfgDir};
 
-    // Case : File "Test" will move from srcPath1 to srcPath2
+    // Case : File "Test" will move from dir1 to dir2
     // File "Test" will get delete from destPath1
     // File "Test" will get create at destPath2
 
     // Watch dest paths for data change
-    data_sync::watch::inotify::DataWatcher dataWatcher1(ctx, IN_NONBLOCK,
-                                                        IN_DELETE, destPath1);
-    data_sync::watch::inotify::DataWatcher dataWatcher2(ctx, IN_NONBLOCK,
-                                                        IN_CREATE, destPath2);
+    data_sync::watch::inotify::DataWatcher dataWatcher1(
+        ctx, IN_NONBLOCK, IN_DELETE, destPath / "dir1");
+    data_sync::watch::inotify::DataWatcher dataWatcher2(
+        ctx, IN_NONBLOCK, IN_CREATE, destPath / "dir2");
 
     ctx.spawn(dataWatcher1.onDataChange() |
               sdbusplus::async::execution::then(
-                  [&destPath1]([[maybe_unused]] const auto& dataOps) {
-        EXPECT_FALSE(fs::exists(destPath1 / "Test"));
+                  [&destPath]([[maybe_unused]] const auto& dataOps) {
+        EXPECT_FALSE(fs::exists(destPath / "dir1" / "Test"));
     }));
 
     ctx.spawn(dataWatcher2.onDataChange() |
               sdbusplus::async::execution::then(
-                  [&data, &destPath2]([[maybe_unused]] const auto& dataOps) {
-        EXPECT_TRUE(fs::exists(destPath2 / "Test"));
-        EXPECT_EQ(ManagerTest::readData(destPath2 / "Test"), data);
+                  [&data, &destPath]([[maybe_unused]] const auto& dataOps) {
+        EXPECT_TRUE(fs::exists(destPath / "dir2" / "Test"));
+        EXPECT_EQ(ManagerTest::readData(destPath / "dir2" / "Test"), data);
     }));
 
     // Move file after 1s so that the background sync events will be ready
     // to catch.
     ctx.spawn(sdbusplus::async::sleep_for(ctx, 1s) |
-              sdbusplus::async::execution::then(
-                  [&ctx, &srcPath1, &srcPath2, &data]() {
-        fs::rename(srcPath1 / "Test", srcPath2 / "Test");
-        EXPECT_FALSE(fs::exists(srcPath1 / "Test"));
-        EXPECT_TRUE(fs::exists(srcPath2 / "Test"));
-        ASSERT_EQ(ManagerTest::readData(srcPath2 / "Test"), data);
+              sdbusplus::async::execution::then([&ctx, &srcDir, &data]() {
+        fs::rename(srcDir / "dir1" / "Test", srcDir / "dir2" / "Test");
+        EXPECT_FALSE(fs::exists(srcDir / "dir1" / "Test"));
+        EXPECT_TRUE(fs::exists(srcDir / "dir2" / "Test"));
+        ASSERT_EQ(ManagerTest::readData(srcDir / "dir2" / "Test"), data);
         ctx.request_stop();
     }));
 

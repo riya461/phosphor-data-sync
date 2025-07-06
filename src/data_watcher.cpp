@@ -272,7 +272,10 @@ std::optional<DataOperation>
     DataWatcher::processEvent(const EventInfo& receivedEventInfo)
 {
     // No current use case for data-sync to support hidden files
-    if (std::get<BaseName>(receivedEventInfo).starts_with("."))
+    // IN_MOVED_FROM signals for hidden files need to save in order to map
+    // with the corresponding IN_MOVED_TO, hence not skipping here.
+    if (std::get<BaseName>(receivedEventInfo).starts_with(".") &&
+        ((std::get<2>(receivedEventInfo) & IN_MOVED_FROM) == 0))
     {
         lg2::debug("Ignoring the {EVENTS}  as received for the hidden "
                    "file[{PATH}]",
@@ -448,19 +451,29 @@ std::optional<DataOperation>
 {
     // Case 1 : A file inside a watching directory is moved to some other
     // directory
-    // Case 2 : A file inside a watching directory is renamed to new name.
+    // Case 2 : A file inside a watching directory is renamed.
 
     fs::path absMovedPath =
         _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
         std::get<BaseName>(receivedEventInfo);
+    lg2::debug("Received an IN_MOVED_FROM for {PATH} with  cookie : {COOKIE}",
+               "PATH", absMovedPath, "COOKIE", std::get<3>(receivedEventInfo));
     if (absMovedPath.string().starts_with(_dataPathToWatch.string()))
     {
-        lg2::debug("Processing IN_MOVED_FROM for {PATH} with cookie : {COOKIE}",
+        _movedFromDataOps.emplace(
+            std::get<3>(receivedEventInfo),
+            std::make_pair(absMovedPath, DataOps::DELETE));
+    }
+
+    if (std::get<BaseName>(receivedEventInfo).starts_with("."))
+    {
+        lg2::debug("Skipping the received IN_MOVED_FROM for the hidden path"
+                   "[{PATH}] with cookie : {COOKIE}",
                    "PATH", absMovedPath, "COOKIE",
                    std::get<3>(receivedEventInfo));
-        return std::make_pair(absMovedPath, DataOps::DELETE);
+        return std::nullopt;
     }
-    return std::nullopt;
+    return std::make_pair(absMovedPath, DataOps::DELETE);
 }
 
 std::optional<DataOperation>
@@ -474,9 +487,28 @@ std::optional<DataOperation>
 
     if (absCopiedPath.string().starts_with(_dataPathToWatch.string()))
     {
-        lg2::debug("Processing IN_MOVED_TO for {PATH} with  cookie : {COOKIE}",
-                   "PATH", absCopiedPath, "COOKIE",
-                   std::get<3>(receivedEventInfo));
+        auto cookie = std::get<3>(receivedEventInfo);
+        lg2::debug("Received an IN_MOVED_TO for {PATH} with  cookie : {COOKIE}",
+                   "PATH", absCopiedPath, "COOKIE", cookie);
+
+        if (_movedFromDataOps.contains(cookie))
+        {
+            if ((_movedFromDataOps[cookie].first.filename().string())
+                    .starts_with("."))
+            {
+                lg2::debug("Ignoring the received IN_MOVED_TO for {PATH} with "
+                           "cookie : {COOKIE} as update is done by RSYNC",
+                           "PATH", absCopiedPath, "COOKIE", cookie);
+                return std::nullopt;
+            }
+            else
+            {
+                lg2::debug("[{OLDPATH}] renamed/moved to [{NEWPATH}]",
+                           "OLDPATH", _movedFromDataOps.at(cookie).first,
+                           "NEWPATH", absCopiedPath);
+                _movedFromDataOps.erase(cookie);
+            }
+        }
         return std::make_pair(absCopiedPath, DataOps::COPY);
     }
     return std::nullopt;
