@@ -189,6 +189,16 @@ void DataWatcher::processEvents(
 std::optional<DataOperation>
     DataWatcher::processEvent(const EventInfo& receivedEventInfo)
 {
+    // No current use case for data-sync to support hidden files
+    if (std::get<BaseName>(receivedEventInfo).starts_with("."))
+    {
+        lg2::debug("Ignoring the EVENT[{MASK}] as received for the hidden "
+                   "file[{PATH}]",
+                   "MASK", std::get<2>(receivedEventInfo), "PATH",
+                   std::get<BaseName>(receivedEventInfo));
+        return std::nullopt;
+    }
+
     if ((std::get<2>(receivedEventInfo) & IN_CLOSE_WRITE) != 0)
     {
         return processCloseWrite(receivedEventInfo);
