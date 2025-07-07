@@ -1,4 +1,20 @@
 {
+    "Files": [
+        {
+            "Path": "/var/log/obmc-console.log",
+            "Description": "Host console persisted log data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Periodic",
+            "Periodicity": "PT60S"
+        },
+        {
+            "Path": "/var/log/obmc-console1.log",
+            "Description": "Host console1 persisted log data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Periodic",
+            "Periodicity": "PT60S"
+        }
+    ],
     "Directories": [
         {
             "Path": "/var/lib/phosphor-state-manager/host{}-PersistData/",
