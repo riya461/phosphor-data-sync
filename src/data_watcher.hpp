@@ -185,6 +185,16 @@ class DataWatcher
     int inotifyInit() const;
 
     /**
+     * @brief API to convert the inotify event masks to event macros in string
+     *        format.
+     *
+     * @param[in] - eventMask - The mask describing event
+     *
+     * @returns - The event name in string format.
+     */
+    static std::string eventName(uint32_t eventMask);
+
+    /**
      * @brief API to get the existing parent path of a given path.
      *
      * @param[in] dataPath - The path to check
