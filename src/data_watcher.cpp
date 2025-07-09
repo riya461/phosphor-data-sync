@@ -362,6 +362,7 @@ std::optional<DataOperation>
     // all the file events are handled using IN_CLOSE_WRITE
     if ((std::get<2>(receivedEventInfo) & IN_ISDIR) != 0)
     {
+        std::error_code ec;
         fs::path absCreatedPath =
             _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
             std::get<BaseName>(receivedEventInfo) / "";
@@ -369,7 +370,7 @@ std::optional<DataOperation>
         lg2::debug("Processing an IN_CREATE for {PATH}", "PATH",
                    absCreatedPath);
         if (absCreatedPath.string().starts_with(_dataPathToWatch.string()) &&
-            !fs::equivalent(_dataPathToWatch, absCreatedPath))
+            !fs::equivalent(_dataPathToWatch, absCreatedPath, ec))
         {
             // The created dir is a child directory inside the configured data
             // path add watch for the created child subdirectories.
@@ -382,13 +383,13 @@ std::optional<DataOperation>
             // Was monitoring existing parent path of the configured data path
             // and a new file/directory got created inside it.
 
-            auto modifyWatchIfExpected = [this](const fs::path& entry) {
+            auto modifyWatchIfExpected = [this, &ec](const fs::path& entry) {
                 if (_dataPathToWatch.string().starts_with(entry.string()))
                 {
                     // Created DIR is in the tree of the configured path.
                     // Hence, Add watch for the created DIR and remove its
                     // parent watch until the JSON configured DIR creates.
-                    if (fs::equivalent(_dataPathToWatch, entry))
+                    if (fs::equivalent(_dataPathToWatch, entry, ec))
                     {
                         // Add configured event masks if created DIR is the
                         // configured path.
@@ -410,8 +411,9 @@ std::optional<DataOperation>
                     // of 'a' is known from the inotify event.
                     if (auto parent =
                             std::ranges::find_if(_watchDescriptors,
-                                                 [&entry](const auto& wd) {
-                        return (fs::equivalent(wd.second, entry.parent_path()));
+                                                 [&entry, &ec](const auto& wd) {
+                        return (
+                            fs::equivalent(wd.second, entry.parent_path(), ec));
                     });
                         parent != _watchDescriptors.end())
                     {
