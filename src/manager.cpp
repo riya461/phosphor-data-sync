@@ -18,6 +18,7 @@
 #include <spawn.h>
 #include <string>
 #include <string_view>
+#include <regex>
 
 namespace data_sync
 {
@@ -201,63 +202,6 @@ std::string Manager::frameExcludeString(const fs::path& cfgPath, const
     return excludeListStr;
 }
 
-bool Manager::tryWith(const std::string& filname)
-{
-    fs::path filePath("/tmp/pds");
-    filePath /= filname;
-
-    auto ret = fs::exists(filePath);
-
-#if 0
-    if (ret)
-    {
-        lg2::debug("Try with [{TRY}]", "TRY", filePath.filename());
-    }
-#endif
-
-    return ret;
-}
-
-std::pair<int, std::string> Manager::tryWithSystem(const std::string& cmd)
-{
-    int result = std::system(cmd.c_str());
-    if (result != 0)
-    {
-        lg2::error("Sync is failed, command[{CMD}] errorCode[{ERRCODE}] ",
-                   "CMD", cmd, "ERRCODE", result);
-    }
-    return std::make_pair(result, "");
-}
-
-std::pair<int, std::string> Manager::tryWithPopen(const std::string& cmd)
-{
-    std::string out;
-
-    std::string cmdWithRedirectErr(cmd + " 2>&1");
-    FILE* pipe = popen(cmdWithRedirectErr.c_str(), "r");
-    if (pipe == nullptr)
-    {
-        lg2::error("popen call failed while running command [{CMD}]",
-                "CMD", cmd);
-        return std::make_pair(-1, "");
-    }
-
-    std::array<char, 256> buffer{};
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
-    {
-        out += buffer.data();
-    }
-
-    int status = pclose(pipe);
-    int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    if (exitCode != 0)
-    {
-        lg2::error("Sync is failed, command[{CMD}] errorCode[{ERRCODE}] "
-                   "Output[{OUT}]", "CMD", cmd, "ERRCODE", exitCode, "OUT", out);
-    }
-    return std::make_pair(exitCode, out);
-}
-
 sdbusplus::async::task<std::string> Manager::waitForCmdCompletion(int fd)
 {
     // Set non-blocking
@@ -268,8 +212,10 @@ sdbusplus::async::task<std::string> Manager::waitForCmdCompletion(int fd)
         co_return "";
     }
 
-    std::string output;
-    std::array<char, 256> buffer{};
+    std::string output{};
+    std::array<char, 512> buffer{};
+    // The buffer size is extended so that it can fit the statistics data in one
+    // read operation
     std::unique_ptr<sdbusplus::async::fdio> fdioInstance =
         std::make_unique<sdbusplus::async::fdio>(_ctx, fd);
 
@@ -281,10 +227,16 @@ sdbusplus::async::task<std::string> Manager::waitForCmdCompletion(int fd)
         if (n > 0)
         {
             output += buffer.data();
+            lg2::debug("*** BUFFER :\n {OUTPUT} ** " , "OUTPUT",
+            buffer.data());
+            buffer.fill(0);
+
+
         }
         else if (n == 0)
         {
             // EOF
+            lg2::debug("EOF BUFFER");
             break;
         }
         else if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -301,171 +253,8 @@ sdbusplus::async::task<std::string> Manager::waitForCmdCompletion(int fd)
 
     fdioInstance.reset();
 
+    lg2::debug("*** OUTPUT from read :\n {OUTPUT} ** " , "OUTPUT", output);
     co_return output;
-}
-
-sdbusplus::async::task<std::pair<int, std::string>> Manager::tryWithPopenNonBlock(const std::string& cmd)
-{
-    std::string cmdWithRedirectErr(cmd + " 2>&1");
-    FILE* pipe = popen(cmdWithRedirectErr.c_str(), "r");
-    if (pipe == nullptr)
-    {
-        lg2::error("popen call failed while running command [{CMD}]",
-                "CMD", cmd);
-        co_return std::make_pair(-1, "");
-    }
-
-    int fd = fileno(pipe);
-    if (fd == -1)
-    {
-        lg2::error("fileno call failed while running command [{CMD}]",
-                "CMD", cmd);
-        co_return std::make_pair(-1, "");
-    }
-
-    auto output = co_await waitForCmdCompletion(fd);
-
-    int status = pclose(pipe);
-    int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    if (exitCode != 0)
-    {
-        lg2::error("Sync is failed, command[{CMD}] errorCode[{ERRCODE}] "
-                   "Output[{OUT}]", "CMD", cmd, "ERRCODE", exitCode, "OUT", output);
-    }
-
-    co_return std::make_pair(exitCode, output);
-}
-
-sdbusplus::async::task<std::pair<int, std::string>> Manager::tryWithFork(const std::string& cmd)
-{
-    int pipefd[2];
-    if (pipe(pipefd) == -1)
-    {
-        lg2::error("pipe is failed");
-        co_return std::make_pair(-1, "");
-    }
-
-    pid_t pid = fork();
-    if (pid == -1)
-    {
-        lg2::error("fork is failed");
-        co_return std::make_pair(-1, "");
-    }
-    else if (pid == 0)
-    {
-        // Child
-        close(pipefd[0]); // Close read end
-        dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to pipe
-        dup2(pipefd[1], STDERR_FILENO); // Optionally redirect stderr too
-        close(pipefd[1]);
-        execl("/bin/sh", "sh", "-c", cmd.c_str(), (char*)NULL);
-        lg2::error("execl is failed");
-        _exit(EXIT_FAILURE); // Ensure child exits
-    }
-
-    // Parent
-    close(pipefd[1]); // Close write end
-
-    auto output = co_await waitForCmdCompletion(pipefd[0]);
-    close(pipefd[0]);
-
-    // Wait for child process to exit
-    int status = -1;
-    waitpid(pid, &status, 0);
-
-    int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    if (exitCode != 0)
-    {
-        lg2::error("Sync is failed, command[{CMD}] errorCode[{ERRCODE}] "
-                   "Output[{OUT}]", "CMD", cmd, "ERRCODE", exitCode, "OUT", output);
-    }
-    co_return std::make_pair(exitCode, output);
-}
-
-std::pair<pid_t, int> Manager::tryWithVFork(const std::string& cmd)
-{
-    int pipefd[2];
-    if (pipe(pipefd) == -1)
-    {
-        lg2::error("pipe failed: {ERR}", "ERR", strerror(errno));
-        //co_return false;
-        return std::make_pair(-1, -1);
-    }
-
-    pid_t pid = vfork();
-    if (pid == -1)
-    {
-        lg2::error("vfork failed: {ERR}", "ERR", strerror(errno));
-        close(pipefd[0]);
-        close(pipefd[1]);
-        //co_return false;
-        return std::make_pair(-1, -1);
-    }
-    else if (pid == 0)
-    {
-        // Child process
-        close(pipefd[0]); // Close read end
-
-        if (dup2(pipefd[1], STDOUT_FILENO) == -1 || dup2(pipefd[1], STDERR_FILENO) == -1)
-        {
-            // Minimal logging since we're in a vfork() child
-            _exit(EXIT_FAILURE);
-        }
-
-        close(pipefd[1]);
-
-        execl("/bin/sh", "sh", "-c", cmd.c_str(), (char*)NULL);
-
-        // If execl fails
-        _exit(EXIT_FAILURE);
-    }
-
-    // Parent process
-    close(pipefd[1]); // Close write end
-
-#if 1
-
-    return std::make_pair(pid, pipefd[0]);
-
-#else
-    std::string output;
-    bool waitSuccess = true;
-
-    try
-    {
-        output = co_await waitForCmdCompletion(pipefd[0]);
-    }
-    catch (const std::exception& ex)
-    {
-        lg2::error("waitForCmdCompletion threw an exception: {ERR}", "ERR", ex.what());
-        waitSuccess = false;
-    }
-
-    close(pipefd[0]);
-
-    // Always wait for child
-    int status = -1;
-    if (waitpid(pid, &status, 0) == -1)
-    {
-        lg2::error("waitpid failed: {ERR}", "ERR", strerror(errno));
-        co_return false;
-    }
-
-    if (!waitSuccess)
-    {
-        co_return false;
-    }
-
-    int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    if (exitCode != 0)
-    {
-        lg2::error("Command failed: [{CMD}] ExitCode[{EC}] Output[{OUT}]",
-                   "CMD", cmd, "EC", exitCode, "OUT", output);
-        co_return false;
-    }
-
-    co_return true;
-#endif
 }
 
 sdbusplus::async::task<std::pair<int, std::string>> Manager::tryWithPosiSpawn(const std::string& cmd)
@@ -488,10 +277,9 @@ sdbusplus::async::task<std::pair<int, std::string>> Manager::tryWithPosiSpawn(co
 
     int spawnResult = posix_spawn(&pid, "/bin/sh", &fileActions, nullptr,
                                   const_cast<char* const*>(argv), nullptr);
-
     posix_spawn_file_actions_destroy(&fileActions);
-    close(pipefd[1]); // Close write end in parent
 
+    close(pipefd[1]); // Close write end in parent
     if (spawnResult != 0)
     {
         lg2::error("posix_spawn failed: {ERROR}", "ERROR", strerror(spawnResult));
@@ -500,6 +288,7 @@ sdbusplus::async::task<std::pair<int, std::string>> Manager::tryWithPosiSpawn(co
     }
 
     auto output = co_await waitForCmdCompletion(pipefd[0]);
+    lg2::debug("OUTPUT IN POSIX \n {OUT}", "OUT", output);
     close(pipefd[0]);
 
     // Wait for child process to exit
@@ -536,18 +325,109 @@ std::string getVanishedSrcPath(const std::string& rsyncCmdOut)
     return vanishSrcs;
 }
 
+sdbusplus::async::task<bool>
+    Manager::writeStats(
+                        std::string triggerBy, std::string triggerReason, 
+                        size_t retryCount,std::string elapsedTime,
+                        std::pair<int, std::string> ret)
+{
+
+    std::fstream f;
+    f.open("/var/log/rsync_logs" , std::ios::app);
+f << "Writing\n";
+    
+        struct FileData {
+               std::string filename;
+               std::string bytes_t;
+               std::string bytes_l;
+               std::string modified_time;
+               std::string rsync_time;
+        };
+
+    std::regex list_match{
+"Item:(<f.*|\\*deleting)\\s+File:([^\\s]+)\\s+Bytes_T:([0-9]+)\\s+Bytes_L:([0-9]+)\\s+Modified:([^\\[]+)\\[([^\\]]+)\\]"
+    };
+    std::vector<FileData> files;
+    std::smatch file_list;
+    std::string output = ret.second;
+        while(
+            std::regex_search(output, file_list, list_match) 
+            )
+        {
+                
+                FileData file;
+                file.filename = file_list[2].str();
+                file.bytes_t = file_list[3].str();
+                file.bytes_l = file_list[4].str();
+                file.modified_time = file_list[5].str();
+                file.rsync_time  = file_list[6].str();
+
+                files.push_back(file);
+                output = file_list.suffix();
+            
+        }
+    
+    // Statistics: Extract necessary stats information 
+    //       Total file size, Total transferred file size, 
+    //       Literal data, Matched data,
+    //       Total bytes sent, Total bytes received
+    std::string rsyncStats;
+    rsyncStats.append("\n---Rsync stats---\n");
+    const std::string statsPatternStart = "Total file size: ";
+    const std::string statsPatternEnd = "File list ";
+    size_t searchPos  = output.find(statsPatternStart, 0);
+    size_t endPos = output.find(statsPatternEnd, searchPos);
+    rsyncStats += output.substr(searchPos, endPos - searchPos);
+    const std::string statsPatternSent = "sent ";
+    searchPos  = output.find(statsPatternSent);
+    rsyncStats += output.substr(searchPos);
+        size_t file_count = 0;
+        while(file_count < files.size())
+        {
+            std::string rsync_logs("\n--------------------------------");
+            rsync_logs.append("\nFile name: " + files[file_count].filename);
+            size_t bmc_role =
+                (ext_data::RBMC::convertRoleToString(_extDataIfaces->bmcRole())).find_last_of('.');
+            rsync_logs.append("\nBMCRole : " + 
+                (ext_data::RBMC::convertRoleToString(_extDataIfaces->bmcRole())).substr(bmc_role+1)
+            );
+           rsync_logs.append("\nTriggered By : " + triggerBy);
+           rsync_logs.append("\nTrigger Reason : " + triggerReason);
+           rsync_logs.append("\nRetry Count : " + std::to_string(retryCount));
+           rsync_logs.append("\nReturn Code : \t" + std::to_string(ret.first));
+            rsync_logs.append("\nRsync initiated: " + files[file_count].rsync_time);
+            rsync_logs.append("\nModified Time: " + files[file_count].modified_time);
+           rsync_logs.append("\nTime elapsed: \t" + elapsedTime);
+            rsync_logs.append("\nBytes Transferred for the file: " +
+            files[file_count].bytes_t );
+            rsync_logs.append("\nBytes Length of the file: " + files[file_count].bytes_l );
+
+           rsync_logs.append(rsyncStats);
+           rsync_logs.append("\n--------------------------------\n");
+           f << rsync_logs.c_str();
+           file_count++;
+        }
+    
+    
+    lg2::debug("RSYNC: Logs {RSYNC_OUTPUT}", "RSYNC_OUTPUT", ret.second);
+    f.close();
+
+    co_return true;
+}
+
 // TODO: This isn't truly an async operation — Need to use popen/posix_spawn to
 // run the rsync command asynchronously but it will be handled as part of
 // concurrent sync changes.
 sdbusplus::async::task<bool>
     // NOLINTNEXTLINE
     Manager::syncData(config::DataSyncConfig& dataSyncCfg,
-                      const std::string srcPath, const std::string destPath,
+                      std::string triggerBy, std::string triggerReason,
+                      std::string srcPath, std::string destPath,
                       size_t retryCount)
 {
     if (_syncBMCDataIface.disable_sync())
     {
-        return false;
+        co_return false;
     }
 
     const auto currentSrcPath = srcPath.empty() ? dataSyncCfg._path.string()
@@ -577,7 +457,10 @@ sdbusplus::async::task<bool>
 
     using namespace std::string_literals;
     std::string syncCmd{
-        "rsync --archive --compress --delete --delete-missing-args --relative --times --atimes --update"};
+        "rsync --archive --compress --delete --delete-missing-args --relative "
+        "--times --atimes --update --info=stats2 "
+        "--out-format='Item:%i File:%f Bytes_T:%b Bytes_L:%l  Modified:%M [%t]'"
+        };
 
     if (srcPath.empty() && dataSyncCfg._excludeList.has_value())
     {
@@ -635,9 +518,10 @@ sdbusplus::async::task<bool>
 
     auto syncStartTime = std::chrono::steady_clock::now();
     std::pair<int, std::string> ret;
-    if (tryWith("system"))
+    /*if (tryWith("system"))
     {
         ret = tryWithSystem(syncCmd);
+
     }
     else if (tryWith("popen"))
     {
@@ -703,21 +587,25 @@ sdbusplus::async::task<bool>
         }
     }
     else if (tryWith("posix_spawn"))
-    {
+    {*/
         ret = co_await tryWithPosiSpawn(syncCmd);
-    }
+    /*}
     else
     {
         lg2::error("No system call mentioned");
         ret = std::make_pair(-1, "");
-    }
+    }*/
 
     auto syncEndTime = std::chrono::steady_clock::now();
-    auto syncElapsedTime = std::chrono::duration_cast<std::chrono::seconds>(
+    auto syncElapsedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(
             syncEndTime - syncStartTime);
     lg2::debug("Elapsed time for sync: [{DURATION_SECONDS}] seconds for {CMD}",
               "DURATION_SECONDS", syncElapsedTime.count(), "CMD", syncCmd);
 
+    _ctx.spawn( writeStats(
+    triggerBy, triggerReason, retryCount,
+    std::to_string(syncElapsedTime.count()),
+    ret) | stdexec::then([] ([[maybe_unused]] bool stats_result) {}));
     // On success, clear in-progress and return
     if (ret.first == 0)
     {
@@ -758,8 +646,8 @@ sdbusplus::async::task<bool>
             retrySrcPath = currentSrcPath;
         }
 
-        co_return co_await syncData(dataSyncCfg, retrySrcPath, destPath,
-                                    retryCount + 1);
+        co_return co_await syncData(dataSyncCfg,"RETRY", std::to_string(ret.first) ,  
+        retrySrcPath, destPath, retryCount + 1);
     }
 
     // TODO: Create error log entry for sync failure after retries.
@@ -771,8 +659,8 @@ sdbusplus::async::task<bool>
 
     dataSyncCfg._syncInProgressPaths.erase(currentSrcPath);
     co_return false;
-}
 
+}
 sdbusplus::async::task<>
     // NOLINTNEXTLINE
     Manager::monitorDataToSync(config::DataSyncConfig& dataSyncCfg)
@@ -808,8 +696,10 @@ sdbusplus::async::task<>
                 }
                 for ([[maybe_unused]] const auto& dataOp : dataOperations)
                 {
-                    _ctx.spawn(syncData(dataSyncCfg, dataOp.first.string()) |
-                               stdexec::then([] ([[maybe_unused]] bool result) {}));
+                    
+                    _ctx.spawn(syncData(dataSyncCfg,"IMMEDIATE" ,
+                    dataOp.second == data_sync::watch::inotify::DataOps::COPY ? "COPY" : "DEL",
+                    dataOp.first.string()) | stdexec::then([] ([[maybe_unused]] bool result) {}));
                 }
             }
         }
@@ -844,7 +734,7 @@ sdbusplus::async::task<>
         lg2::debug("Periodic timer [{INTERVAL}s] is expired for {PATH}",
                    "INTERVAL", dataSyncCfg._periodicityInSec.value().count(),
                    "PATH", dataSyncCfg._path);
-        co_await syncData(dataSyncCfg);
+        co_await syncData(dataSyncCfg, "PERIODIC", "INTERVAL");
     }
     co_return;
 }
@@ -871,7 +761,7 @@ sdbusplus::async::task<void> Manager::startFullSync()
 
     auto fullSyncStartTime = std::chrono::steady_clock::now();
 
-    if (tryWith("full_sync_single_rsync"))
+    /*if (tryWith("full_sync_single_rsync"))
     {
         using namespace std::string_literals;
         std::string srcPaths;
@@ -939,7 +829,7 @@ sdbusplus::async::task<void> Manager::startFullSync()
                 "DURATION_SECONDS", FullsyncElapsedTime.count());
     }
     else
-    {
+    {*/
         auto syncResults = std::vector<bool>();
         size_t spawnedTasks = 0;
 
@@ -950,7 +840,7 @@ sdbusplus::async::task<void> Manager::startFullSync()
             if (isSyncEligible(cfg))
             {
                 _ctx.spawn(
-                        syncData(cfg) |
+                        syncData(cfg, "FULL SYNC" , "REBOOT") |
                         stdexec::then([&syncResults, &spawnedTasks](bool result) {
                             syncResults.push_back(result);
                             spawnedTasks--; // Decrement the number of spawned tasks
@@ -994,7 +884,7 @@ sdbusplus::async::task<void> Manager::startFullSync()
         // total duration/time diff of the Full Sync operation
         lg2::info("Elapsed time for full sync: [{DURATION_SECONDS}] seconds",
                 "DURATION_SECONDS", FullsyncElapsedTime.count());
-    }
+// }
     co_return;
 }
 

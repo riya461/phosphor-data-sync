@@ -171,11 +171,43 @@ class Manager
         std::vector<fs::path> excludeList);
 
     /**
+     * @brief A  API that adds satistics data of an rsync as a record
+     *
+     * @param[in] srcPath         - The source data path
+     * @param[in] BMCRole         - The current BMC Role
+     * @param[in] triggerBy       - The sync that initiated, can be 
+     *                              PERIODIC, IMMEDIATE, FULL_SYNC, RETRY
+     * @param[in] triggerByReason - The reason the sync is initiated 
+     *                              IMMEDIATE - COPY, MOVE 
+     *                              PERIODIC - INTERVAL 
+     *                              FULL_SYNC - REBOOT, FAIL_OVER 
+     *                              RETRY - Previous Error Code 
+     * @param[in] retryCount      - The current retry attempt number
+     * @param[in] elapsedTime     - Time taken for that rsync to finish 
+     * @param[in] ret             - Return code and output of rsync
+     *
+     * @return Returns true if sync succeeds; otherwise, returns false
+     *
+     */
+    sdbusplus::async::task<bool>
+            writeStats(
+                        std::string triggerBy = "", 
+                        std::string triggerReason = "", 
+                        size_t retryCount = 0 ,std::string elapsedTime = "",
+                        std::pair<int, std::string> ret = std::make_pair(-1,""));
+    /**
      * @brief A helper rsync wrapper API that syncs data to sibling
      *        BMC, with different behavior in the unit test environment,
      *        performing a local copy instead.
      *
      * @param[in] dataSyncCfg - The data sync config to sync
+     * @param[in] triggerBy       - The sync that initiated, can be 
+     *                              PERIODIC, IMMEDIATE, FULL_SYNC, RETRY
+     * @param[in] triggerByReason - The reason the sync is initiated 
+     *                              IMMEDIATE - COPY, MOVE 
+     *                              PERIODIC - INTERVAL 
+     *                              FULL_SYNC - REBOOT, FAIL_OVER 
+     *                              RETRY - Previous Error Code 
      * @param[in] srcPath - The optional source data path
      * @param[in] destPath - The optional dest path
      * @param[in] retryCount - The current retry attempt number
@@ -185,8 +217,9 @@ class Manager
      */
     sdbusplus::async::task<bool>
         syncData(config::DataSyncConfig& dataSyncCfg,
-                 const std::string srcPath = "",
-                 const std::string destPath = "",
+                 std::string triggerBy = "", std::string triggerReason="",
+                 std::string srcPath = "",
+                 std::string destPath = "",
                  size_t retryCount = 0);
 
     /**
