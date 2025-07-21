@@ -87,6 +87,18 @@ struct DataSyncConfig
     DataSyncConfig(const nlohmann::json& config, bool isPathDir);
 
     /**
+     * @brief API to convert the user configured exclude list to a RSYNC CLI
+     * compatible string with --filter flag.
+     * Eg : If user configured exludeList has 2 paths as /x/y/path1 and
+     *      /x/y/path2, then the rsync cli string will be like below:
+     *
+     *      " --filter='-/ /x/y/path1' --filter='-/ /x/y/path2'"
+     *
+     * @param[in] excludeList - The list of paths to be excluded.
+     */
+    void frameRsyncExcludeList(const std::unordered_set<fs::path>& excludeList);
+
+    /**
      * @brief Overload the == operator to compare objects.
      *
      * @param[in] dataSyncCfg - The object to check
@@ -174,10 +186,16 @@ struct DataSyncConfig
     /**
      * @brief The list of paths to exclude from synchronization.
      *
+     * This optional pair holds:
+     *   - A set of filesystem paths to be excluded.
+     *   - A string with rsync `--filter` option derived from the set of paths.
+     *
      * @note Holds a value if the specific directory prefer to
      *       exclude some file/directory from synchronization.
      */
-    std::optional<std::unordered_set<fs::path>> _excludeList;
+    using excludeListSet = std::unordered_set<fs::path>;
+    using excludeListStr = std::string;
+    std::optional<std::pair<excludeListSet, excludeListStr>> _excludeList;
 
     /**
      * @brief The list of paths to include from synchronization.

@@ -74,8 +74,10 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
 
     if (config.contains("ExcludeList"))
     {
-        _excludeList =
-            config["ExcludeList"].get<std::unordered_set<fs::path>>();
+        _excludeList.emplace(
+            config["ExcludeList"].get<std::unordered_set<fs::path>>(),
+            std::string{});
+        frameRsyncExcludeList(_excludeList->first);
     }
     else
     {
@@ -103,6 +105,17 @@ bool DataSyncConfig::operator==(const DataSyncConfig& dataSyncCfg) const
            _retry == dataSyncCfg._retry &&
            _excludeList == dataSyncCfg._excludeList &&
            _includeList == dataSyncCfg._includeList;
+}
+
+void DataSyncConfig::frameRsyncExcludeList(
+    const std::unordered_set<fs::path>& excludeList)
+{
+    auto foldWithRsyncFilterOpt = [](std::string listToStr,
+                                     const fs::path& entry) {
+        return std::move(listToStr) + " --filter='-/ " + entry.string() + "'";
+    };
+    _excludeList->second = std::ranges::fold_left(excludeList, "",
+                                                  foldWithRsyncFilterOpt);
 }
 
 std::optional<SyncDirection>

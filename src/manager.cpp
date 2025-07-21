@@ -159,6 +159,11 @@ sdbusplus::async::task<bool>
         "rsync --compress --recursive --perms --group --owner --times --atimes"
         " --update --relative --delete --delete-missing-args "};
 
+    if (dataSyncCfg._excludeList.has_value())
+    {
+        syncCmd.append(dataSyncCfg._excludeList.value().second);
+    }
+
     if (!srcPath.empty())
     {
         syncCmd.append(" "s + srcPath.string());
