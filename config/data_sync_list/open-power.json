@@ -13,6 +13,12 @@
             "Description": "BMC-OCC persisted data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/op-hw-isolation/persistdata/",
+            "Description": "Hardware isolation persisted data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ]
 }
