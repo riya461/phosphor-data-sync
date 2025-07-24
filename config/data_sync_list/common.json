@@ -28,6 +28,13 @@
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate",
             "ExcludeFilesList": ["/var/lib/phosphor-fan-presence/control/"]
+        },
+        {
+            "Path": "/var/lib/phosphor-post-code-manager/",
+            "Description": "Host progress codes persisted data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Periodic",
+            "Periodicity": "PT60S"
         }
     ]
 }
