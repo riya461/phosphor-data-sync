@@ -35,6 +35,12 @@
             "SyncDirection": "Active2Passive",
             "SyncType": "Periodic",
             "Periodicity": "PT60S"
+        },
+        {
+            "Path": "/var/lib/phosphor-led-manager/",
+            "Description": "System LED persisted data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ]
 }
