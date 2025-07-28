@@ -31,6 +31,12 @@
             "Description": "PHAL persisted data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/network/hypervisor/",
+            "Description": "Hypervisor Network persisted configuration",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ]
 }
