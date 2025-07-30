@@ -108,8 +108,10 @@ TEST(DataSyncConfigParserTest, TestImmediateDirectorySyncWithNoRetry)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
-    EXPECT_EQ(dataSyncConfig._excludeList.value(),
+    EXPECT_EQ(dataSyncConfig._excludeList->first,
               configJSON["ExcludeList"].get<std::unordered_set<fs::path>>());
+    EXPECT_EQ(dataSyncConfig._excludeList->second,
+              " --filter='-/ /Path/of/files/must/be/ignored/for/sync'");
     EXPECT_EQ(dataSyncConfig._includeList.value(),
               configJSON["IncludeList"].get<std::unordered_set<fs::path>>());
 }

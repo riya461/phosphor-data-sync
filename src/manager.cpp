@@ -161,7 +161,7 @@ sdbusplus::async::task<bool>
 
     if (dataSyncCfg._excludeList.has_value())
     {
-        syncCmd.append(dataSyncCfg._excludeList.value().second);
+        syncCmd.append(dataSyncCfg._excludeList->second);
     }
 
     if (!srcPath.empty())
@@ -217,8 +217,8 @@ sdbusplus::async::task<>
         }
 
         // Create watcher for the dataSyncCfg._path
-        watch::inotify::DataWatcher dataWatcher(
-            _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path);
+        watch::inotify::DataWatcher dataWatcher(_ctx, IN_NONBLOCK,
+                                                eventMasksToWatch, dataSyncCfg);
 
         while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
         {

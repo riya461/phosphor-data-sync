@@ -5,13 +5,17 @@
 #include <sys/inotify.h>
 #include <unistd.h>
 
+#include <data_sync_config.hpp>
 #include <sdbusplus/async.hpp>
 
 #include <filesystem>
 #include <map>
+#include <unordered_set>
 
 namespace data_sync::watch::inotify
 {
+
+using DataSyncCfg = data_sync::config::DataSyncConfig;
 
 namespace fs = std::filesystem;
 
@@ -109,11 +113,11 @@ class DataWatcher
      *  @param[in] ctx - The async context object
      *  @param[in] inotifyFlags - inotify flags to watch
      *  @param[in] eventMasksToWatch - mask of interested events to watch
-     *  @param[in] dataPathToWatch - Path of the file/directory to be watched
+     *  @param[in] dataSyncCfg - Reference to the DataSyncConfig object which
+     *                           has the data path to watch and related info.
      */
     DataWatcher(sdbusplus::async::context& ctx, int inotifyFlags,
-                uint32_t eventMasksToWatch,
-                const std::filesystem::path& dataPathToWatch);
+                uint32_t eventMasksToWatch, const DataSyncCfg& dataSyncCfg);
 
     /**
      * @brief Destructor
@@ -154,9 +158,10 @@ class DataWatcher
                                       IN_DELETE_SELF;
 
     /**
-     * @brief File/Directory path to be watched
+     * @brief  A reference to the data sysnc config object
+     *         The object contains the info about the path to be watched.
      */
-    std::filesystem::path _dataPathToWatch;
+    const DataSyncCfg& _dataSyncCfg;
 
     /**
      * @brief The map of unique watch descriptors associated with an configured
@@ -221,6 +226,17 @@ class DataWatcher
      */
     void addToWatchList(const fs::path& pathToWatch,
                         uint32_t eventMasksToWatch);
+
+    /**
+     * @brief API to check whether the given path is part of exclude list.
+     *        The API will check whether the given path is in the configured
+     *        excludeList or the path is child of any of the excluded path.
+     *
+     * @param[in] path - absolute path of the data
+     * returns : True : If path need to be exlcuded.
+     *           False : If path doesn't need to exlcude.
+     */
+    bool isPathExcluded(const fs::path& path);
 
     /** @brief API to create watchers for the given path and also for the
      * subdirectories if exists inside the configured directory path.
