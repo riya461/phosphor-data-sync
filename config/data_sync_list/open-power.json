@@ -35,6 +35,12 @@
             "Description": "Host OPAL persisted NVRAM data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/phosphor-software-manager/hostfw/running/HBD_RW",
+            "Description": "Hostboot persisted data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ],
     "Directories": [
