@@ -5,6 +5,12 @@
             "Description": "GUARD",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/phosphor-software-manager/hostfw/running/DEVTREE",
+            "Description": "Host CEC persisted data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ],
     "Directories": [
