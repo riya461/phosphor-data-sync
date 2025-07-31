@@ -29,6 +29,12 @@
             "Description": "Host owned persisted VPD data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/phosphor-software-manager/hostfw/running/NVRAM",
+            "Description": "Host OPAL persisted NVRAM data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ],
     "Directories": [
