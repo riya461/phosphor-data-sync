@@ -17,6 +17,12 @@
             "Description": "PHYP persisted NVRAM data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/phosphor-software-manager/hostfw/nvram/PHYP-NVRAM-CKSUM",
+            "Description": "PHYP persisted NVRAM checksum data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ],
     "Directories": [
