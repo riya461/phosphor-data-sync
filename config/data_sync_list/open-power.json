@@ -23,6 +23,12 @@
             "Description": "PHYP persisted NVRAM checksum data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/phosphor-software-manager/hostfw/running/EECACHE",
+            "Description": "Host owned persisted VPD data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ],
     "Directories": [
