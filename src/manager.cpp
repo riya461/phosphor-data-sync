@@ -133,11 +133,31 @@ sdbusplus::async::task<> Manager::startSyncEvents()
         using enum config::SyncType;
         if (dataSyncCfg._syncType == Immediate)
         {
-            this->_ctx.spawn(this->monitorDataToSync(dataSyncCfg));
+            try
+            {
+                this->_ctx.spawn(this->monitorDataToSync(dataSyncCfg));
+            }
+            catch (const std::exception& e)
+            {
+                setSyncEventsHealth(SyncEventsHealth::Critical);
+                lg2::error(
+                    "Failed to configure immediate sync for {PATH}: {EXC}",
+                    "EXC", e, "PATH", dataSyncCfg._path);
+            }
         }
         else if (dataSyncCfg._syncType == Periodic)
         {
-            this->_ctx.spawn(this->monitorTimerToSync(dataSyncCfg));
+            try
+            {
+                this->_ctx.spawn(this->monitorTimerToSync(dataSyncCfg));
+            }
+            catch (const std::exception& e)
+            {
+                setSyncEventsHealth(SyncEventsHealth::Critical);
+                lg2::error("Failed to configure periodic sync for {PATH}: "
+                           "{EXC}",
+                           "EXC", e, "PATH", dataSyncCfg._path);
+            }
         }
     });
     co_return;
@@ -342,15 +362,23 @@ sdbusplus::async::task<void> Manager::startFullSync()
     {
         // TODO: add receiver logic to stop fullsync when disable sync is set to
         // true.
-        if (isSyncEligible(cfg))
+        try
         {
-            _ctx.spawn(
-                syncData(cfg) |
-                stdexec::then([&syncResults, &spawnedTasks](bool result) {
-                syncResults.push_back(result);
-                spawnedTasks--; // Decrement the number of spawned tasks
-            }));
-            spawnedTasks++;     // Increment the number of spawned tasks
+            if (isSyncEligible(cfg))
+            {
+                _ctx.spawn(
+                    syncData(cfg) |
+                    stdexec::then([&syncResults, &spawnedTasks](bool result) {
+                    syncResults.push_back(result);
+                    spawnedTasks--; // Decrement the number of spawned tasks
+                }));
+                spawnedTasks++;     // Increment the number of spawned tasks
+            }
+        }
+        catch (const std::exception& e)
+        {
+            lg2::error("Spawn failed for full sync {EXC}", "EXC", e);
+            setFullSyncStatus(FullSyncStatus::FullSyncFailed);
         }
     }
 
