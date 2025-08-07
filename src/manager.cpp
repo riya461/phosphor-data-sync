@@ -186,6 +186,14 @@ sdbusplus::async::task<bool>
     {
         syncCmd.append(" "s + srcPath.string());
     }
+    else if ((dataSyncCfg._includeList.has_value()) && (srcPath.empty()))
+    {
+        // Configure the paths in include List as SRC paths
+        auto appendToCmd = [&syncCmd](const auto& path) {
+            syncCmd.append(" "s + path.string());
+        };
+        std::ranges::for_each(dataSyncCfg._includeList.value(), appendToCmd);
+    }
     else
     {
         syncCmd.append(" "s + dataSyncCfg._path.string());
@@ -198,7 +206,8 @@ sdbusplus::async::task<bool>
 #endif
 
     // Add destination data path if configured
-    syncCmd.append(dataSyncCfg._destPath.value_or(fs::path("")));
+    // TODO: Change the default destPath to empty once remote sync is enabled.
+    syncCmd.append(dataSyncCfg._destPath.value_or(fs::path(" /")).string());
     lg2::debug("RSYNC CMD : {CMD}", "CMD", syncCmd);
 
     data_sync::async::AsyncCommandExecutor executor(_ctx);

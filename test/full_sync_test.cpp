@@ -932,3 +932,167 @@ TEST_F(ManagerTest, FullSyncA2PWithExcludeFileTest)
     EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Ok)
         << "SyncEventsHealth should be Ok after full sync completes successfully.";
 }
+
+TEST_F(ManagerTest, FullSyncA2PWithIncludeListsTest)
+{
+    using namespace std::literals;
+    namespace ed = data_sync::ext_data;
+
+    std::unique_ptr<ed::ExternalDataIFaces> extDataIface =
+        std::make_unique<ed::MockExternalDataIFaces>();
+
+    ed::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<ed::MockExternalDataIFaces*>(extDataIface.get());
+
+    ON_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillByDefault([&mockExtDataIfaces]() -> sdbusplus::async::task<> {
+        mockExtDataIfaces->setBMCRole(ed::BMCRole::Active);
+        mockExtDataIfaces->setBMCRedundancy(true);
+        co_return;
+    });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchSiblingBmcIP())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchRbmcCredentials())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    nlohmann::json jsonData = {
+        {"Files",
+         {
+             {{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcFile1"},
+              {"DestinationPath",
+               ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+              {"Description", "FullSync from Active to Passive bmc"},
+              {"SyncDirection", "Active2Passive"},
+              {"SyncType", "Immediate"}},
+         }},
+        {"Directories",
+         {{{"Path", ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/"},
+           {"DestinationPath",
+            ManagerTest::tmpDataSyncDataDir.string() + "/destDir/"},
+           {"Description", "FullSync from A2P with include list"},
+           {"SyncDirection", "Active2Passive"},
+           {"SyncType", "Immediate"},
+           {"IncludeList",
+            {ManagerTest::tmpDataSyncDataDir.string() + "/srcDir/subDir1/",
+             ManagerTest::tmpDataSyncDataDir.string() +
+                 "/srcDir/dirFile1"}}}}}};
+
+    fs::path srcFile1{jsonData["Files"][0]["Path"]};
+    fs::path destDir1{jsonData["Files"][0]["DestinationPath"]};
+    fs::path srcDir = jsonData["Directories"][0]["Path"];
+    fs::path destDir = jsonData["Directories"][0]["DestinationPath"];
+
+    fs::path dirFile1 = srcDir / "dirFile1";
+    fs::path dirFileX = srcDir / "dirFileX";
+    fs::path subDir1File1 = srcDir / "subDir1" / "file1";
+    fs::path subDir1File2 = srcDir / "subDir1" / "file2";
+    fs::path subDir2File1 = srcDir / "subDir2" / "file1";
+    fs::path subDir3File1 = srcDir / "subDir3" / "file1";
+    fs::path subDir4File1 = srcDir / "subDir4" / "file1";
+
+    std::filesystem::create_directory(srcDir);
+    std::filesystem::create_directory(destDir);
+    std::filesystem::create_directories(subDir1File1.parent_path());
+    std::filesystem::create_directories(subDir2File1.parent_path());
+    std::filesystem::create_directories(subDir3File1.parent_path());
+    std::filesystem::create_directories(subDir4File1.parent_path());
+
+    std::string dataSrcFile1{"Data written on the file1\n"};
+    std::string dataDirFile1{"Data in directory file1"};
+    std::string dataDirFileX{"Data in directory fileX"};
+    std::string dataSubDir1File1{"Data in 1st sub directory file1"};
+    std::string dataSubDir1File2{"Data in 1st sub directory file2"};
+    std::string dataSubDir2File1{"Data in 2nd sub directory file1"};
+    std::string dataSubDir3File1{"Data in 3rd sub directory file1"};
+    std::string dataSubDir4File1{"Data in 4th sub directory file1"};
+
+    ManagerTest::writeData(srcFile1, dataSrcFile1);
+    ManagerTest::writeData(dirFile1, dataDirFile1);
+    ManagerTest::writeData(dirFileX, dataDirFileX);
+    ManagerTest::writeData(subDir1File1, dataSubDir1File1);
+    ManagerTest::writeData(subDir1File2, dataSubDir1File2);
+    ManagerTest::writeData(subDir2File1, dataSubDir2File1);
+    ManagerTest::writeData(subDir3File1, dataSubDir3File1);
+    ManagerTest::writeData(subDir4File1, dataSubDir4File1);
+
+    ASSERT_EQ(ManagerTest::readData(srcFile1), dataSrcFile1);
+    ASSERT_EQ(ManagerTest::readData(dirFile1), dataDirFile1);
+    ASSERT_EQ(ManagerTest::readData(dirFileX), dataDirFileX);
+    ASSERT_EQ(ManagerTest::readData(subDir1File1), dataSubDir1File1);
+    ASSERT_EQ(ManagerTest::readData(subDir1File2), dataSubDir1File2);
+    ASSERT_EQ(ManagerTest::readData(subDir2File1), dataSubDir2File1);
+    ASSERT_EQ(ManagerTest::readData(subDir3File1), dataSubDir3File1);
+    ASSERT_EQ(ManagerTest::readData(subDir4File1), dataSubDir4File1);
+
+    writeConfig(jsonData);
+    sdbusplus::async::context ctx;
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
+    // Setting the SyncEventsHealth to Critical to test status change after full
+    // sync completes.
+    manager.setSyncEventsHealth(SyncEventsHealth::Critical);
+    auto waitingForFullSyncToFinish =
+        // NOLINTNEXTLINE
+        [&](sdbusplus::async::context& ctx) -> sdbusplus::async::task<void> {
+        auto status = manager.getFullSyncStatus();
+
+        while (status != FullSyncStatus::FullSyncCompleted &&
+               status != FullSyncStatus::FullSyncFailed)
+        {
+            co_await sdbusplus::async::sleep_for(ctx,
+                                                 std::chrono::milliseconds(50));
+            status = manager.getFullSyncStatus();
+        }
+
+        EXPECT_EQ(status, FullSyncStatus::FullSyncCompleted)
+            << "FullSync status is not Completed!";
+
+        fs::path destDirFile1 = destDir / fs::relative(dirFile1, "/");
+        fs::path destDirFileX = destDir / fs::relative(dirFileX, "/");
+        fs::path destSubDir1File1 = destDir / fs::relative(subDir1File1, "/");
+        fs::path destSubDir1File2 = destDir / fs::relative(subDir1File2, "/");
+        fs::path destSubDir2File1 = destDir / fs::relative(subDir2File1, "/");
+        fs::path destSubDir3File1 = destDir / fs::relative(subDir3File1, "/");
+        fs::path destSubDir4File1 = destDir / fs::relative(subDir4File1, "/");
+
+        EXPECT_EQ(ManagerTest::readData(destDir1 / fs::relative(srcFile1, "/")),
+                  dataSrcFile1);
+        EXPECT_EQ(ManagerTest::readData(destDirFile1), dataDirFile1);
+        EXPECT_EQ(ManagerTest::readData(destSubDir1File1), dataSubDir1File1);
+        EXPECT_EQ(ManagerTest::readData(destSubDir1File2), dataSubDir1File2);
+        EXPECT_FALSE(fs::exists(destDirFileX));
+        EXPECT_FALSE(fs::exists(destSubDir2File1.parent_path()));
+        EXPECT_FALSE(fs::exists(destSubDir3File1.parent_path()));
+        EXPECT_FALSE(fs::exists(destSubDir4File1.parent_path()));
+
+        // Wait to ensure the immediate and periodic sync tasks configured
+        // in the test setup are spawned. If the context is stopped while
+        // spawning is still in progress, the spawn will fail.
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(50));
+        ctx.request_stop();
+
+        // Forcing to trigger inotify events so that all running immediate
+        // sync tasks will resume and stop since the context is requested to
+        // stop in the above.
+        // Note : No need to write into any of the subDir1 files as it is not
+        // watching.
+        ManagerTest::writeData(srcFile1, dataSrcFile1);
+        ManagerTest::writeData(dirFile1, "Data in directory file");
+
+        co_return;
+    };
+
+    ctx.spawn(waitingForFullSyncToFinish(ctx));
+
+    ctx.run();
+    EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Ok)
+        << "SyncEventsHealth should be Ok after full sync completes successfully.";
+}
