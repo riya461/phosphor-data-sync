@@ -204,6 +204,14 @@ class DataWatcher
      */
     bool isPathExcluded(const fs::path& path);
 
+    /**
+     * @brief API to create watchers for the sub directories if the given path
+     * is a directory.
+     *
+     * @param[in] pathToWatch - The absolute path of directory.
+     */
+    void addSubDirWatches(const fs::path& pathToWatch);
+
     /** @brief API to create watchers for the given path and also for the
      * subdirectories if exists inside the configured directory path.
      *

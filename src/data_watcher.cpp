@@ -182,6 +182,34 @@ bool DataWatcher::isPathExcluded(const fs::path& path)
                                matchesOrParentOfPath);
 }
 
+void DataWatcher::addSubDirWatches(const fs::path& pathToWatch)
+{
+    if (!fs::is_directory(pathToWatch))
+    {
+        lg2::warning("{PATH} is not a directory to add watches for "
+                     "subdirectories",
+                     "PATH", pathToWatch);
+        return;
+    }
+
+    auto addWatchIfDir = [this](const fs::path& entry) {
+        if (fs::is_directory(entry))
+        {
+            // If ExcldueList is configured, exclude those directories
+            // from monitoring and add watch for rest.
+            if (_dataSyncCfg._excludeList.has_value() && isPathExcluded(entry))
+            {
+                lg2::debug("No watch added for {PATH} as in excludeList",
+                           "PATH", entry);
+                return;
+            }
+            addToWatchList(entry, _eventMasksToWatch);
+        }
+    };
+    std::ranges::for_each(fs::recursive_directory_iterator(pathToWatch),
+                          addWatchIfDir);
+}
+
 void DataWatcher::createWatchers(const fs::path& pathToWatch)
 {
     auto pathToWatchExist = fs::exists(pathToWatch);
@@ -192,23 +220,7 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
          */
         if (fs::is_directory(pathToWatch))
         {
-            auto addWatchIfDir = [this](const fs::path& entry) {
-                if (fs::is_directory(entry))
-                {
-                    // Exclude the directories if in exclude list or child of
-                    // exclude dir.
-                    if (_dataSyncCfg._excludeList.has_value() &&
-                        isPathExcluded(entry))
-                    {
-                        lg2::debug("{PATH} is in exclude list, no watch added",
-                                   "PATH", entry);
-                        return;
-                    }
-                    addToWatchList(entry, _eventMasksToWatch);
-                }
-            };
-            std::ranges::for_each(fs::recursive_directory_iterator(pathToWatch),
-                                  addWatchIfDir);
+            addSubDirWatches(pathToWatch);
         }
     }
     else
