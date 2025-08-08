@@ -205,6 +205,30 @@ class DataWatcher
     bool isPathExcluded(const fs::path& path);
 
     /**
+     * @brief API to check whether the given path is part of include list
+     *        The API will check whether the given path is in the configured
+     *        includeList or the path is a child of any of the included path.
+     *
+     * @param[in] path - absolute path of the data
+     * returns : True : If path need to be inlcuded.
+     *           False : If path doesn't need to inlcude.
+     */
+    bool isPathIncluded(const fs::path& path);
+
+    /**
+     * @brief Checks whether the given path is a parent of any configured
+     *        include list paths.
+     *        This API helps monitor parent directories of the include paths
+     *        in cases where the configured include paths themselves do not
+     *        exist.
+     *
+     * @param[in] path - absolute path of the data
+     * returns : True : If path need to be inlcuded.
+     *           False : If path doesn't need to inlcude.
+     */
+    bool isPathParentOfInclude(const fs::path& path);
+
+    /**
      * @brief API to create watchers for the sub directories if the given path
      * is a directory.
      *
@@ -319,6 +343,11 @@ class DataWatcher
      */
     std::optional<DataOperation>
         processDeleteSelf(const EventInfo& receivedEventInfo);
+
+    /**
+     * @brief Remove the parent if all include is watching.
+     */
+    void removeIncludeParentWatches();
 
     /** @brief API to remove the watch for a path and to
      *  remove from the map of watch descriptors.

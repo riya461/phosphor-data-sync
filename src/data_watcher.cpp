@@ -178,8 +178,82 @@ bool DataWatcher::isPathExcluded(const fs::path& path)
             return (path.string() == excludePath.string());
         }
     };
-    return std::ranges::any_of(_dataSyncCfg._excludeList->first,
-                               matchesOrParentOfPath);
+    if (std::ranges::any_of(_dataSyncCfg._excludeList->first,
+                            matchesOrParentOfPath))
+    {
+        lg2::debug("{PATH} is in exclude list. Hence skipping", "PATH", path);
+        return true;
+    }
+    return false;
+}
+
+bool DataWatcher::isPathIncluded(const fs::path& path)
+{
+    // A path will be considered as included in the following cases :
+    // Case 1. If the given path(file/dir) is present in include list.
+    // Case 2. If the given path(file/dir) is child of the path listed in
+    // include list.
+
+    fs::path normalizedPath{};
+    fs::is_directory(path) ? normalizedPath = path / "" : normalizedPath = path;
+
+    if ((_dataSyncCfg._includeList.has_value()) &&
+        (_dataSyncCfg._includeList.value().contains(normalizedPath)))
+    {
+        lg2::debug("{PATH} present inside include list", "PATH",
+                   normalizedPath);
+        return true;
+    }
+
+    // check whether path is child of any includelist path.
+    auto isParentOfNormPath = [&normalizedPath](const auto& includePath) {
+        auto [parentItr, childItr] = std::ranges::mismatch(includePath,
+                                                           normalizedPath);
+        return (parentItr == includePath.end()) || (*parentItr == "");
+    };
+
+    if (auto itr = std::ranges::find_if(_dataSyncCfg._includeList.value(),
+                                        isParentOfNormPath);
+        itr != _dataSyncCfg._includeList.value().end())
+    {
+        lg2::debug("{PATH} is child of the include list path[{INCLUDE}]",
+                   "PATH", normalizedPath, "INCLUDE", *itr);
+        return true;
+    }
+    return false;
+}
+
+bool DataWatcher::isPathParentOfInclude(const fs::path& path)
+{
+    // If the paths configured in include list is not exists on the
+    // filesystem, then it's parent path need to consider as include list and
+    // need to monitor until the configured path creates.
+    fs::path normalizedPath{};
+    fs::is_directory(path) ? normalizedPath = path / "" : normalizedPath = path;
+
+    auto childOfPath = [&normalizedPath](const auto& includePath) {
+        // if paths are same return false, as std::mismatch will return the end
+        // iterator for both paths which will cause ambiguity.
+        std::error_code ec;
+        if (fs::equivalent(normalizedPath, includePath, ec))
+        {
+            return false;
+        }
+
+        auto [parentItr, childItr] = std::ranges::mismatch(normalizedPath,
+                                                           includePath);
+        return ((parentItr == normalizedPath.end()) || (*parentItr == ""));
+    };
+
+    if (auto itr = std::ranges::find_if(_dataSyncCfg._includeList.value(),
+                                        childOfPath);
+        itr != _dataSyncCfg._includeList.value().end())
+    {
+        lg2::debug("{PATH} is parent of the include list path[{INCLUDE}]",
+                   "PATH", path, "INCLUDE", *itr);
+        return true;
+    }
+    return false;
 }
 
 void DataWatcher::addSubDirWatches(const fs::path& pathToWatch)
@@ -199,8 +273,6 @@ void DataWatcher::addSubDirWatches(const fs::path& pathToWatch)
             // from monitoring and add watch for rest.
             if (_dataSyncCfg._excludeList.has_value() && isPathExcluded(entry))
             {
-                lg2::debug("No watch added for {PATH} as in excludeList",
-                           "PATH", entry);
                 return;
             }
             addToWatchList(entry, _eventMasksToWatch);
@@ -243,6 +315,23 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
                                    _eventMasksIfNotExists);
                 }
             });
+            return;
+        }
+        else if ((_dataSyncCfg._includeList.has_value()) &&
+                 (pathToWatch.string().starts_with(
+                     _dataSyncCfg._path.string())))
+        {
+            // Add watches only for included paths if child paths created inside
+            // configured paths.
+            if (isPathIncluded(pathToWatch) ||
+                isPathParentOfInclude(pathToWatch))
+            {
+                addToWatchList(pathToWatch, _eventMasksToWatch);
+                if (fs::is_directory(pathToWatch))
+                {
+                    addSubDirWatches(pathToWatch);
+                }
+            }
             return;
         }
 
@@ -372,14 +461,23 @@ std::optional<DataOperation>
         _watchDescriptors.at(std::get<WD>(receivedEventInfo)) /
         std::get<BaseName>(receivedEventInfo);
 
-    // Skip the events received for the paths which are in excluded list.
-    // If excludeList has files, will receive inotify events and will be
-    // excluded from processing.
+    // Skip the events received for the paths which are in excluded list and not
+    // in include list.
+    // If excludeList has files, will receive inotify events as its parent dir
+    // is watching and will be excluded from processing.
+    // In the case where include list is configured and since the configured
+    // path doesn't exists, monitoring parent will result is inotify events for
+    // the paths which aren't in the tree of include list. No need to process
+    // those events.
 
-    if (_dataSyncCfg._excludeList.has_value() &&
-        isPathExcluded(eventReceivedFor))
+    if ((_dataSyncCfg._excludeList.has_value() &&
+         isPathExcluded(eventReceivedFor)) ||
+        (_dataSyncCfg._includeList.has_value() &&
+         (!(isPathIncluded(eventReceivedFor)) &&
+          !(isPathParentOfInclude(eventReceivedFor)))))
     {
-        lg2::debug("Skipping the {EVENTS} for {PATH}, as in exclude list",
+        lg2::debug("Skipping the {EVENTS} for {PATH} as it is not in the"
+                   " include or exclude list",
                    "EVENTS", eventName(std::get<2>(receivedEventInfo)), "PATH",
                    eventReceivedFor);
         return std::nullopt;
@@ -438,8 +536,19 @@ std::optional<DataOperation>
             // modified.
             return std::make_pair(eventReceivedFor, DataOps::COPY);
         }
+        else if (_dataSyncCfg._includeList.has_value() &&
+                 isPathIncluded(eventReceivedFor /
+                                std::get<BaseName>(receivedEventInfo)))
+        {
+            // Case 2 : Non empty BaseName implies, not watching already.
+            // Since the file is in includelist add watch for the same.
+            addToWatchList(eventReceivedFor /
+                               std::get<BaseName>(receivedEventInfo),
+                           _eventMasksToWatch);
+            removeIncludeParentWatches();
+        }
 
-        // Case 2 : A file got created or modified inside a watching subdir
+        // Case 3 : A file got created or modified inside a watching subdir
         return std::make_pair(eventReceivedFor /
                                   std::get<BaseName>(receivedEventInfo),
                               DataOps::COPY);
@@ -480,7 +589,13 @@ std::optional<DataOperation>
             // path add watch for the created child subdirectories.
             createWatchers(absCreatedPath);
 
-            return std::make_pair(absCreatedPath, DataOps::COPY);
+            // If include list is configured for the config and with this
+            // IN_CREATE, all the paths in include list got created and start
+            // watching, then remove the watches for the parent paths.
+            if (_dataSyncCfg._includeList.has_value())
+            {
+                removeIncludeParentWatches();
+            }
         }
         else if (_dataSyncCfg._path.string().starts_with(
                      absCreatedPath.string()))
@@ -490,10 +605,12 @@ std::optional<DataOperation>
 
             auto modifyWatchIfExpected = [this, &ec](const fs::path& entry) {
                 // Before modify watcher, check the created entry is part of
-                // exclude list or not.
-
-                if (_dataSyncCfg._excludeList.has_value() &&
-                    isPathExcluded(entry))
+                // exclude list or include list.
+                if ((_dataSyncCfg._excludeList.has_value() &&
+                     isPathExcluded(entry)) ||
+                    (_dataSyncCfg._includeList.has_value() &&
+                     (!(isPathIncluded(entry))) &&
+                     (!(isPathParentOfInclude(entry)))))
                 {
                     return false;
                 }
@@ -551,8 +668,20 @@ std::optional<DataOperation>
             std::ranges::for_each(
                 fs::recursive_directory_iterator(monitoringPath),
                 modifyWatchIfExpected);
-            return std::make_pair(absCreatedPath, DataOps::COPY);
         }
+
+        // if includeList is configured, and in non-existing of includeList
+        // case, initiate sync only if the created path is matching with
+        // configured includeList or is child of the configured includeList.
+        if (_dataSyncCfg._includeList.has_value() &&
+            isPathParentOfInclude(absCreatedPath))
+        {
+            lg2::debug(
+                "{PATH} is parent of include path. Added watch, but skipping sync",
+                "PATH", absCreatedPath);
+            return std::nullopt;
+        }
+        return std::make_pair(absCreatedPath, DataOps::COPY);
     }
     return std::nullopt;
 }
@@ -682,6 +811,35 @@ std::optional<DataOperation>
     return std::nullopt;
 }
 
+void DataWatcher::removeIncludeParentWatches()
+{
+    auto hasWatches = [this](const auto& incPath) {
+        return std::ranges::any_of(_watchDescriptors,
+                                   [&incPath](const auto& wdPair) {
+            std::error_code ec;
+            return fs::equivalent(wdPair.second, incPath, ec);
+        });
+    };
+
+    // Check whether all configured include paths are being watched.
+    // If so, remove any parent watches since they are no longer needed.
+    // Parent watches will only be added when an include path does not exist
+    // at startup.
+    if (!std::ranges::all_of(_dataSyncCfg._includeList.value(), hasWatches))
+    {
+        return;
+    }
+    auto wdItToRemove = _watchDescriptors |
+                        std::views::filter([this](const auto& pair) {
+        return isPathParentOfInclude(pair.second);
+    }) | std::views::transform([](const auto& pair) { return pair.first; });
+
+    std::vector<int> wdToRemove(wdItToRemove.begin(), wdItToRemove.end());
+
+    std::ranges::for_each(wdToRemove,
+                          [this](const int wd) { removeWatch(wd); });
+}
+
 void DataWatcher::removeWatch(int wd)
 {
     fs::path pathToRemove = _watchDescriptors.at(wd);
@@ -689,7 +847,8 @@ void DataWatcher::removeWatch(int wd)
     inotify_rm_watch(_inotifyFileDescriptor(), wd);
     _watchDescriptors.erase(wd);
 
-    lg2::debug("Stopped monitoring {PATH}", "PATH", pathToRemove);
+    lg2::debug("Stopped monitoring {PATH}, WD : {WD}", "PATH", pathToRemove,
+               "WD", wd);
 }
 
 } // namespace data_sync::watch::inotify
