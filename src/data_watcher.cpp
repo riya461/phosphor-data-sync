@@ -215,9 +215,39 @@ void DataWatcher::createWatchers(const fs::path& pathToWatch)
     auto pathToWatchExist = fs::exists(pathToWatch);
     if (pathToWatchExist)
     {
+        // If IncludeList is configured, then monitor only those and
+        // exclude rest.
+        if ((_dataSyncCfg._includeList.has_value()) &&
+            (pathToWatch == _dataSyncCfg._path))
+        {
+            // Either on startup or when _dataSyncCfg._path (configured
+            // path) creates.
+            // Hence add watches only for includeList paths instead of iterating
+            // through whole directory tree.
+            std::ranges::for_each(_dataSyncCfg._includeList.value(),
+                                  [this](const fs::path& includePath) {
+                if (fs::exists(includePath))
+                {
+                    addToWatchList(includePath, _eventMasksToWatch);
+                    if (fs::is_directory(includePath))
+                    {
+                        addSubDirWatches(includePath);
+                    }
+                }
+                else
+                {
+                    lg2::warning("IncludeList path [{PATH}] doesn't exist.Hence"
+                                 " add for existing parent",
+                                 "PATH", includePath);
+                    addToWatchList(getExistingParentPath(includePath),
+                                   _eventMasksIfNotExists);
+                }
+            });
+            return;
+        }
+
+        // In normal scenario, where no include list configured.
         addToWatchList(pathToWatch, _eventMasksToWatch);
-        /* Add watch for subdirectories also if path is a directory
-         */
         if (fs::is_directory(pathToWatch))
         {
             addSubDirWatches(pathToWatch);
