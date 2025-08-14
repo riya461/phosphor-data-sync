@@ -17,10 +17,15 @@
     ],
     "Directories": [
         {
-            "Path": "/var/lib/phosphor-state-manager/host{}-PersistData/",
-            "Description": "Host State Persisted data",
+            "Path": "/var/lib/phosphor-state-manager/",
+            "Description": "System states persisted data",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Immediate",
+            "ExcludeList": [
+                "/var/lib/phosphor-state-manager/requestedHostTransition",
+                "/var/lib/phosphor-state-manager/POHCounter",
+                "/var/lib/phosphor-state-manager/chassisStateChangeTime"
+            ]
         },
         {
             "Path": "/var/lib/phosphor-fan-presence/",
