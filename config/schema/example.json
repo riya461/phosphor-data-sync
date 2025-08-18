@@ -16,7 +16,8 @@
             "SyncType": "Periodic",
             "Periodicity": "PT10S",
             "RetryAttempts": 2,
-            "RetryInterval": "PT10M"
+            "RetryInterval": "PT10M",
+            "Critical": true
         }
     ],
     "Directories": [

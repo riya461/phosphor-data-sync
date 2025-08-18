@@ -61,6 +61,9 @@
                 },
                 "RetryInterval": {
                     "$ref": "#/$defs/retryInterval"
+                },
+                "Critical": {
+                    "$ref": "#/$defs/critical"
                 }
             },
             "required": ["Path", "Description", "SyncDirection", "SyncType"],
@@ -97,6 +100,9 @@
                 },
                 "RetryInterval": {
                     "$ref": "#/$defs/retryInterval"
+                },
+                "Critical": {
+                    "$ref": "#/$defs/critical"
                 },
                 "ExcludeList": {
                     "$ref": "#/$defs/excludeList"
@@ -158,6 +164,10 @@
             "description": "The time interval in ISO 8601 duration format to perform the periodic sync operation.Eg: PT1M10S - 1 Minute and 10 seconds",
             "type": "string",
             "format": "duration"
+        },
+        "critical": {
+            "description": "The data to be synced is non-critical in nature then set it as false, by default this vale is set as true. If failed after the retry attempts will update SyncEventsHealth property",
+            "type": "bool"
         },
         "excludeList": {
             "description": "The list of paths in the directory that should be excluded while sync operation",

@@ -215,7 +215,7 @@ sdbusplus::async::task<bool>
             co_return true;
         }
         // Mark the path as in-progress so subsequent retries know to skip it
-        //dataSyncCfg._syncInProgressPaths.insert(currentSrcPath);
+        dataSyncCfg._syncInProgressPaths.insert(currentSrcPath);
     }
 
     const size_t maxAttempts = dataSyncCfg._retry->_retryAttempts;
@@ -300,6 +300,10 @@ sdbusplus::async::task<bool>
         co_return co_await syncData(dataSyncCfg, retrySrcPath, destPath,
                                     retryCount + 1);
     }
+        /*lg2::debug("Criticality: {CRITICALITY}", "CRITICALITY",
+        dataSyncCfg._critical.value());*/
+        if(dataSyncCfg._critical.value())
+            setSyncEventsHealth(SyncEventsHealth::Critical);
 
     // TODO: Create error log entry for sync failure after retries.
     lg2::error("Sync failed after {MAX_ATTEMPTS} attempts (exit code {ERROR_CODE}): [{SRC}] → [{DEST}]",
@@ -308,7 +312,7 @@ sdbusplus::async::task<bool>
                "SRC", currentSrcPath, 
                "DEST", currentDestPath);
 
-    //dataSyncCfg._syncInProgressPaths.erase(currentSrcPath);
+    dataSyncCfg._syncInProgressPaths.erase(currentSrcPath);
     co_return false;
 }
 

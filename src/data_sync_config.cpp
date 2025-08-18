@@ -72,6 +72,15 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
         _retry = Retry(DEFAULT_RETRY_ATTEMPTS, std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     }
 
+    if ( config.contains("Critical") )
+    {
+        _critical = config["Critical"].get<bool>();
+    }
+    else
+    {
+        _critical = true;
+    }
+
     if (config.contains("ExcludeList"))
     {
         _excludeList.emplace(
@@ -103,6 +112,7 @@ bool DataSyncConfig::operator==(const DataSyncConfig& dataSyncCfg) const
            _syncType == dataSyncCfg._syncType &&
            _periodicityInSec == dataSyncCfg._periodicityInSec &&
            _retry == dataSyncCfg._retry &&
+           _critical == dataSyncCfg._critical &&
            _excludeList == dataSyncCfg._excludeList &&
            _includeList == dataSyncCfg._includeList;
 }
