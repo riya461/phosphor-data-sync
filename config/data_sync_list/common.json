@@ -50,6 +50,13 @@
             "ExcludeList": [
                 "/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/control/minimum_ship_level_required__"
             ]
+        },
+        {
+            "Path": "/var/lib/phosphor-inventory-manager/",
+            "Description": "System inventory persisted data (synced to backup dir on passive to avoid DBus exposure)",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate",
+            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
         }
     ]
 }
