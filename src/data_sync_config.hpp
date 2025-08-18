@@ -183,6 +183,14 @@ struct DataSyncConfig
      */
     std::optional<Retry> _retry;
 
+     /** @brief Set as false if the configured path is non-critical
+     *
+     * @note By default a path is considered to be critical, if it's sync fails
+     *       then SyncEventsHealth is set as Critical. If the parameter is
+     *       set false, then ignored.
+     */
+     std::optional<bool> _critical;
+
     /**
      * @brief The list of paths to exclude from synchronization.
      *

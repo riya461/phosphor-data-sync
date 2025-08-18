@@ -300,6 +300,10 @@ sdbusplus::async::task<bool>
         co_return co_await syncData(dataSyncCfg, retrySrcPath, destPath,
                                     retryCount + 1);
     }
+        /*lg2::debug("Criticality: {CRITICALITY}", "CRITICALITY",
+        dataSyncCfg._critical.value());*/
+        if(dataSyncCfg._critical.value())
+            setSyncEventsHealth(SyncEventsHealth::Critical);
 
     // TODO: Create error log entry for sync failure after retries.
     lg2::error("Sync failed after {MAX_ATTEMPTS} attempts (exit code {ERROR_CODE}): [{SRC}] → [{DEST}]",
