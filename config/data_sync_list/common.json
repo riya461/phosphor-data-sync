@@ -41,6 +41,15 @@
             "Description": "System LED persisted data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/var/lib/phosphor-settings-manager/settings/",
+            "Description": "Persisted settings data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate",
+            "ExcludeList": [
+                "/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/control/minimum_ship_level_required__"
+            ]
         }
     ]
 }
