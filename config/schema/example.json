@@ -28,8 +28,17 @@
             "Periodicity": "PT1H",
             "RetryAttempts": 1,
             "RetryInterval": "PT10M",
-            "ExcludeFilesList": ["/Path/of/files/must/be/ignored/for/sync"],
-            "IncludeFilesList": ["/Path/of/files/must/be/considered/for/sync"]
+            "IncludeList": ["/Path/of/files/must/be/considered/for/sync"]
+        },
+        {
+            "Path": "/directory22path/to/sync/",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Passive2Active",
+            "SyncType": "Periodic",
+            "Periodicity": "PT1H",
+            "RetryAttempts": 1,
+            "RetryInterval": "PT10M",
+            "ExcludeList": ["/Path/of/files/must/be/ignored/for/sync"]
         },
         {
             "Path": "/directory2/path/to/sync/",
