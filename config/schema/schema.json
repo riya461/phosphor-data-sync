@@ -56,6 +56,9 @@
                 "Periodicity": {
                     "$ref": "#/$defs/periodicity"
                 },
+                "NotifySibling": {
+                    "$ref": "#/$defs/notifySiblingForFiles"
+                },
                 "RetryAttempts": {
                     "$ref": "#/$defs/retryAttempts"
                 },
@@ -91,6 +94,9 @@
                 },
                 "Periodicity": {
                     "$ref": "#/$defs/periodicity"
+                },
+                "NotifySibling": {
+                    "$ref": "#/$defs/notifySiblingForDirs"
                 },
                 "RetryAttempts": {
                     "$ref": "#/$defs/retryAttempts"
@@ -144,6 +150,68 @@
             "description": "The type of sync to be performed",
             "enum": ["Periodic", "Immediate"]
         },
+        "notifySiblingForFiles": {
+            "description": "The JSON object which definess how the data owner on the synced side to be notified once the data got changed",
+            "type": "object",
+            "properties": {
+                "Mode": {
+                    "description": "Declares the mode in which application running on sibling BMC should get modified",
+                    "$ref": "#/$defs/mode"
+                },
+                "Method": {
+                    "description": "Specifiy the type of method to be invoked if Mode is systemd",
+                    "$ref": "#/$defs/Method"
+                },
+                "NotifyServices": {
+                    "description": "The list of service names that need to be notified in the sibling once the configured data gets modified.",
+                    "$ref": "#/$defs/notifyServices"
+                }
+            },
+            "required": ["Mode", "NotifyServices"],
+            "if": {
+                "properties": { "Mode": { "const": "Systemd" } },
+                "required": ["Mode"]
+            },
+            "then": {
+                "required": ["Method"]
+            },
+            "else": {
+                "properties": { "Method": false }
+            }
+        },
+        "notifySiblingForDirs": {
+            "description": "The JSON object which definess how the data owner on the synced side to be notified once the data got changed",
+            "type": "object",
+            "properties": {
+                "NotifyOnPaths": {
+                    "description": "The absolute path of the data inside the configured path where sibling BMC will get notified only if these files got updated.",
+                    "$ref": "#/$defs/notifyOnPaths"
+                },
+                "Mode": {
+                    "description": "Declares the mode in which application running on sibling BMC should get modified",
+                    "$ref": "#/$defs/mode"
+                },
+                "Method": {
+                    "description": "Specifiy the type of method to be invoked if Mode is systemd",
+                    "$ref": "#/$defs/Method"
+                },
+                "NotifyServices": {
+                    "description": "The list of service names that need to be notified in the sibling once the configured data gets modified.",
+                    "$ref": "#/$defs/notifyServices"
+                }
+            },
+            "required": ["Mode", "NotifyServices"],
+            "if": {
+                "properties": { "Mode": { "const": "Systemd" } },
+                "required": ["Mode"]
+            },
+            "then": {
+                "required": ["Method"]
+            },
+            "else": {
+                "properties": { "Method": false }
+            }
+        },
         "retryAttempts": {
             "description": "The number of retries for the specific file. The value zero indicates no retries. This will override the default value",
             "type": "integer",
@@ -186,6 +254,32 @@
             "description": "The value must be a valid UNIX standard root filepath with trailing /",
             "type": "string",
             "pattern": "^/.*/$"
+        },
+        "notifyOnPaths": {
+            "description": "The list of paths that need to notified. Rest of the paths can be ignored",
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/rootFilePath"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        },
+        "mode": {
+            "description": "`Systemd` mode will invoke the systemd reload, whereas `DBus` mode will invoke reload via custom DBus call",
+            "enum": ["Systemd", "DBus"]
+        },
+        "Method": {
+            "description": "`Restart` will restart the service, whereas `Reload` will send a reload signal without restarting the service.",
+            "enum": ["Restart", "Reload"]
+        },
+        "notifyServices": {
+            "description": "For 'Systemd' mode, use systemd unit names; for 'DBus' mode, use DBus service names.",
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
         },
         "conditionForPeriodicity": {
             "if": {

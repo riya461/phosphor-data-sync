@@ -15,6 +15,11 @@
             "SyncDirection": "Bidirectional",
             "SyncType": "Periodic",
             "Periodicity": "PT10S",
+            "NotifySibling": {
+                "Mode": "Systemd",
+                "Method": "Reload",
+                "NotifyServices": ["Service1", "Service2"]
+            },
             "RetryAttempts": 2,
             "RetryInterval": "PT10M"
         }
@@ -44,7 +49,12 @@
             "Path": "/directory2/path/to/sync/",
             "Description": "Add details about the data and purpose of the synchronization",
             "SyncDirection": "Bidirectional",
-            "SyncType": "Immediate"
+            "SyncType": "Immediate",
+            "NotifySibling": {
+                "NotifyOnPaths": ["/var/lib/abcd"],
+                "Mode": "DBus",
+                "NotifyServices": ["Service1", "Service2"]
+            }
         }
     ]
 }
