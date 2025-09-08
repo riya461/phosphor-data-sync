@@ -62,6 +62,12 @@
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate",
             "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
+        },
+        {
+            "Path": "/var/lib/service-config-manager/",
+            "Description": "Persisted service enable/disable config data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ]
 }
