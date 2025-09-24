@@ -40,11 +40,11 @@ getSiblingBMCIPAddr()
     if [ "$1" = 0 ]
     then
         # Using the simics bmc0 eth0 IP address
-        siblingBMCIPAddr="10.0.2.100"
+        siblingBMCIPAddr="9.3.23.163"
     elif [ "$1" = 1 ]
     then
         # Using the simics bmc1 eth0 IP address
-        siblingBMCIPAddr="10.2.2.100"
+        siblingBMCIPAddr="9.3.23.170"
     else
         echo "Unsupported [$1] sibling bmc position"
         exit 1

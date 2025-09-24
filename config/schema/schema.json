@@ -138,7 +138,7 @@
         },
         "syncType": {
             "description": "The type of sync to be performed",
-            "enum": ["Periodic", "Immediate"]
+            "enum": ["Periodic", "Immediate", "Defer"]
         },
         "retryAttempts": {
             "description": "The number of retries for the specific file. The value zero indicates no retries. This will override the default value",

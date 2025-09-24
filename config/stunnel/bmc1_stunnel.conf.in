@@ -2,6 +2,8 @@ foreground = quiet
 socket = l:TCP_NODELAY=1
 socket = r:TCP_NODELAY=1
 OCSP = no
+OCSPaia = no
+OCSPrequire = no
 debug = 3
 
 [local_bmc]
@@ -16,7 +18,7 @@ verify = 2
 [sibling_bmc]
 client = yes
 accept = @LOCAL_HOST_IP@:@BMC0_RSYNC_PORT@
-connect = 169.254.109.48:@BMC0_STUNNEL_PORT@
+connect = IP_ADDR:@BMC0_STUNNEL_PORT@
 cert = /etc/phosphor-data-sync/certs/bmc1.cert.pem
 key  = /etc/phosphor-data-sync/certs/bmc1.key.pem
 CAfile = /etc/phosphor-data-sync/certs/cacert.pem

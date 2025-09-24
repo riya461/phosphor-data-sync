@@ -15,13 +15,6 @@
             "SyncType": "Periodic",
             "Periodicity": "PT60S",
             "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
-        },
-        {
-            "Path": "/var/lib/bios-settings-manager/biosData",
-            "Description": "Host BIOS persisted data",
-            "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate",
-            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
         }
     ],
     "Directories": [
@@ -42,26 +35,26 @@
             "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
         },
         {
-            "Path": "/var/lib/phosphor-logging/",
-            "Description": "System logs persisted data",
-            "SyncDirection": "Bidirectional",
-            "SyncType": "Immediate",
-            "ExcludeList": ["/var/lib/phosphor-logging/extensions/pels/pelID"],
-            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
-        },
-        {
-            "Path": "/var/log/audit/",
-            "Description": "System audit logs persisted data",
-            "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate",
-            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
-        },
-        {
             "Path": "/var/lib/phosphor-post-code-manager/",
             "Description": "Host progress codes persisted data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Periodic",
             "Periodicity": "PT60S",
+            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
+        },
+       {
+            "Path": "/var/lib/phosphor-led-manager/",
+            "Description": "System LED persisted data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate",
+            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
+        },
+       {
+            "Path": "/var/lib/phosphor-settings-manager/settings/",
+            "Description": "Persisted settings data",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate",
+            "ExcludeList": ["/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/control/minimum_ship_level_required__"],
             "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
         },
         {
@@ -72,41 +65,13 @@
             "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
         },
         {
-            "Path": "/var/lib/phosphor-led-manager/",
-            "Description": "System LED persisted data",
+            "Path": "/var/lib/service-config-manager/",
+            "Description": "Persisted service enable/disable config data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate",
             "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
-        },
-        {
-            "Path": "/var/lib/pldm/",
-            "Description": "PLDM persisted data",
-            "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate",
-            "IncludeList": ["/var/lib/pldm/pldm_store", "/var/lib/pldm/license/"],
-            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
-        },
-        {
-            "Path": "/etc/credstore/",
-            "Description": "Persisted credentials data",
-            "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate",
-            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
-        },
-        {
-            "Path": "/etc/credstore.encrypted/",
-            "Description": "Persisted credentials encrypted data",
-            "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate",
-            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
-        },
-        {
-            "Path": "/var/lib/phosphor-settings-manager/settings/",
-            "Description": "Persisted settings data",
-            "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate",
-            "ExcludeList": ["/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/control/minimum_ship_level_required__"],
-            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
+
         }
+
     ]
 }

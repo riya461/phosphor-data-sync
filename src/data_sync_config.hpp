@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 
 namespace data_sync::config
 {
@@ -31,7 +32,8 @@ enum class SyncDirection
 enum class SyncType
 {
     Immediate,
-    Periodic
+    Periodic,
+    Defer
 };
 
 /**
@@ -126,6 +128,8 @@ struct DataSyncConfig
                 return "Immediate";
             case SyncType::Periodic:
                 return "Periodic";
+            case SyncType::Defer:
+                return "Defer";
         }
         return "";
     }
@@ -186,7 +190,6 @@ struct DataSyncConfig
      *       synchronization.
      */
     std::optional<std::vector<fs::path>> _includeList;
-
     /**
      * @brief Tracks file or directory paths currently being processed for
      *        sync.

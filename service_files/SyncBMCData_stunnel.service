@@ -16,3 +16,4 @@ Restart=always
 [Install]
 WantedBy=obmc-bmc-active.target
 WantedBy=obmc-bmc-passive.target
+

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+//SPDX-License-Identifier: Apache-2.0
 
 #include "config.h"
 
@@ -151,6 +151,10 @@ sdbusplus::async::task<> Manager::startSyncEvents()
         else if (dataSyncCfg._syncType == Periodic)
         {
             this->_ctx.spawn(this->monitorTimerToSync(dataSyncCfg));
+        }
+        else if (dataSyncCfg._syncType == Defer)
+        {
+            this->_ctx.spawn(this->monitorDeferToSync(dataSyncCfg));
         }
     });
 
@@ -865,6 +869,77 @@ void Manager::disableSyncPropChanged(bool disableSync)
         lg2::info("Sync is Enabled, Starting events");
         _ctx.spawn(startSyncEvents());
     }
+}
+
+sdbusplus::async::task<>
+    // NOLINTNEXTLINE
+    Manager::monitorDeferToSync(config::DataSyncConfig& dataSyncCfg)
+{
+    try
+    {
+        uint32_t eventMasksToWatch = IN_CLOSE_WRITE | IN_MOVED_FROM |
+                                        IN_MOVED_TO | IN_DELETE_SELF;
+        if (dataSyncCfg._isPathDir)
+        {
+            eventMasksToWatch |= IN_CREATE | IN_DELETE ;
+        }
+
+        // Create watcher for the dataSyncCfg._path
+        watch::inotify::DataWatcher dataWatcher(
+            _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path,
+            dataSyncCfg._includeList, dataSyncCfg._excludeList);
+
+        _noOfWatchers += dataWatcher.noOfWatch();
+
+        while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
+        {
+            if (auto dataOperations = co_await dataWatcher.onDataChange();
+                !dataOperations.empty())
+            {
+                // Below is temporary check to avoid sync when disable sync is
+                // set to true.
+                // TODO: add receiver logic to stop sync events when disable
+                // sync is set to true.
+                if (_syncBMCDataIface.disable_sync())
+                {
+                    break;
+                }
+                for ([[maybe_unused]] const auto& dataOp : dataOperations)
+                {
+                    fs::path currentSrcPath = dataOp.first.string();
+                    if (dataSyncCfg._syncInProgressPaths.count(dataSyncCfg._path))
+                    {
+                        lg2::debug(
+                            "Defer: Skipping sync for [{SRC}]: a sync is already in progress",
+                            "SRC", dataOp.first.string());
+                       // If already the configured path in syncInProgressPath,
+                       // wait for 10 sec before syncing 
+                        co_await sleep_for(_ctx, std::chrono::seconds(10));
+
+                        co_return;
+                    }
+                    // Mark the path as in-progress so subsequent retries know to skip it
+                    // Defer for 10 seconds 
+
+                   dataSyncCfg._syncInProgressPaths.insert(dataSyncCfg._path);
+                    _ctx.spawn(syncData(dataSyncCfg, dataOp.first.string()) |
+                               stdexec::then([] ([[maybe_unused]] bool result) {}));
+                   dataSyncCfg._syncInProgressPaths.erase(dataSyncCfg._path);
+
+
+                }
+            }
+        }
+    }
+    catch (std::exception& e)
+    {
+        // TODO : Create error log if fails to create watcher for a
+        // file/directory.
+        lg2::error("Failed to create watcher object for {PATH}. Exception : "
+                   "{ERROR}",
+                   "PATH", dataSyncCfg._path, "ERROR", e.what());
+    }
+    co_return;
 }
 
 // NOLINTNEXTLINE

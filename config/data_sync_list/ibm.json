@@ -2,7 +2,7 @@
     "Files": [
         {
             "Path": "/var/lib/ibm/bmcweb/RootCert",
-            "Description": "Persisted root certificate",
+            "Description": "Root certificate",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate",
             "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
@@ -14,14 +14,17 @@
             "Description": "Host save area persisted data",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate",
-            "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
+            "DestinationPath" : "/var/lib/phosphor-data-sync/bmc_data_bkp/"
+
         },
         {
-            "Path": "/etc/acf/",
-            "Description": "Persisted ACF certificates",
-            "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate",
+            "Path" : "/var/lib/phosphor-logging/",
+            "Description": "PEL",
+            "SyncDirection": "Bidirectional",
+            "SyncType": "Defer",
+            "ExcludeList": ["/var/lib/phosphor-logging/extensions/pels/pelID"],
             "DestinationPath": "/var/lib/phosphor-data-sync/bmc_data_bkp/"
         }
+
     ]
 }

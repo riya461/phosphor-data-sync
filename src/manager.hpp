@@ -214,6 +214,14 @@ class Manager
         monitorTimerToSync(config::DataSyncConfig& dataSyncCfg);
 
     /**
+     * @brief A helper to API to sync data deferred
+     *
+     * @param[in] dataSyncCfg - The data sync config to sync
+     */
+    sdbusplus::async::task<>
+        monitorDeferToSync(config::DataSyncConfig& dataSyncCfg);
+
+    /**
      * @brief A helper to API Checks if the data can be synchronize.
      *
      *        - This API verifies whether the given data meets the criteria

@@ -141,6 +141,10 @@ std::optional<SyncType>
     {
         return SyncType::Periodic;
     }
+    else if (syncType == "Defer")
+    {
+        return SyncType::Defer;
+    }
     else
     {
         lg2::error("Unsupported sync type [{SYNC_TYPE}]", "SYNC_TYPE",
