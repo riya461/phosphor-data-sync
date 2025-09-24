@@ -181,7 +181,7 @@ void Manager::getRsyncCmd(RsyncMode mode,
         // For more details about CLI options, refer rsync man page.
         // https://download.samba.org/pub/rsync/rsync.1#OPTION_SUMMARY
 
-        cmd.append(" --relative --delete --delete-missing-args"s);
+        cmd.append(" --relative --delete --delete-missing-args --stats"s);
 
         if (dataSyncCfg._excludeList.has_value())
         {
@@ -311,8 +311,13 @@ sdbusplus::async::task<bool>
 
         co_return false;
     }
-    else if (dataSyncCfg._notifySibling.has_value())
+    else if ((dataSyncCfg._notifySibling.has_value()) &&
+             (utility::rsync::getTransferredBytes(result.second) != 0))
     {
+        // Rsync success alone doesn’t guarantee data got updated on the remote.
+        // Checking bytes transferred helps to confirm if any data mismatch was
+        // actually synced.
+
         // initiate sibling notification
         co_await triggerSiblingNotification(dataSyncCfg, srcPath);
     }
