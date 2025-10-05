@@ -41,7 +41,10 @@ TEST(DataSyncConfigParserTest, TestImmediateFileSyncWithNoRetry)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
-    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }
@@ -110,7 +113,10 @@ TEST(DataSyncConfigParserTest, TestImmediateDirectorySyncWithNoRetry)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
-    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     EXPECT_EQ(dataSyncConfig._excludeList->first,
               configJSON["ExcludeList"].get<std::unordered_set<fs::path>>());
     EXPECT_EQ(dataSyncConfig._excludeList->second,
@@ -145,7 +151,10 @@ TEST(DataSyncConfigParserTest, TestImmediateAndBidirectionalDirectorySync)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
-    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }
@@ -253,8 +262,11 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncDirection)
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
-    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }
@@ -286,8 +298,11 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncType)
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
-    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }
@@ -320,7 +335,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithValidDestination)
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
-    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
@@ -363,7 +381,10 @@ TEST(DataSyncConfigParserTest, TestSyncConfigWithSiblingNotify)
                   ._notifyReqInfo.at("NotifyServices")
                   .get<std::vector<std::string>>(),
               (std::vector<std::string>{"service1"}));
-    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }
@@ -409,7 +430,10 @@ TEST(DataSyncConfigParserTest, TestSyncConfigWithSelectivePathSiblingNotify)
                   ._notifyReqInfo.at("NotifyServices")
                   .get<std::vector<std::string>>(),
               (std::vector<std::string>{"service1", "service2"}));
-    EXPECT_EQ(dataSyncConfig._retry, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
     EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
 }

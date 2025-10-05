@@ -200,13 +200,26 @@ class Manager
      *
      * @param[in] dataSyncCfg - The data sync config to sync
      * @param[in] srcPath - The modified path inside the cfg path, if available.
+     * @param[in] retryCount - The current retry attempt count
      *
      * @return Returns true if sync succeeds; otherwise, returns false
      *
      */
     sdbusplus::async::task<bool>
         syncData(const config::DataSyncConfig& dataSyncCfg,
-                 fs::path srcPath = fs::path{});
+                 fs::path srcPath = fs::path{}, size_t retryCount = 0);
+
+    /**
+     * @brief Retry the data sync operation based on failure
+     *
+     * @param[in] cfg - Data sync configuration
+     * @param[in] srcPath - Source path to be synced
+     * @param[in] retryCount - Current retry attempt number
+     *
+     * @return true if the retry succeeds or can be skipped, false if failed
+     */
+    sdbusplus::async::task<bool> retrySync(const config::DataSyncConfig& cfg,
+                                           fs::path srcPath, size_t retryCount);
 
     /**
      * @brief A helper to API to monitor data to sync if its changed

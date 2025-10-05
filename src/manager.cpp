@@ -279,11 +279,45 @@ sdbusplus::async::task<void>
 
 sdbusplus::async::task<bool>
     // NOLINTNEXTLINE
+    Manager::retrySync(const config::DataSyncConfig& cfg, fs::path srcPath,
+                       size_t retryCount)
+{
+    const fs::path currentSrcPath = srcPath.empty() ? cfg._path : srcPath;
+
+    if (retryCount++ < cfg._retry->_retryAttempts)
+    {
+        lg2::debug(
+            "Retry [{RETRY_ATTEMPT}/{MAX_ATTEMPTS}] for [{SRC_PATH}] after "
+            "[{RETRY_INTERVAL}s]",
+            "RETRY_ATTEMPT", retryCount, "MAX_ATTEMPTS",
+            cfg._retry->_retryAttempts, "SRC_PATH", currentSrcPath,
+            "RETRY_INTERVAL", cfg._retry->_retryIntervalInSec.count());
+
+        co_await sleep_for(_ctx, std::chrono::seconds(
+                                     cfg._retry->_retryIntervalInSec.count()));
+
+        co_return co_await syncData(cfg, std::move(srcPath), retryCount);
+    }
+
+    // NOTE: The following line is commented out as part of a temporary
+    // workaround. We are forcing Full Sync to succeed even if data syncing
+    // fails. This change should be reverted once proper error handling is
+    // implemented.
+    // setSyncEventsHealth(SyncEventsHealth::Critical);
+    lg2::error("Sync failed after [{MAX_ATTEMPTS}] retries for [{SRC_PATH}]",
+               "MAX_ATTEMPTS", cfg._retry->_retryAttempts, "SRC_PATH",
+               currentSrcPath);
+    co_return false;
+}
+
+sdbusplus::async::task<bool>
+    // NOLINTNEXTLINE
     Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
-                      fs::path srcPath)
+                      fs::path srcPath, size_t retryCount)
 {
     std::string syncCmd{};
     getRsyncCmd(RsyncMode::Sync, dataSyncCfg, srcPath.string(), syncCmd);
+
     lg2::debug("Rsync command: {CMD}", "CMD", syncCmd);
 
     data_sync::async::AsyncCommandExecutor executor(_ctx);
@@ -291,37 +325,64 @@ sdbusplus::async::task<bool>
     lg2::debug("Rsync cmd return code : {RET} : output : {OUTPUT}", "RET",
                result.first, "OUTPUT", result.second);
 
-    if (result.first != 0)
+    switch (result.first)
     {
-        // TODOs:
-        // 1. Retry based on rsync error code
-        // 2. Create error log and Disable redundancy if retry fails
-        // 3. Perform a callout
+        case 0: // Success
+        {
+            // Notify only if configured, we know the concrete path,
+            // and bytes > 0
+            if (dataSyncCfg._notifySibling && !srcPath.empty() &&
+                utility::rsync::getTransferredBytes(result.second) != 0)
+            {
+                // Rsync success alone doesn’t guarantee data got updated on the
+                // remote.
+                // Checking bytes transferred helps to confirm if any data
+                // mismatch was actually synced.
+                // initiate sibling notification
+                co_await triggerSiblingNotification(dataSyncCfg,
+                                                    srcPath.string());
+            }
+            co_return true;
+        }
 
-        // NOTE: The following line is commented out as part of a temporary
-        // workaround. We are forcing Full Sync to succeed even if data syncing
-        // fails. This change should be reverted once proper error handling is
-        // implemented.
-        // setSyncEventsHealth(SyncEventsHealth::Critical);
+        case 24: // Vanished source: treat as success
+        {
+            // TODO: Revisit notification handling for vanished files if partial
+            // data got synced
+            lg2::debug(
+                "Rsync exited with vanished file error for [{SRC}], treating as success",
+                "SRC", currentSrcPath);
+            co_return true;
+        }
 
-        lg2::error(
-            "Error syncing [{PATH}], ErrCode : {ERRCODE}, Error : {ERROR}",
-            "PATH", dataSyncCfg._path, "ERRCODE", result.first, "ERROR",
-            result.second);
+        // Permanent errors — do not retry
+        case 1:  // syntax or usage
+        case 2:  // protocol incompatibility
+        case 3:  // input/output paths selection error
+        case 4:  // requested action not supported
+        case 6:  // daemon unable to append to log-file
+        case 11: // error in file I/O
+        case 13: // program diagnostics errors
+        case 14: // Error in IPC code
+        case 22: // Error allocating core memory buffers
+        {
+            lg2::error("Rsync failed with exit code [{CODE}] for [{SRC}]",
+                       "CODE", result.first, "SRC",
+                       srcPath.empty() ? dataSyncCfg._path : srcPath);
+            co_return false;
+        }
 
-        co_return false;
+        default: // Retryable
+        {
+            lg2::debug("Retrying rsync for [{SRC}] after error [{CODE}]", "SRC",
+                       srcPath.empty() ? dataSyncCfg._path : srcPath, "CODE",
+                       result.first);
+
+            co_return co_await retrySync(dataSyncCfg,
+                                         srcPath.empty() ? fs::path{} : srcPath,
+                                         retryCount);
+        }
     }
-    else if ((dataSyncCfg._notifySibling.has_value()) &&
-             (utility::rsync::getTransferredBytes(result.second) != 0))
-    {
-        // Rsync success alone doesn’t guarantee data got updated on the remote.
-        // Checking bytes transferred helps to confirm if any data mismatch was
-        // actually synced.
-
-        // initiate sibling notification
-        co_await triggerSiblingNotification(dataSyncCfg, srcPath);
-    }
-    co_return true;
 }
 
 sdbusplus::async::task<>

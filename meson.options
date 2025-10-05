@@ -15,12 +15,12 @@ option(
 # failure unless overridden from respective JSON file configuration.
 # Default value will be 3.
 # A retry attempt value of zero indicates no retries will be performed.
-option('retry_attempts', type: 'integer', min: 0, value: 3)
+option('retry_attempts', type: 'integer', min: 0, value: 2)
 
 # The retry interval in seconds which is applicable for all files/directories
 # during sync retry unless overridden from respective JSON file configuration.
 # Default value is 5secs.
-option('retry_interval', type: 'integer', value: 5)
+option('retry_interval', type: 'integer', value: 30)
 
 #The option to enable the test suite
 option('tests', type: 'feature', value: 'enabled', description: 'Build tests')

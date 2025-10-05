@@ -89,7 +89,8 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
     }
     else
     {
-        _retry = std::nullopt;
+        _retry = Retry(DEFAULT_RETRY_ATTEMPTS,
+                       std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
     }
 
     if (config.contains("ExcludeList"))
