@@ -335,6 +335,12 @@ sdbusplus::async::task<bool>
     Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
                       fs::path srcPath, size_t retryCount)
 {
+    // Don't sync if the sync is disabled
+    if (_syncBMCDataIface.disable_sync())
+    {
+        co_return false;
+    }
+
     using std::experimental::scope_exit;
     const fs::path currentSrcPath = srcPath.empty() ? dataSyncCfg._path
                                                     : srcPath;
@@ -456,14 +462,6 @@ sdbusplus::async::task<>
             if (auto dataOperations = co_await dataWatcher.onDataChange();
                 !dataOperations.empty())
             {
-                // Below is temporary check to avoid sync when disable sync is
-                // set to true.
-                // TODO: add receiver logic to stop sync events when disable
-                // sync is set to true.
-                if (_syncBMCDataIface.disable_sync())
-                {
-                    break;
-                }
                 for (const auto& [path, dataOp] : dataOperations)
                 {
                     _ctx.spawn(
@@ -492,14 +490,6 @@ sdbusplus::async::task<>
     {
         co_await sdbusplus::async::sleep_for(
             _ctx, dataSyncCfg._periodicityInSec.value());
-        // Below is temporary check to avoid sync when disable sync is set to
-        // true.
-        // TODO: add receiver logic to stop sync events when disable sync is set
-        // to true.
-        if (_syncBMCDataIface.disable_sync())
-        {
-            break;
-        }
         co_await syncData(dataSyncCfg);
     }
     co_return;
