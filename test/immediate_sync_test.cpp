@@ -744,3 +744,132 @@ TEST_F(ManagerTest, testExcludeFile)
 
     ctx.run();
 }
+
+TEST_F(ManagerTest, ImmediateSyncVanishedPathRetrySucceeds)
+{
+    using namespace std::literals;
+    namespace extData = data_sync::ext_data;
+
+    std::unique_ptr<extData::ExternalDataIFaces> extDataIface =
+        std::make_unique<extData::MockExternalDataIFaces>();
+    extData::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<extData::MockExternalDataIFaces*>(extDataIface.get());
+
+    ON_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillByDefault([&mockExtDataIfaces]() -> sdbusplus::async::task<> {
+        mockExtDataIfaces->setBMCRole(extData::BMCRole::Active);
+        co_return;
+    });
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    nlohmann::json jsonData = {
+        {"Files",
+         {{{"Path", (ManagerTest::tmpDataSyncDataDir / "srcDir").string()},
+           {"DestinationPath", ManagerTest::destDir.string()},
+           {"Description",
+            "Immediate sync on dir; delete child parent -> retry"},
+           {"SyncDirection", "Active2Passive"},
+           {"RetryAttempts", 2},
+           {"RetryInterval", "PT1S"},
+           {"SyncType", "Immediate"}}}}};
+
+    const fs::path srcPath{jsonData["Files"][0]["Path"].get<std::string>()};
+    const fs::path destRoot{
+        jsonData["Files"][0]["DestinationPath"].get<std::string>()};
+
+    const fs::path srcSubDirPath = srcPath / "srcSubDir";
+    const fs::path srcSubFIlePath = srcPath / "srcSubFile";
+    const fs::path srcFilePath = srcSubDirPath / "srcFile";
+    const fs::path destFilePath = destRoot / fs::relative(srcPath, "/");
+    const fs::path destFilePath2 = destRoot / fs::relative(srcSubDirPath, "/");
+
+    // Watch the dest file for IN_CLOSE_WRITE (retry completion)
+    data_sync::config::DataSyncConfig dataSyncCfg([&]() {
+        nlohmann::json j = jsonData["Files"][0];
+        j["Path"] = destFilePath2.string();
+        return j;
+    }(), true);
+
+    writeConfig(jsonData);
+    sdbusplus::async::context ctx;
+
+    std::filesystem::create_directories(srcPath);
+    std::filesystem::create_directories(srcSubDirPath);
+    std::filesystem::create_directories(destRoot);
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
+    const std::string data{"sample data \n"};
+
+    data_sync::watch::inotify::DataWatcher dataWatcher(
+        ctx, IN_NONBLOCK, IN_CLOSE_WRITE, dataSyncCfg);
+
+    auto waitForDataChange =
+        // NOLINTNEXTLINE
+        [&](sdbusplus::async::context& ctx) -> sdbusplus::async::task<void> {
+        co_await dataWatcher.onDataChange();
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(30));
+
+        ctx.request_stop();
+        co_return;
+    };
+
+    auto triggerImmediateSync =
+        // NOLINTNEXTLINE
+        [&](sdbusplus::async::context& ctx) -> sdbusplus::async::task<void> {
+        // NOLINTNEXTLINE
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(10));
+
+        // immediate sync retry test
+        // 1) write the file to trigger inotify
+        // 2) wait a few ms
+        // 3) delete the parent so the file vanishes (exit 24)
+        // 4) retry should pick the nearest valid parent and do the sync
+        ManagerTest::writeData(srcFilePath, data);
+
+        EXPECT_TRUE(std::filesystem::exists(srcFilePath))
+            << "src file(srcFilePath) must exist before we delete its parent";
+
+        co_await sdbusplus::async::sleep_for(ctx, std::chrono::milliseconds(2));
+
+        std::error_code ec;
+
+        // deleteing the files/dir so it will trigger the rsync error
+        std::filesystem::remove_all(srcSubDirPath, ec);
+
+        EXPECT_FALSE(std::filesystem::exists(srcSubDirPath))
+            << "srcSubDirPath should be gone after remove all";
+
+        EXPECT_FALSE(std::filesystem::exists(srcFilePath))
+            << "srcFilePath should be gone because its parent was removed";
+
+        // waiting here, so rync will be finished with parent path
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+
+        EXPECT_TRUE(std::filesystem::exists(destFilePath))
+            << "Destination mirror of 'srcDir' should exist (parent path synced on retry)";
+
+        EXPECT_FALSE(std::filesystem::exists(destFilePath2))
+            << "Destination of removed subdir must not exist (we retried only the parent)";
+
+        // Force an inotify event so running immediate sync tasks wake up
+        // handle the last write, and exit once the context stop is requested
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+        ManagerTest::writeData(srcSubFIlePath, data);
+        ctx.request_stop();
+        co_return;
+    };
+
+    ctx.spawn(waitForDataChange(ctx));
+    ctx.spawn(triggerImmediateSync(ctx));
+
+    ctx.run();
+}

@@ -13,6 +13,7 @@
 
 #include <cstdlib>
 #include <exception>
+#include <experimental/scope>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -334,6 +335,33 @@ sdbusplus::async::task<bool>
     Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
                       fs::path srcPath, size_t retryCount)
 {
+    using std::experimental::scope_exit;
+    const fs::path currentSrcPath = srcPath.empty() ? dataSyncCfg._path
+                                                    : srcPath;
+
+    auto cleanup = scope_exit([&dataSyncCfg, &currentSrcPath]() noexcept {
+        // remove this path from the in-progress set once the first(main)
+        // attempt completes
+        dataSyncCfg._syncInProgressPaths.erase(currentSrcPath);
+    });
+
+    if (retryCount == 0)
+    {
+        if (dataSyncCfg._syncInProgressPaths.contains(currentSrcPath))
+        {
+            lg2::debug("Skipping sync for [{SRC}]: already in progress", "SRC",
+                       currentSrcPath);
+            cleanup.release(); // nothing inserted, skip cleanup
+            co_return true;
+        }
+        dataSyncCfg._syncInProgressPaths.emplace(currentSrcPath);
+    }
+    else
+    {
+        // skip cleanup for retries, the main attempt will handle it
+        cleanup.release();
+    }
+
     std::string syncCmd{};
     getRsyncCmd(RsyncMode::Sync, dataSyncCfg, srcPath.string(), syncCmd);
 
@@ -391,20 +419,18 @@ sdbusplus::async::task<bool>
         case 22: // Error allocating core memory buffers
         {
             lg2::error("Rsync failed with exit code [{CODE}] for [{SRC}]",
-                       "CODE", result.first, "SRC",
-                       srcPath.empty() ? dataSyncCfg._path : srcPath);
+                       "CODE", result.first, "SRC", currentSrcPath);
             co_return false;
         }
 
         default: // Retryable
         {
             lg2::debug("Retrying rsync for [{SRC}] after error [{CODE}]", "SRC",
-                       srcPath.empty() ? dataSyncCfg._path : srcPath, "CODE",
-                       result.first);
+                       currentSrcPath, "CODE", result.first);
 
-            co_return co_await retrySync(dataSyncCfg,
-                                         srcPath.empty() ? fs::path{} : srcPath,
-                                         retryCount);
+            co_return co_await retrySync(
+                dataSyncCfg, srcPath.empty() ? fs::path{} : currentSrcPath,
+                retryCount);
         }
     }
 }
