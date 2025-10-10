@@ -56,6 +56,9 @@
                 "Periodicity": {
                     "$ref": "#/$defs/periodicity"
                 },
+                "DeferTime": {
+                    "$ref": "#/$defs/deferTime"
+                },
                 "RetryAttempts": {
                     "$ref": "#/$defs/retryAttempts"
                 },
@@ -67,6 +70,7 @@
             "additionalProperties": false,
             "allOf": [
                 { "$ref": "#/$defs/conditionForPeriodicity" },
+                { "$ref": "#/$defs/conditionForDefer" },
                 { "$ref": "#/$defs/conditionForRetry" }
             ]
         },
@@ -92,6 +96,9 @@
                 "Periodicity": {
                     "$ref": "#/$defs/periodicity"
                 },
+                "DeferTime": {
+                    "$ref": "#/$defs/deferTime"
+                },
                 "RetryAttempts": {
                     "$ref": "#/$defs/retryAttempts"
                 },
@@ -113,6 +120,7 @@
             "additionalProperties": false,
             "allOf": [
                 { "$ref": "#/$defs/conditionForPeriodicity" },
+                { "$ref": "#/$defs/conditionForDefer" },
                 { "$ref": "#/$defs/conditionForRetry" }
             ]
         },
@@ -142,7 +150,7 @@
         },
         "syncType": {
             "description": "The type of sync to be performed",
-            "enum": ["Periodic", "Immediate"]
+            "enum": ["Periodic", "Immediate", "Defer"]
         },
         "retryAttempts": {
             "description": "The number of retries for the specific file. The value zero indicates no retries. This will override the default value",
@@ -156,6 +164,11 @@
         },
         "periodicity": {
             "description": "The time interval in ISO 8601 duration format to perform the periodic sync operation.Eg: PT1M10S - 1 Minute and 10 seconds",
+            "type": "string",
+            "format": "duration"
+        },
+        "deferTime": {
+            "description": "The time interval in ISO 8601 duration format to perform the defer period.Eg: PT1M10S - 1 Minute and 10 seconds",
             "type": "string",
             "format": "duration"
         },
@@ -200,6 +213,20 @@
                 "required": ["Periodicity"]
             },
             "else": { "not": { "required": ["Periodicity"] } }
+        },
+        "conditionForDefer": {
+            "if": {
+                "type": "object",
+                "properties": { "SyncType": { "const": "Defer" } },
+                "required": ["SyncType"]
+            },
+            "then": {
+                "properties": {
+                    "DeferTime": { "$ref": "#/$defs/deferTime" }
+                },
+                "required": ["DeferTime"]
+            },
+            "else": { "not": { "required": ["DeferTime"] } }
         },
         "conditionForRetry": {
             "if": {

@@ -160,6 +160,20 @@ sdbusplus::async::task<> Manager::startSyncEvents()
                            "EXCEPTION", e, "PATH", dataSyncCfg._path);
             }
         }
+        else if (dataSyncCfg._syncType == Defer)
+        {
+            try
+            {
+                this->_ctx.spawn(this->monitorDeferToSync(dataSyncCfg));
+            }
+            catch (const std::exception& e)
+            {
+                setSyncEventsHealth(SyncEventsHealth::Critical);
+                lg2::error("Failed to configure defer sync for {PATH}: "
+                           "{EXCEPTION}",
+                           "EXCEPTION", e, "PATH", dataSyncCfg._path);
+            }
+        }
     });
     co_return;
 }
@@ -300,6 +314,74 @@ sdbusplus::async::task<>
             break;
         }
         co_await syncData(dataSyncCfg);
+    }
+    co_return;
+}
+
+sdbusplus::async::task<>
+    // NOLINTNEXTLINE
+    Manager::monitorDeferToSync(const config::DataSyncConfig& dataSyncCfg)
+{
+    try
+    {
+        uint32_t eventMasksToWatch = IN_CLOSE_WRITE | IN_MOVED_FROM |
+                                     IN_MOVED_TO | IN_DELETE_SELF;
+        if (dataSyncCfg._isPathDir)
+        {
+            eventMasksToWatch |= IN_CREATE | IN_DELETE;
+        }
+
+        // Create watcher for the dataSyncCfg._path
+        watch::inotify::DataWatcher dataWatcher(_ctx, IN_NONBLOCK,
+                                                eventMasksToWatch, dataSyncCfg);
+
+        while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
+        {
+            if (auto dataOperations = co_await dataWatcher.onDataChange();
+                !dataOperations.empty())
+            {
+                // Below is temporary check to avoid sync when disable sync is
+                // set to true.
+                // TODO: add receiver logic to stop sync events when disable
+                // sync is set to true.
+                if (_syncBMCDataIface.disable_sync())
+                {
+                    break;
+                }
+                for ([[maybe_unused]] const auto& dataOp : dataOperations)
+                {
+                    if (dataSyncCfg._syncInProgressPaths.find(
+                            dataSyncCfg._path) !=
+                        dataSyncCfg._syncInProgressPaths.end())
+                    {
+                        lg2::debug(
+                            "Defer: Skipping sync for [{SRC}]: a sync is already in progress",
+                            "SRC", dataOp.first.string());
+                        // If already the configured path in syncInProgressPath
+                        // ignore since it will be handled in the defer
+                    }
+                    // Mark the path as in-progress so subsequent retries know
+                    // to defer it
+
+                    dataSyncCfg._syncInProgressPaths.insert(dataSyncCfg._path);
+                    // Defer for 10 sec before syncing
+                    co_await sdbusplus::async::sleep_for(
+                        _ctx, dataSyncCfg._deferTimeInSec.value());
+                    _ctx.spawn(
+                        syncData(dataSyncCfg) |
+                        stdexec::then([]([[maybe_unused]] bool result) {}));
+                    dataSyncCfg._syncInProgressPaths.erase(dataSyncCfg._path);
+                }
+            }
+        }
+    }
+    catch (std::exception& e)
+    {
+        // TODO : Create error log if fails to create watcher for a
+        // file/directory.
+        lg2::error("Failed to create watcher object for {PATH}. Exception : "
+                   "{ERROR}",
+                   "PATH", dataSyncCfg._path, "ERROR", e.what());
     }
     co_return;
 }

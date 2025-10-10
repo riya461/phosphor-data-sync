@@ -32,7 +32,8 @@ enum class SyncDirection
 enum class SyncType
 {
     Immediate,
-    Periodic
+    Periodic,
+    Defer
 };
 
 /**
@@ -139,6 +140,8 @@ struct DataSyncConfig
                 return "Immediate";
             case SyncType::Periodic:
                 return "Periodic";
+            case SyncType::Defer:
+                return "Defer";
         }
         return "";
     }
@@ -176,6 +179,13 @@ struct DataSyncConfig
     std::optional<std::chrono::seconds> _periodicityInSec;
 
     /**
+     * @brief The interval (in seconds) to sync after a defer interval.
+     *
+     * @note Holds a value if the synchronization type is set to Defer.
+     */
+    std::optional<std::chrono::seconds> _deferTimeInSec;
+
+    /**
      * @brief The Retry specific details.
      *
      * @note Holds a value if the specific file or directory uses
@@ -205,6 +215,15 @@ struct DataSyncConfig
      *       synchronization.
      */
     std::optional<std::unordered_set<fs::path>> _includeList;
+
+    /**
+     * @brief Tracks file or directory paths currently being processed for
+     *        sync.
+     *
+     *        This container holds paths that are actively undergoing sync. Once
+     *        processing completes, the path is removed from this set.
+     */
+    mutable std::unordered_set<fs::path> _syncInProgressPaths;
 
   private:
     /**

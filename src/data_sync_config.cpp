@@ -59,6 +59,17 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
     {
         _periodicityInSec = std::nullopt;
     }
+    if (_syncType == SyncType::Defer)
+    {
+        constexpr auto defDeferTime = 10;
+        _deferTimeInSec =
+            convertISODurationToSec(config["DeferTime"].get<std::string>())
+                .value_or(std::chrono::seconds(defDeferTime));
+    }
+    else
+    {
+        _deferTimeInSec = std::nullopt;
+    }
 
     if (config.contains("RetryAttempts") && config.contains("RetryInterval"))
     {
@@ -102,6 +113,7 @@ bool DataSyncConfig::operator==(const DataSyncConfig& dataSyncCfg) const
            _destPath == dataSyncCfg._destPath &&
            _syncType == dataSyncCfg._syncType &&
            _periodicityInSec == dataSyncCfg._periodicityInSec &&
+           _deferTimeInSec == dataSyncCfg._deferTimeInSec &&
            _retry == dataSyncCfg._retry &&
            _excludeList == dataSyncCfg._excludeList &&
            _includeList == dataSyncCfg._includeList;
@@ -151,6 +163,10 @@ std::optional<SyncType>
     else if (syncType == "Periodic")
     {
         return SyncType::Periodic;
+    }
+    else if (syncType == "Defer")
+    {
+        return SyncType::Defer;
     }
     else
     {
