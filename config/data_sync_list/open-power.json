@@ -4,43 +4,50 @@
             "Path": "/var/lib/phosphor-software-manager/hostfw/running/GUARD",
             "Description": "GUARD",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Defer",
+            "DeferTime": "PT10S"
         },
         {
             "Path": "/var/lib/phosphor-software-manager/hostfw/running/DEVTREE",
             "Description": "Host CEC persisted data",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Defer",
+            "DeferTime": "PT10S"
         },
         {
             "Path": "/var/lib/phosphor-software-manager/hostfw/nvram/PHYP-NVRAM",
             "Description": "PHYP persisted NVRAM data",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Defer",
+            "DeferTime": "PT10S"
         },
         {
             "Path": "/var/lib/phosphor-software-manager/hostfw/nvram/PHYP-NVRAM-CKSUM",
             "Description": "PHYP persisted NVRAM checksum data",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Defer",
+            "DeferTime": "PT10S"
         },
         {
             "Path": "/var/lib/phosphor-software-manager/hostfw/running/EECACHE",
             "Description": "Host owned persisted VPD data",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Defer",
+            "DeferTime": "PT10S"
         },
         {
             "Path": "/var/lib/phosphor-software-manager/hostfw/running/NVRAM",
             "Description": "Host OPAL persisted NVRAM data",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Defer",
+            "DeferTime": "PT10S"
         },
         {
             "Path": "/var/lib/phosphor-software-manager/hostfw/running/HBD_RW",
             "Description": "Hostboot persisted data",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Defer",
+            "DeferTime": "PT10S"
         }
     ],
     "Directories": [
