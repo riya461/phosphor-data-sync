@@ -355,7 +355,9 @@ sdbusplus::async::task<>
                 }
                 for (const auto& [path, dataOp] : dataOperations)
                 {
-                    co_await syncData(dataSyncCfg, path);
+                    _ctx.spawn(
+                        syncData(dataSyncCfg, path) |
+                        stdexec::then([]([[maybe_unused]] bool result) {}));
                 }
             }
         }

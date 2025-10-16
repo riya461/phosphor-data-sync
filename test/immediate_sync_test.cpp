@@ -81,16 +81,25 @@ TEST_F(ManagerTest, testDataChangeInFile)
         EXPECT_EQ(dataToWrite, readData(destPath));
     }));
 
-    // Write data after 1s so that the background sync events will be ready
-    // to catch.
-    ctx.spawn(
-        sdbusplus::async::sleep_for(ctx, 1s) |
-        sdbusplus::async::execution::then([&ctx, &srcPath, &dataToWrite]() {
-        ManagerTest::writeData(srcPath, dataToWrite);
-        ASSERT_EQ(ManagerTest::readData(srcPath), dataToWrite);
-        ctx.request_stop();
-    }));
+    // NOLINTNEXTLINE
+    auto triggerImmediateSync = [&]() -> sdbusplus::async::task<void> {
+        // Write data after 1s so that the background sync events will be ready
+        // to catch.
+        co_await sdbusplus::async::sleep_for(ctx, std::chrono::seconds(1));
 
+        ManagerTest::writeData(srcPath, dataToWrite);
+        EXPECT_EQ(dataToWrite, ManagerTest::readData(srcPath));
+
+        // Force an inotify event so running immediate sync tasks wake up
+        // handle the last write, and exit once the context stop is requested
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+        ManagerTest::writeData(srcPath, dataToWrite);
+        ctx.request_stop();
+        co_return;
+    };
+
+    ctx.spawn(triggerImmediateSync());
     ctx.run();
 }
 
@@ -166,17 +175,28 @@ TEST_F(ManagerTest, testDataDeleteInDir)
         EXPECT_FALSE(std::filesystem::exists(destDirFile));
     }));
 
-    // Remove file after 1s so that the background sync events will be ready
-    // to catch.
-    ctx.spawn(sdbusplus::async::sleep_for(ctx, 1s) |
-              sdbusplus::async::execution::then([&ctx, &srcDirFile]() {
+    // NOLINTNEXTLINE
+    auto triggerImmediateSync = [&]() -> sdbusplus::async::task<void> {
+        // Remove file after 1s so that the background sync events will be ready
+        // to catch.
+        co_await sdbusplus::async::sleep_for(ctx, std::chrono::seconds(1));
+
         // remove the file from srcDir
         std::filesystem::remove(srcDirFile);
         // check if it exists  srcDirFile
-        ASSERT_FALSE(std::filesystem::exists(srcDirFile));
-        ctx.request_stop();
-    }));
+        EXPECT_FALSE(std::filesystem::exists(srcDirFile));
 
+        // Force an inotify event so running immediate sync tasks wake up
+        // handle the last write, and exit once the context stop is requested
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+        ManagerTest::writeData(srcDirFile, "data");
+
+        ctx.request_stop();
+        co_return;
+    };
+
+    ctx.spawn(triggerImmediateSync());
     ctx.run();
 }
 
@@ -251,16 +271,28 @@ TEST_F(ManagerTest, testDataDeletePathFile)
         EXPECT_FALSE(std::filesystem::exists(destPath));
     }));
 
-    // Remove file after 1s so that the background sync events will be ready
-    // to catch.
-    ctx.spawn(sdbusplus::async::sleep_for(ctx, 1s) |
-              sdbusplus::async::execution::then([&ctx, &srcPath]() {
+    // NOLINTNEXTLINE
+    auto triggerImmediateSync = [&]() -> sdbusplus::async::task<void> {
+        // Remove file after 1s so that the background sync events will be ready
+        // to catch.
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(10));
+
         // remove the file
         std::filesystem::remove(srcPath);
-        ASSERT_FALSE(std::filesystem::exists(srcPath));
-        ctx.request_stop();
-    }));
+        EXPECT_FALSE(std::filesystem::exists(srcPath));
 
+        // Force an inotify event so running immediate sync tasks wake up
+        // handle the last write, and exit once the context stop is requested
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+        ManagerTest::writeData(srcPath, "data");
+
+        ctx.request_stop();
+        co_return;
+    };
+
+    ctx.spawn(triggerImmediateSync());
     ctx.run();
 }
 
@@ -348,15 +380,26 @@ TEST_F(ManagerTest, testDataChangeWhenSyncIsDisabled)
         manager.setDisableSyncStatus(false); // Trigger the sync events
     }));
 
-    // Write data after 1s so that the background sync events will be ready
-    // to catch.
-    ctx.spawn(
-        sdbusplus::async::sleep_for(ctx, 1s) |
-        sdbusplus::async::execution::then([&ctx, &srcPath, &dataToWrite]() {
+    // NOLINTNEXTLINE
+    auto triggerImmediateSync = [&]() -> sdbusplus::async::task<void> {
+        // Remove file after 1s so that the background sync events will be ready
+        // to catch.
+        co_await sdbusplus::async::sleep_for(ctx, std::chrono::seconds(1));
         ManagerTest::writeData(srcPath, dataToWrite);
+
+        // Force an inotify event so running immediate sync tasks wake up
+        // handle the last write, and exit once the context stop is requested
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+        ManagerTest::writeData(srcPath, dataToWrite);
+
         ctx.request_stop();
-    }));
+        co_return;
+    };
+
+    ctx.spawn(triggerImmediateSync());
     ctx.run();
+
     EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Ok)
         << "SyncEventsHealth should be Ok, as sync was enabled.";
     EXPECT_EQ(ManagerTest::readData(destPath), dataToWrite)
@@ -418,21 +461,37 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
 
     data_sync::watch::inotify::DataWatcher dataWatcher(ctx, IN_NONBLOCK,
                                                        IN_CREATE, dataSyncCfg);
-    ctx.spawn(dataWatcher.onDataChange() |
-              sdbusplus::async::execution::then(
-                  [&destDir, &srcDir]([[maybe_unused]] const auto& dataOps) {
+    // NOLINTNEXTLINE
+    auto waitForDataChange = [&]() -> sdbusplus::async::task<void> {
+        co_await dataWatcher.onDataChange();
         fs::path destSubDir = destDir / fs::relative(srcDir, "/") / "Test";
+        // sleep to get sync and refelet in the dest
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(10));
         EXPECT_TRUE(std::filesystem::exists(destSubDir));
-    }));
 
-    // Write data after 1s so that the background sync events will be ready
-    // to catch.
-    ctx.spawn(sdbusplus::async::sleep_for(ctx, 1s) |
-              sdbusplus::async::execution::then([&ctx, &srcDir]() {
+        co_return;
+    };
+
+    // NOLINTNEXTLINE
+    auto triggerImmediateSync = [&]() -> sdbusplus::async::task<void> {
+        // Write data after 1s so that the background sync events will be ready
+        // to catch.
+        co_await sdbusplus::async::sleep_for(ctx, std::chrono::seconds(1));
         std::filesystem::create_directory(srcDir / "Test");
-        ASSERT_TRUE(std::filesystem::exists(srcDir / "Test"));
+        EXPECT_TRUE(std::filesystem::exists(srcDir / "Test"));
+
+        // Force an inotify event so running immediate sync tasks wake up
+        // handle the last write, and exit once the context stop is requested
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+        std::filesystem::create_directory(srcDir / "data");
         ctx.request_stop();
-    }));
+        co_return;
+    };
+
+    ctx.spawn(triggerImmediateSync());
+    ctx.spawn(waitForDataChange());
 
     ctx.run();
 }
@@ -528,23 +587,41 @@ TEST_F(ManagerTest, testFileMoveToAnotherDir)
         EXPECT_FALSE(fs::exists(destPath / "dir1" / "Test"));
     }));
 
-    ctx.spawn(dataWatcher2.onDataChange() |
-              sdbusplus::async::execution::then(
-                  [&data, &destPath]([[maybe_unused]] const auto& dataOps) {
+    // NOLINTNEXTLINE
+    auto waitForDataChange = [&]() -> sdbusplus::async::task<void> {
+        using namespace std::chrono_literals;
+        co_await dataWatcher2.onDataChange();
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(10));
         EXPECT_TRUE(fs::exists(destPath / "dir2" / "Test"));
         EXPECT_EQ(ManagerTest::readData(destPath / "dir2" / "Test"), data);
-    }));
 
-    // Move file after 1s so that the background sync events will be ready
-    // to catch.
-    ctx.spawn(sdbusplus::async::sleep_for(ctx, 1s) |
-              sdbusplus::async::execution::then([&ctx, &srcDir, &data]() {
+        co_return;
+    };
+
+    // NOLINTNEXTLINE
+    auto triggerImmediateSync = [&]() -> sdbusplus::async::task<void> {
+        // Move file after 1s so that the background sync events will be ready
+        // to catch.
+        co_await sdbusplus::async::sleep_for(ctx, std::chrono::seconds(1));
+
         fs::rename(srcDir / "dir1" / "Test", srcDir / "dir2" / "Test");
         EXPECT_FALSE(fs::exists(srcDir / "dir1" / "Test"));
         EXPECT_TRUE(fs::exists(srcDir / "dir2" / "Test"));
-        ASSERT_EQ(ManagerTest::readData(srcDir / "dir2" / "Test"), data);
+        EXPECT_EQ(ManagerTest::readData(srcDir / "dir2" / "Test"), data);
+
+        // Force an inotify event so running immediate sync tasks wake up
+        // handle the last write, and exit once the context stop is requested
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+        std::filesystem::create_directory(srcDir / "data");
+
         ctx.request_stop();
-    }));
+        co_return;
+    };
+
+    ctx.spawn(triggerImmediateSync());
+    ctx.spawn(waitForDataChange());
 
     ctx.run();
 }
@@ -621,30 +698,49 @@ TEST_F(ManagerTest, testExcludeFile)
     std::string dataToFile1{"Data modified in file1"};
     std::string dataToExcludeFile{"Data modified in ExcludeFile"};
 
-    ctx.spawn(dataWatcher.onDataChange() |
-              sdbusplus::async::execution::then(
-                  [&file1, &excludeFile, &destDir,
-                   &dataToFile1]([[maybe_unused]] const auto& dataOps) {
+    // NOLINTNEXTLINE
+    auto waitForDataChange = [&]() -> sdbusplus::async::task<void> {
+        using namespace std::chrono_literals;
+        co_await dataWatcher.onDataChange();
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(10));
         EXPECT_TRUE(fs::exists(destDir / fs::relative(file1, "/")));
-        ASSERT_EQ(ManagerTest::readData(destDir / fs::relative(file1, "/")),
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(10));
+        EXPECT_EQ(ManagerTest::readData(destDir / fs::relative(file1, "/")),
                   dataToFile1)
             << "Data in file1 should modified at dest side";
         EXPECT_FALSE(fs::exists(destDir / fs::relative(excludeFile, "/")))
             << "fileX should excluded while syncing to the dest side";
-    }));
 
-    // Write to file after 1s so that the background sync events will be ready
-    // to catch.
-    ctx.spawn(
-        sdbusplus::async::sleep_for(ctx, 1s) |
-        sdbusplus::async::execution::then(
-            [&ctx, &file1, &excludeFile, &dataToExcludeFile, &dataToFile1]() {
+        co_return;
+    };
+
+    // NOLINTNEXTLINE
+    auto triggerImmediateSync = [&]() -> sdbusplus::async::task<void> {
+        // Move file after 1s so that the background sync events will be ready
+        // to catch.
+        // NOLINTNEXTLINE
+        co_await sdbusplus::async::sleep_for(ctx, std::chrono::seconds(1));
+
         ManagerTest::writeData(excludeFile, dataToExcludeFile);
-        ASSERT_EQ(ManagerTest::readData(excludeFile), dataToExcludeFile);
+
+        EXPECT_EQ(ManagerTest::readData(excludeFile), dataToExcludeFile);
         ManagerTest::writeData(file1, dataToFile1);
-        ASSERT_EQ(ManagerTest::readData(file1), dataToFile1);
+        EXPECT_EQ(ManagerTest::readData(file1), dataToFile1);
+
+        // Force an inotify event so running immediate sync tasks wake up
+        // handle the last write, and exit once the context stop is requested
+        co_await sdbusplus::async::sleep_for(ctx,
+                                             std::chrono::milliseconds(100));
+        ManagerTest::writeData(file1, dataToFile1);
+
         ctx.request_stop();
-    }));
+        co_return;
+    };
+
+    ctx.spawn(waitForDataChange());
+    ctx.spawn(triggerImmediateSync());
 
     ctx.run();
 }
