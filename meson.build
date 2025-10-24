@@ -16,32 +16,13 @@ project(
 
 data_sync_config_dir = get_option('datadir') + '/phosphor-data-sync/config/data_sync_list/'
 
-
 # Directory used to store files containing sibling notification requests.
 if get_option('tests').enabled()
     notify_sibling = '/tmp/phosphor-data-sync/notify-sibling-test/'
     notify_services = '/tmp/phosphor-data-sync/notify-services-test/'
 else
     notify_sibling = get_option('localstatedir') + '/lib/phosphor-data-sync/notify-sibling/'
-    install_emptydir(notify_sibling, install_mode: 'rw-r--r--')
-
     notify_services = get_option('localstatedir') + '/lib/phosphor-data-sync/notify-services/'
-    install_emptydir(notify_services, install_mode: 'rw-r--r--')
-    # Add a hidden file to prevent pruning of empty dirs while packaging
-    custom_target(
-        'create-notify-sibling-hidden-file',
-        output: 'notify-sibling-hidden',
-        command: ['touch', '@OUTPUT@'],
-        install: true,
-        install_dir: notify_sibling,
-    )
-    custom_target(
-        'create-notify-services-hidden-file',
-        output: 'notify-services-hidden',
-        command: ['touch', '@OUTPUT@'],
-        install: true,
-        install_dir: notify_services,
-    )
 endif
 
 foreach json_file_name : get_option('data_sync_list')

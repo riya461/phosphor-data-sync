@@ -52,6 +52,19 @@ class FD
     int fd = -1;
 };
 
+/**
+ * @brief Create the necessary persistent paths during startup
+ *
+ * The API will create the following persistent paths
+ *  - /var/lib/phosphor-data-sync/bmc_data_bkp/ :
+ *      - To keep the sibling BMC's data as backup on local BMC
+ *  - /var/lib/phosphor-data-sync/notify-sibling/ :
+ *      - To keep the generated notify requests
+ *  - /var/lib/phosphor-data-sync/notify-services/ :
+ *      - To keep the received notify requests form sibling BMC.
+ */
+void setupPaths();
+
 namespace rsync
 {
 /**

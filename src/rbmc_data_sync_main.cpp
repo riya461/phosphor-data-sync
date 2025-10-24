@@ -4,6 +4,7 @@
 
 #include "external_data_ifaces_impl.hpp"
 #include "manager.hpp"
+#include "utility.hpp"
 
 #include <phosphor-logging/lg2.hpp>
 #include <sdbusplus/async/context.hpp>
@@ -14,6 +15,19 @@ int main()
 {
     using SyncBMCData =
         sdbusplus::common::xyz::openbmc_project::control::SyncBMCData;
+
+    // Create the necessary directories and files if not exists.
+    try
+    {
+        data_sync::utility::setupPaths();
+    }
+    catch (const std::exception& exc)
+    {
+        lg2::error(
+            "Caught exception while setting up persistent paths, Err : {ERROR}",
+            "ERROR", exc);
+        exit(EXIT_FAILURE);
+    }
 
     sdbusplus::async::context ctx;
     sdbusplus::server::manager_t objManager{ctx, SyncBMCData::instance_path};
