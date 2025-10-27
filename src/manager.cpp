@@ -201,11 +201,30 @@ void Manager::getRsyncCmd(RsyncMode mode,
     }
     else if ((dataSyncCfg._includeList.has_value()) && (srcPath.empty()))
     {
-        // Configure the paths in include List as SRC paths
-        auto appendToCmd = [&cmd](const auto& path) {
-            cmd.append(" "s + path.string());
-        };
-        std::ranges::for_each(dataSyncCfg._includeList.value(), appendToCmd);
+        // Build rsync command only for paths that currently exist in the
+        // filesystem this avoids running rsync with invalid or missing source
+        // paths
+        auto anyExist = std::ranges::fold_left(
+            dataSyncCfg._includeList.value() |
+                std::views::filter([](const fs::path& p) {
+            std::error_code ec;
+            return fs::exists(p, ec);
+        }),
+            false, [&cmd]([[maybe_unused]] auto, const fs::path& p) {
+            cmd.append(" ");
+            cmd.append(p.string());
+            return true; // mark that at least one path exists
+        });
+
+        // Skip sync if none of the configured include paths exist
+        // Future inotify events will trigger sync once files appear
+        if (!anyExist)
+        {
+            lg2::debug(
+                "IncludeList: none of the configured source paths exist, skipping rsync");
+            cmd.clear();
+            return;
+        }
     }
     else
     {
@@ -317,6 +336,11 @@ sdbusplus::async::task<bool>
 {
     std::string syncCmd{};
     getRsyncCmd(RsyncMode::Sync, dataSyncCfg, srcPath.string(), syncCmd);
+
+    if (syncCmd.empty())
+    {
+        co_return true;
+    }
 
     lg2::debug("Rsync command: {CMD}", "CMD", syncCmd);
 
