@@ -259,10 +259,12 @@ sdbusplus::async::task<void>
     Manager::triggerSiblingNotification(
         const config::DataSyncConfig& dataSyncCfg, const std::string& srcPath)
 {
+    std::error_code ec;
     if (dataSyncCfg._notifySibling.value()._paths.has_value())
     {
         if (!(dataSyncCfg._notifySibling.value()._paths.value().contains(
-                srcPath)))
+                srcPath)) &&
+            (!fs::equivalent(srcPath, dataSyncCfg._path, ec)))
         {
             // Modified path doesn't need to notify
             lg2::debug("Sibling notification not configured for the path : "
@@ -394,7 +396,7 @@ sdbusplus::async::task<bool>
         {
             // Notify only if configured, we know the concrete path,
             // and bytes > 0
-            if (dataSyncCfg._notifySibling && !srcPath.empty() &&
+            if (dataSyncCfg._notifySibling &&
                 utility::rsync::getTransferredBytes(result.second) != 0)
             {
                 // Rsync success alone doesn’t guarantee data got updated on the
@@ -404,7 +406,7 @@ sdbusplus::async::task<bool>
                 // initiate sibling notification
                 // NOLINTNEXTLINE
                 co_await triggerSiblingNotification(dataSyncCfg,
-                                                    srcPath.string());
+                                                    currentSrcPath.string());
             }
             co_return true;
         }
