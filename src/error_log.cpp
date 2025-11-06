@@ -7,6 +7,7 @@
 #include <phosphor-logging/elog.hpp>
 #include <phosphor-logging/lg2.hpp>
 
+#include <filesystem>
 #include <sstream>
 
 namespace data_sync
@@ -78,7 +79,27 @@ void FFDCFile::resetFFDCFileSeekPos()
 void FFDCFile::removeFFDCFile()
 {
     close(_fd);
-    std::remove(_fileName.data());
+    std::filesystem::remove(_fileName);
+}
+
+void FFDCFile::createCalloutFFDC(const json& calloutData,
+                                 FFDCFileInfoSet& ffdcFilesInfo)
+{
+    if (!calloutData.is_null())
+    {
+        try
+        {
+            FFDCFile file(FFDCFormat::JSON, 0xCA, 0x01, calloutData.dump());
+            ffdcFilesInfo.emplace_back(file.getFormat(), file.getSubType(),
+                                       file.getVersion(), file.getFD());
+        }
+        catch (const std::exception& e)
+        {
+            lg2::error(
+                "Exception while collecting callout data for FFDC: {ERROR}",
+                "ERROR", e);
+        }
+    }
 }
 
 } // namespace error_log

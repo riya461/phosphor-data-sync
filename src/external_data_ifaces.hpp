@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
-
+#include <nlohmann/json.hpp>
 #include <sdbusplus/async.hpp>
+#include <xyz/openbmc_project/Logging/Create/common.hpp>
+#include <xyz/openbmc_project/Logging/Entry/server.hpp>
 #include <xyz/openbmc_project/State/BMC/Redundancy/common.hpp>
 
 namespace data_sync::ext_data
@@ -12,6 +14,11 @@ using RBMC = sdbusplus::common::xyz::openbmc_project::state::bmc::Redundancy;
 using BMCRole = RBMC::Role;
 using BMCRedundancy = bool;
 using BMCPosition = size_t;
+
+using json = nlohmann::json;
+using Logging = sdbusplus::common::xyz::openbmc_project::logging::Create;
+using ErrorLevel =
+    sdbusplus::xyz::openbmc_project::Logging::server::Entry::Level;
 
 /**
  * @class ExternalDataIFaces
@@ -73,6 +80,13 @@ class ExternalDataIFaces
      * @return The BMC Position
      */
     const BMCPosition& bmcPosition() const;
+
+    /**
+     * @brief Used to create an error log entry with FFDC files.
+     */
+    virtual sdbusplus::async::task<>
+        createErrorLog(const std::string& errMsg, const ErrorLevel& errSeverity,
+                       const json& calloutsDetails) = 0;
 
   protected:
     /**

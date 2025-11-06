@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#include <nlohmann/json.hpp>
 #include <xyz/openbmc_project/Logging/Create/server.hpp>
 
 #include <cstdint>
 #include <tuple>
 #include <vector>
+
+using json = nlohmann::json;
 
 namespace data_sync
 {
@@ -48,7 +51,7 @@ class FFDCFile
     FFDCFile& operator=(FFDCFile&&) = delete;
 
     /**
-     * @brief The constructor creates the FFDC file with the given format  and
+     * @brief The constructor creates the FFDC file with the given format and
      * data.
      *
      * @param[in] format - The FFDC file format.
@@ -103,6 +106,14 @@ class FFDCFile
     {
         return _version;
     }
+    /**
+     * @brief Function to create FFDC files with the callout details.
+     *
+     * @param[in] calloutData - The details of callout data in JSON format.
+     * @param[out] ffdcFilesInfo - The vector to store the created FFDC files
+     */
+    static void createCalloutFFDC(const json& calloutData,
+                                  FFDCFileInfoSet& ffdcFilesInfo);
 
   private:
     /**

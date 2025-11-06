@@ -2,6 +2,8 @@
 
 #include "external_data_ifaces_impl.hpp"
 
+#include "error_log.hpp"
+
 #include <phosphor-logging/lg2.hpp>
 #include <xyz/openbmc_project/Inventory/Decorator/Position/client.hpp>
 #include <xyz/openbmc_project/ObjectMapper/client.hpp>
@@ -104,6 +106,42 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchBMCPosition()
     {
         lg2::error("Failed to get the BMC position, error: {ERROR}", "ERROR",
                    e);
+        throw;
+    }
+    co_return;
+}
+
+sdbusplus::async::task<>
+    ExternalDataIFacesImpl::createErrorLog(const std::string& errMsg,
+                                           const ErrorLevel& errSeverity,
+                                           const json& calloutsDetails)
+{
+    try
+    {
+        error_log::FFDCFileInfoSet ffdcFileInfoSet;
+        error_log::FFDCFile::createCalloutFFDC(calloutsDetails,
+                                               ffdcFileInfoSet);
+
+        auto errSevString =
+            sdbusplus::xyz::openbmc_project::Logging::server::convertForMessage(
+                errSeverity);
+
+        std::map<std::string, std::string> additionalData;
+        additionalData.emplace("_PID", std::to_string(getpid()));
+
+        auto loggingProxy = sdbusplus::async::proxy()
+                                .service(Logging::default_service)
+                                .path(Logging::instance_path)
+                                .interface(Logging::interface);
+
+        co_await loggingProxy.call<>(_ctx, "CreateWithFFDCFiles", errMsg,
+                                     errSevString, additionalData,
+                                     ffdcFileInfoSet);
+    }
+    catch (const std::exception& e)
+    {
+        lg2::error("Failed to create error log for {ERR_MSG}, error: {ERROR}",
+                   "ERR_MSG", errMsg, "ERROR", e);
         throw;
     }
     co_return;
