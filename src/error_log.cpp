@@ -7,6 +7,7 @@
 #include <phosphor-logging/elog.hpp>
 #include <phosphor-logging/lg2.hpp>
 
+#include <filesystem>
 #include <sstream>
 
 namespace data_sync
@@ -78,7 +79,7 @@ void FFDCFile::resetFFDCFileSeekPos()
 void FFDCFile::removeFFDCFile()
 {
     close(_fd);
-    std::remove(_fileName.data());
+    std::filesystem::remove(_fileName);
 }
 
 } // namespace error_log
