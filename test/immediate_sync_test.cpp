@@ -463,6 +463,7 @@ TEST_F(ManagerTest, testDataCreateInSubDir)
                                                        IN_CREATE, dataSyncCfg);
     // NOLINTNEXTLINE
     auto waitForDataChange = [&]() -> sdbusplus::async::task<void> {
+        // NOLINTNEXTLINE
         co_await dataWatcher.onDataChange();
         fs::path destSubDir = destDir / fs::relative(srcDir, "/") / "Test";
         // sleep to get sync and refelet in the dest
@@ -590,6 +591,7 @@ TEST_F(ManagerTest, testFileMoveToAnotherDir)
     // NOLINTNEXTLINE
     auto waitForDataChange = [&]() -> sdbusplus::async::task<void> {
         using namespace std::chrono_literals;
+        // NOLINTNEXTLINE
         co_await dataWatcher2.onDataChange();
         co_await sdbusplus::async::sleep_for(ctx,
                                              std::chrono::milliseconds(10));
@@ -701,6 +703,7 @@ TEST_F(ManagerTest, testExcludeFile)
     // NOLINTNEXTLINE
     auto waitForDataChange = [&]() -> sdbusplus::async::task<void> {
         using namespace std::chrono_literals;
+        // NOLINTNEXTLINE
         co_await dataWatcher.onDataChange();
         co_await sdbusplus::async::sleep_for(ctx,
                                              std::chrono::milliseconds(10));
@@ -811,7 +814,9 @@ TEST_F(ManagerTest, ImmediateSyncVanishedPathRetrySucceeds)
     auto waitForDataChange =
         // NOLINTNEXTLINE
         [&](sdbusplus::async::context& ctx) -> sdbusplus::async::task<void> {
+        // NOLINTNEXTLINE
         co_await dataWatcher.onDataChange();
+        // NOLINTNEXTLINE
         co_await sdbusplus::async::sleep_for(ctx,
                                              std::chrono::milliseconds(30));
 

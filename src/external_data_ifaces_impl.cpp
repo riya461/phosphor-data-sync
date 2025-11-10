@@ -91,6 +91,7 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchBMCPosition()
         const auto* const systemInvObjPath =
             "/xyz/openbmc_project/inventory/system";
 
+        // NOLINTNEXTLINE
         auto service = co_await getDBusService(systemInvObjPath,
                                                PositionMgr::interface);
 

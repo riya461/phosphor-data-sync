@@ -48,9 +48,11 @@ sdbusplus::async::task<> Manager::init()
     // concurrently
     if (_extDataIfaces->bmcRedundancy())
     {
+        // NOLINTNEXTLINE
         co_await startFullSync();
     }
 
+    // NOLINTNEXTLINE
     co_return co_await startSyncEvents();
 }
 
@@ -277,6 +279,7 @@ sdbusplus::async::task<void>
     lg2::debug("Rsync sibling notify cmd : {CMD}", "CMD", notifyCmd);
 
     data_sync::async::AsyncCommandExecutor executor(_ctx);
+    // NOLINTNEXTLINE
     auto result = co_await executor.execCmd(notifyCmd);
     if (result.first != 0)
     {
@@ -316,6 +319,7 @@ sdbusplus::async::task<bool>
         co_await sleep_for(_ctx, std::chrono::seconds(
                                      cfg._retry->_retryIntervalInSec.count()));
 
+        // NOLINTNEXTLINE
         co_return co_await syncData(cfg, std::move(srcPath), retryCount);
     }
 
@@ -379,7 +383,8 @@ sdbusplus::async::task<bool>
     lg2::debug("Rsync command: {CMD}", "CMD", syncCmd);
 
     data_sync::async::AsyncCommandExecutor executor(_ctx);
-    auto result = co_await executor.execCmd(syncCmd); // NOLINT
+    // NOLINTNEXTLINE
+    auto result = co_await executor.execCmd(syncCmd);
     lg2::debug("Rsync cmd return code : {RET} : output : {OUTPUT}", "RET",
                result.first, "OUTPUT", result.second);
 
@@ -397,6 +402,7 @@ sdbusplus::async::task<bool>
                 // Checking bytes transferred helps to confirm if any data
                 // mismatch was actually synced.
                 // initiate sibling notification
+                // NOLINTNEXTLINE
                 co_await triggerSiblingNotification(dataSyncCfg,
                                                     srcPath.string());
             }
@@ -434,6 +440,7 @@ sdbusplus::async::task<bool>
             lg2::debug("Retrying rsync for [{SRC}] after error [{CODE}]", "SRC",
                        currentSrcPath, "CODE", result.first);
 
+            // NOLINTNEXTLINE
             co_return co_await retrySync(
                 dataSyncCfg, srcPath.empty() ? fs::path{} : currentSrcPath,
                 retryCount);
@@ -459,11 +466,13 @@ sdbusplus::async::task<>
 
         while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
         {
+            // NOLINTNEXTLINE
             if (auto dataOperations = co_await dataWatcher.onDataChange();
                 !dataOperations.empty())
             {
                 for (const auto& [path, dataOp] : dataOperations)
                 {
+                    // NOLINTNEXTLINE
                     _ctx.spawn(
                         syncData(dataSyncCfg, path) |
                         stdexec::then([]([[maybe_unused]] bool result) {}));
@@ -490,6 +499,7 @@ sdbusplus::async::task<>
     {
         co_await sdbusplus::async::sleep_for(
             _ctx, dataSyncCfg._periodicityInSec.value());
+        // NOLINTNEXTLINE
         co_await syncData(dataSyncCfg);
     }
     co_return;

@@ -139,6 +139,7 @@ sdbusplus::async::task<std::pair<int, std::string>>
     writeFd.reset();
 
     // Wait until the child writes into the fd.
+    // NOLINTNEXTLINE
     auto output = co_await waitForCmdCompletion(readFd());
 
     // Manually close the read fd of the parent immediately instead of keeping
