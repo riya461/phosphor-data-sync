@@ -10,6 +10,7 @@ rbmc_data_sync_sources = [
         'async_command_exec.cpp',
         'data_sync_config.cpp',
         'data_watcher.cpp',
+        'error_log.cpp',
         'external_data_ifaces.cpp',
         'external_data_ifaces_impl.cpp',
         'manager.cpp',
