@@ -156,11 +156,6 @@ sdbusplus::async::task<std::pair<int, std::string>>
         lg2::error("Child exited abnormally. Status: {STATUS}", "STATUS",
                    status);
     }
-    else if (exitCode != 0)
-    {
-        lg2::error("Command failed with exitCode: {CODE}, Error: {ERROR}",
-                   "CODE", exitCode, "ERROR", output);
-    }
 
     co_return {exitCode, output};
 }
