@@ -158,6 +158,12 @@ class Manager
     sdbusplus::async::task<> parseConfiguration();
 
     /**
+     * @brief API to process the unprocessed notify requests if any during
+     *        startup.
+     */
+    sdbusplus::async::task<> processPendingNotifications();
+
+    /**
      * @brief API which will monitor the notify directory for sibling
      * notification requests, and will trigger the callback upon receiving the
      * same.

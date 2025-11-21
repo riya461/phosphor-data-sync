@@ -24,6 +24,7 @@ test_source_files = [
     'full_sync_test',
     'immediate_sync_test',
     'manager_test',
+    'notify_service_test',
     'notify_sibling_test',
     'periodic_sync_test',
     'persistent_data_test',
