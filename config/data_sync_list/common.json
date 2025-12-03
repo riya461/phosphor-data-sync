@@ -55,7 +55,12 @@
             "SyncType": "Immediate",
             "ExcludeList": [
                 "/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/control/minimum_ship_level_required__"
-            ]
+            ],
+            "NotifySibling": {
+                "Mode": "Systemd",
+                "Method": "Restart",
+                "NotifyServices": ["xyz.openbmc_project.Settings.service"]
+            }
         },
         {
             "Path": "/var/lib/phosphor-inventory-manager/",
@@ -68,7 +73,12 @@
             "Path": "/var/lib/service-config-manager/",
             "Description": "Persisted service enable/disable config data",
             "SyncDirection": "Active2Passive",
-            "SyncType": "Immediate"
+            "SyncType": "Immediate",
+            "NotifySibling": {
+                "Mode": "Systemd",
+                "Method": "Restart",
+                "NotifyServices": ["srvcfg-manager.service"]
+            }
         }
     ]
 }
