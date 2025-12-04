@@ -600,6 +600,13 @@ TEST_F(ManagerTest, FullSyncFailed)
     // ManagerTest::writeData(srcFile4, data4);
     // ASSERT_EQ(ManagerTest::readData(srcFile4), data4);
 
+    ON_CALL(*mockExtDataIfaces,
+            createErrorLog(testing::_, testing::_, testing::_))
+        .WillByDefault([](const std::string&, const data_sync::ext_data::Level&,
+                          const nlohmann::json&) -> sdbusplus::async::task<> {
+        co_return;
+    });
+
     data_sync::Manager manager{ctx, std::move(extDataIface),
                                ManagerTest::dataSyncCfgDir};
 

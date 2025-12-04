@@ -437,6 +437,9 @@ sdbusplus::async::task<bool>
         case 14: // Error in IPC code
         case 22: // Error allocating core memory buffers
         {
+            co_await _extDataIfaces->createErrorLog(
+                "xyz.openbmc_project.RBMC_DataSync.Error.SyncFailure",
+                ext_data::Level::Error, {});
             lg2::error(
                 "Error syncing [{PATH}], ErrCode: {ERRCODE}, Error: {ERROR}"
                 "RsyncCLI: [RSYNC_CMD]",
