@@ -515,9 +515,12 @@ sdbusplus::async::task<bool>
             // (permanent) sync error occurs.
             setSyncEventsHealth(SyncEventsHealth::Critical);
 
+            co_await _extDataIfaces->createErrorLog(
+                "xyz.openbmc_project.RBMC_DataSync.Error.SyncFailure",
+                ext_data::ErrorLevel::Warning, {});
             lg2::error(
                 "Error syncing [{PATH}], ErrCode: {ERRCODE}, Error: {ERROR}"
-                "RsyncCLI: [RSYNC_CMD]",
+                "RsyncCLI: [{RSYNC_CMD}]",
                 "PATH", currentSrcPath, "ERRCODE", result.first, "ERROR",
                 result.second, "RSYNC_CMD", syncCmd);
             co_return false;
