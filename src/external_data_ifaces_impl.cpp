@@ -52,25 +52,16 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchBMCRedundancyMgrProps()
 {
     try
     {
-        auto rbmcMgr = sdbusplus::async::proxy()
-                           .service(RBMC::interface)
-                           .path(RBMC::instance_path)
-                           .interface(RBMC::interface);
+        using RedundancyMgr =
+            sdbusplus::client::xyz::openbmc_project::state::bmc::Redundancy<>;
 
-        auto props =
-            co_await rbmcMgr.get_all_properties<RBMC::PropertiesVariant>(_ctx);
+        auto rbmcMgrProps = co_await RedundancyMgr(_ctx)
+                                .service(RBMC::interface)
+                                .path(RBMC::instance_path)
+                                .properties();
 
-        auto it = props.find("Role");
-        if (it != props.end())
-        {
-            bmcRole(std::get<BMCRole>(it->second));
-        }
-
-        it = props.find("RedundancyEnabled");
-        if (it != props.end())
-        {
-            bmcRedundancy(std::get<BMCRedundancy>(it->second));
-        }
+        bmcRole(rbmcMgrProps.role);
+        bmcRedundancy(rbmcMgrProps.redundancy_enabled);
     }
     catch (const std::exception& e)
     {
