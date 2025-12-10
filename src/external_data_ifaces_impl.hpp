@@ -83,14 +83,18 @@ class ExternalDataIFacesImpl : public ExternalDataIFaces
      * @param[in] errMsg - the error message id which is be defined
      *                     in the error log message registries.
      * @param[in] errSeverity - The error log severity
-     * @param[in] calloutsDetails - callouts details to add in the error log
+     * @param[in] additionalDetails - Additional details helpful in debugging to
+     * be included in the log entry.
+     * @param[in] calloutsDetails - Callouts details to be included in the log
+     * entry.
      *
-     * @note If the caller doesn't pass the  calloutsDetails
+     * @note If the caller doesn't pass the calloutsDetails
      * values then, this API won't execute those sections in the error log.
      */
     sdbusplus::async::task<>
         createErrorLog(const std::string& errMsg, const ErrorLevel& errSeverity,
-                       const json& calloutsDetails = {}) override;
+                       DataMap& additionalDetails,
+                       const std::optional<json>& calloutsDetails) override;
 
     /**
      * @brief Used to get the async context

@@ -515,15 +515,30 @@ sdbusplus::async::task<bool>
                 // (permanent) sync error occurs.
                 setSyncEventsHealth(SyncEventsHealth::Critical);
 
+                // Have additional details in the error log for permanent
+                // failures
+
+                ext_data::DataMap additionalDetails;
+                additionalDetails["BMC_Role"] = _extDataIfaces->bmcRoleInStr();
+                additionalDetails["DS_Sync_Path"] = currentSrcPath;
+                additionalDetails["DS_Sync_Direction"] =
+                    dataSyncCfg.getSyncDirectionInStr();
+                additionalDetails["DS_Sync_Type"] =
+                    dataSyncCfg.getSyncTypeInStr();
+                additionalDetails["DS_Sync_ErrCode"] =
+                    std::to_string(result.first);
+                additionalDetails["DS_Sync_ErrMsg"] = result.second;
+                additionalDetails["DS_Sync_Msg"] =
+                    "Permanent rsync failure occurred for the path";
+
+                co_await _extDataIfaces->createErrorLog(
+                    "xyz.openbmc_project.RBMC_DataSync.Error.SyncFailure",
+                    ext_data::ErrorLevel::Warning, additionalDetails);
                 lg2::error(
                     "Error syncing [{PATH}], ErrCode: {ERRCODE}, Error: {ERROR}"
                     "RsyncCLI: [{RSYNC_CMD}]",
                     "PATH", currentSrcPath, "ERRCODE", result.first, "ERROR",
                     result.second, "RSYNC_CMD", syncCmd);
-
-                co_await _extDataIfaces->createErrorLog(
-                    "xyz.openbmc_project.RBMC_DataSync.Error.SyncFailure",
-                    ext_data::ErrorLevel::Warning, {});
                 co_return false;
             }
 
@@ -610,10 +625,15 @@ sdbusplus::async::task<>
         "NOTIFYPATH", notifyPath, "MAX_ATTEMPTS", cfg._retry->_maxRetryAttempts,
         "MODIFIEDPATH", modifiedPath);
 
-    // TODO : Add additional info to the PEL
+    ext_data::DataMap additionalDetails;
+    additionalDetails["BMC_Role"] = _extDataIfaces->bmcRoleInStr();
+    additionalDetails["DS_Notify_Path"] = notifyPath;
+    additionalDetails["DS_Notify_ModifiedPath"] = modifiedPath;
+    additionalDetails["DS_Notify_Msg"] =
+        "Failed to send notify request for the path";
     co_await _extDataIfaces->createErrorLog(
         "xyz.openbmc_project.RBMC_DataSync.Error.NotifyFailure",
-        ext_data::ErrorLevel::Informational, {});
+        ext_data::ErrorLevel::Informational, additionalDetails);
 
     co_return;
 }

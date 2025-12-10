@@ -103,24 +103,25 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchBMCPosition()
     co_return;
 }
 
-sdbusplus::async::task<>
-    ExternalDataIFacesImpl::createErrorLog(const std::string& errMsg,
-                                           const ErrorLevel& errSeverity,
-                                           const json& calloutsDetails)
+sdbusplus::async::task<> ExternalDataIFacesImpl::createErrorLog(
+    const std::string& errMsg, const ErrorLevel& errSeverity,
+    DataMap& additionalDetails, const std::optional<json>& calloutsDetails)
 {
     try
     {
         error_log::FFDCFileInfoSet ffdcFileInfoSet;
-        if (!calloutsDetails.is_null())
+        if (calloutsDetails.has_value())
         {
             error_log::FFDCFile file(error_log::FFDCFormat::JSON, 0xCA, 0x01,
-                                     calloutsDetails.dump());
+                                     calloutsDetails.value().dump());
             ffdcFileInfoSet.emplace_back(file.getFormat(), file.getSubType(),
                                          file.getVersion(), file.getFD());
         }
 
-        std::map<std::string, std::string> additionalData;
+        DataMap additionalData;
         additionalData.emplace("_PID", std::to_string(getpid()));
+        // Append additional details if any
+        additionalData.merge(additionalDetails);
 
         using LoggingProxy =
             sdbusplus::client::xyz::openbmc_project::logging::Create<>;
