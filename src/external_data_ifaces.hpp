@@ -87,6 +87,12 @@ class ExternalDataIFaces
     virtual sdbusplus::async::task<>
         createErrorLog(const std::string& errMsg, const ErrorLevel& errSeverity,
                        const json& calloutsDetails) = 0;
+    /**
+     * @brief Watch for the Redundancy manager properties.
+     *
+     * The required members will be updated if its changed.
+     */
+    virtual sdbusplus::async::task<> watchRedundancyMgrProps() = 0;
 
   protected:
     /**

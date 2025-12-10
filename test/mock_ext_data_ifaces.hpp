@@ -20,6 +20,8 @@ class MockExternalDataIFaces : public ExternalDataIFaces
     MOCK_METHOD(sdbusplus::async::task<>, createErrorLog,
                 (const std::string&, const ErrorLevel&, const nlohmann::json&),
                 (override));
+    MOCK_METHOD(sdbusplus::async::task<>, watchRedundancyMgrProps, (),
+                (override));
 
     void setBMCRole(const BMCRole& role)
     {

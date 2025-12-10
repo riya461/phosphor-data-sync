@@ -52,6 +52,15 @@ sdbusplus::async::task<> Manager::init()
     {
         _ctx.spawn(monitorServiceNotifications());
     }
+
+    /**
+     * The RBMC manager is responsible for triggering both background and
+     * full sync operations once redundancy is enabled after a failover,
+     * which may change the BMC role. It should monitor the relevant RBMC
+     * manager properties and update the cached data-sync state whenever the
+     * role changes, ensuring data is synchronized according to the new role.
+     */
+    _ctx.spawn(_extDataIfaces->watchRedundancyMgrProps());
 #endif
 
     // TODO: Explore the possibility of running FullSync and Background Sync
@@ -62,7 +71,6 @@ sdbusplus::async::task<> Manager::init()
         co_await startFullSync();
     }
 
-    // NOLINTNEXTLINE
     co_return co_await startSyncEvents();
 }
 

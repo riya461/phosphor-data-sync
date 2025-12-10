@@ -46,6 +46,13 @@ class ExternalDataIFacesImpl : public ExternalDataIFaces
         systemDServiceAction(const std::string& service,
                              const std::string& systemdMethod) override;
 
+    /**
+     * @brief Watch for the Redundancy manager properties.
+     *
+     * The required members will be updated if its changed.
+     */
+    sdbusplus::async::task<> watchRedundancyMgrProps() override;
+
   private:
     /**
      * @brief Utility API to get the DBus service name of the given

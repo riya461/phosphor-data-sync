@@ -170,4 +170,32 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::systemDServiceAction(
     }
     co_return;
 }
+
+sdbusplus::async::task<> ExternalDataIFacesImpl::watchRedundancyMgrProps()
+{
+    sdbusplus::async::match match(
+        _ctx, sdbusplus::bus::match::rules::propertiesChanged(
+                  RBMC::instance_path, RBMC::interface));
+
+    using PropertyMap = std::map<std::string, RBMC::PropertiesVariant>;
+
+    while (!_ctx.stop_requested())
+    {
+        auto [_, props] = co_await match.next<std::string, PropertyMap>();
+
+        auto it = props.find("Role");
+        if (it != props.end())
+        {
+            bmcRole(std::get<BMCRole>(it->second));
+        }
+
+        it = props.find("RedundancyEnabled");
+        if (it != props.end())
+        {
+            bmcRedundancy(std::get<BMCRedundancy>(it->second));
+        }
+    }
+    co_return;
+}
+
 } // namespace data_sync::ext_data
