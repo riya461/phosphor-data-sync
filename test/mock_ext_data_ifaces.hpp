@@ -18,7 +18,9 @@ class MockExternalDataIFaces : public ExternalDataIFaces
     MOCK_METHOD(sdbusplus::async::task<bool>, systemdServiceAction,
                 (const std::string&, const std::string&), (override));
     MOCK_METHOD(sdbusplus::async::task<>, createErrorLog,
-                (const std::string&, const ErrorLevel&, const nlohmann::json&),
+                (const std::string&, const ErrorLevel&,
+                 data_sync::ext_data::AdditionalData&,
+                 const std::optional<json>&),
                 (override));
     MOCK_METHOD(sdbusplus::async::task<>, watchRedundancyMgrProps, (),
                 (override));

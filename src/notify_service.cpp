@@ -96,10 +96,13 @@ sdbusplus::async::task<>
         // Create PEL if notify failed
         if (!result)
         {
-            // TODO : Add additional info to the PEL
+            ext_data::AdditionalData additionalDetails = {
+                {"DS_Notify_Request", notifyRqstJson.dump()},
+                {"DS_Notify_Msg",
+                 "Failed to send systemd notification for the service"}};
             co_await _extDataIfaces.createErrorLog(
                 "xyz.openbmc_project.RBMC_DataSync.Error.NotifyFailure",
-                ext_data::ErrorLevel::Informational, {});
+                ext_data::ErrorLevel::Informational, additionalDetails);
         }
     }
     co_return;

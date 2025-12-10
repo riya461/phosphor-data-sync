@@ -43,4 +43,10 @@ void ExternalDataIFaces::bmcPosition(const BMCPosition& bmcPosition)
     _bmcPosition = bmcPosition;
 }
 
+std::string ExternalDataIFaces::bmcRoleInStr() const
+{
+    auto role = RBMC::convertRoleToString(_bmcRole);
+    return role.substr(role.find_last_of('.') + 1);
+}
+
 } // namespace data_sync::ext_data

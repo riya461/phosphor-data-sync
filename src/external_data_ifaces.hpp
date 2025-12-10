@@ -16,6 +16,7 @@ using BMCRedundancy = bool;
 using BMCPosition = size_t;
 
 using json = nlohmann::json;
+using AdditionalData = std::map<std::string, std::string>;
 using Logging = sdbusplus::common::xyz::openbmc_project::logging::Create;
 using ErrorLevel =
     sdbusplus::xyz::openbmc_project::Logging::server::Entry::Level;
@@ -88,11 +89,28 @@ class ExternalDataIFaces
     const BMCPosition& bmcPosition() const;
 
     /**
-     * @brief Used to create an error log entry with FFDC files.
+     * @brief Used to obtain the BMC Role in string.
+     *
+     * @return The BMC Role in string format
      */
-    virtual sdbusplus::async::task<>
-        createErrorLog(const std::string& errMsg, const ErrorLevel& errSeverity,
-                       const json& calloutsDetails) = 0;
+    std::string bmcRoleInStr() const;
+
+    /**
+     * @brief Used to create an error log entry.
+     *
+     * @param[in] errMsg - Identifier of the error message, as defined in
+     *                     the error log message registries.
+     * @param[in] errSeverity - Severity level of the error log entry.
+     * @param[in] additionalDetails - Optional information to aid in debugging,
+     *                                included in the error log entry.
+     * @param[in] calloutsDetails - Optional callout details to be included in
+     *                              the error log entry.
+     */
+    virtual sdbusplus::async::task<> createErrorLog(
+        const std::string& errMsg, const ErrorLevel& errSeverity,
+        AdditionalData& additionalDetails,
+        const std::optional<json>& calloutsDetails = std::nullopt) = 0;
+
     /**
      * @brief Watch for the Redundancy manager properties.
      *
@@ -123,7 +141,7 @@ class ExternalDataIFaces
     /**
      * @brief A utility API to assign the retrieved BMC redundancy flag.
      *
-     * @param[in] bmcRole - The retrieved BMC redundancy flag.
+     * @param[in] bmcRedundancy - The retrieved BMC redundancy flag.
      *
      * @return None.
      */

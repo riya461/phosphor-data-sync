@@ -476,6 +476,16 @@ sdbusplus::async::task<bool>
     lg2::debug("Rsync cmd return code : {RET} : output : {OUTPUT}", "RET",
                result.first, "OUTPUT", result.second);
 
+    ext_data::AdditionalData additionalDetails = {
+        {"BMC_Role", _extDataIfaces->bmcRoleInStr()},
+        {"DS_Sync_Path", currentSrcPath.string()},
+        {"DS_Sync_ErrCode", std::to_string(result.first)},
+        {"DS_Sync_ErrMsg", result.second}};
+
+    additionalDetails["DS_Sync_Type"] = dataSyncCfg.getSyncTypeInStr();
+    additionalDetails["DS_Sync_Direction"] =
+        dataSyncCfg.getSyncDirectionInStr();
+
     switch (result.first)
     {
         case 0: // Success
@@ -520,19 +530,36 @@ sdbusplus::async::task<bool>
                     "RsyncCLI: [{RSYNC_CMD}]",
                     "PATH", currentSrcPath, "ERRCODE", result.first, "ERROR",
                     result.second, "RSYNC_CMD", syncCmd);
+                // Have additional details in the error log for permanent
+                // failures
+
+                additionalDetails["DS_Sync_Msg"] =
+                    "Permanent rsync failure occurred for the path";
 
                 co_await _extDataIfaces->createErrorLog(
                     "xyz.openbmc_project.RBMC_DataSync.Error.SyncFailure",
-                    ext_data::ErrorLevel::Warning, {});
+                    ext_data::ErrorLevel::Warning, additionalDetails);
                 co_return false;
             }
 
             lg2::debug("Retrying rsync for [{SRC}] after error [{CODE}]", "SRC",
                        currentSrcPath, "CODE", result.first);
 
-            co_return co_await retrySync(
+            auto retrySuccess = co_await retrySync(
                 dataSyncCfg, srcPath.empty() ? fs::path{} : currentSrcPath,
                 retryCount);
+            if (!retrySuccess &&
+                retryCount >= dataSyncCfg._retry->_maxRetryAttempts)
+            {
+                // Error log for exceeding maximum retries
+                additionalDetails["DS_Sync_Msg"] =
+                    "Maximum retries exceeded, sync failed for the path";
+
+                co_await _extDataIfaces->createErrorLog(
+                    "xyz.openbmc_project.RBMC_DataSync.Error.SyncFailure",
+                    ext_data::ErrorLevel::Warning, additionalDetails);
+            }
+            co_return retrySuccess;
         }
     }
 }
@@ -610,10 +637,14 @@ sdbusplus::async::task<>
         "NOTIFYPATH", notifyPath, "MAX_ATTEMPTS", cfg._retry->_maxRetryAttempts,
         "MODIFIEDPATH", modifiedPath);
 
-    // TODO : Add additional info to the PEL
+    ext_data::AdditionalData additionalDetails = {
+        {"BMC_Role", _extDataIfaces->bmcRoleInStr()},
+        {"DS_Notify_Path", notifyPath.string()},
+        {"DS_Notify_ModifiedPath", modifiedPath.string()},
+        {"DS_Notify_Msg", "Failed to send notify request for the path"}};
     co_await _extDataIfaces->createErrorLog(
         "xyz.openbmc_project.RBMC_DataSync.Error.NotifyFailure",
-        ext_data::ErrorLevel::Informational, {});
+        ext_data::ErrorLevel::Informational, additionalDetails);
 
     co_return;
 }
