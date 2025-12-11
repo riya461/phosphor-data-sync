@@ -159,9 +159,13 @@ void DataWatcher::addToWatchList(const fs::path& pathToWatch,
     }
     else
     {
-        lg2::debug("Watch added. PATH : {PATH}, wd : {WD}", "PATH", pathToWatch,
-                   "WD", wd);
-        _watchDescriptors.emplace(wd, pathToWatch);
+        // Add trailing slash for directories to ensure rsync syncs directory
+        // contents rather than the directory itself
+        _watchDescriptors.emplace(
+            wd,
+            (fs::is_directory(pathToWatch) ? pathToWatch / "" : pathToWatch));
+        lg2::debug("Watch added. PATH : {PATH}, wd : {WD}", "PATH",
+                   _watchDescriptors[wd], "WD", wd);
     }
 }
 
