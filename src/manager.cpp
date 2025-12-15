@@ -364,30 +364,9 @@ sdbusplus::async::task<void>
     }
     // initiate sibling notification
     notify::NotifySibling notifySibling(dataSyncCfg, srcPath);
-    std::string notifyCmd{};
-    getRsyncCmd(RsyncMode::Notify, dataSyncCfg,
-                notifySibling.getNotifyFilePath().string(), notifyCmd);
-    lg2::debug("Rsync sibling notify cmd : {CMD}", "CMD", notifyCmd);
 
-    data_sync::async::AsyncCommandExecutor executor(_ctx);
-    // NOLINTNEXTLINE
-    auto result = co_await executor.execCmd(notifyCmd);
-    if (result.first != 0)
-    {
-        // TODO : Need to retry if notify command fails.
-        lg2::error(
-            "Failed to send notify request for the path [{PATH}], under the "
-            "configured path: [{CFGPATH}] ErrCode : {ERRCODE}, Error : {ERROR}",
-            "PATH", srcPath, "CFGPATH", dataSyncCfg._path, "ERRCODE",
-            result.first, "ERROR", result.second);
-    }
-    else
-    {
-        lg2::debug(
-            "Successfully send notify request for the path [{SRCPATH}], under "
-            "the configured path : [{CFGPATH}]",
-            "SRCPATH", srcPath, "CFGPATH", dataSyncCfg._path);
-    }
+    co_await syncNotifyRequest(dataSyncCfg, srcPath,
+                               notifySibling.getNotifyFilePath());
     co_return;
 }
 
@@ -544,6 +523,36 @@ sdbusplus::async::task<bool>
                 dataSyncCfg, srcPath.empty() ? fs::path{} : currentSrcPath,
                 retryCount);
         }
+    }
+}
+
+sdbusplus::async::task<>
+    Manager::syncNotifyRequest(const config::DataSyncConfig& cfg,
+                               const fs::path& modifiedPath,
+                               const fs::path& notifyPath)
+{
+    std::string notifyCmd{};
+    getRsyncCmd(RsyncMode::Notify, cfg, notifyPath.string(), notifyCmd);
+    lg2::debug("Rsync sibling notify cmd : {CMD}", "CMD", notifyCmd);
+
+    data_sync::async::AsyncCommandExecutor executor(_ctx);
+
+    auto result = co_await executor.execCmd(notifyCmd);
+    if (result.first != 0)
+    {
+        // TODO : Need to retry if notify command fails.
+        lg2::error(
+            "Failed to send notify request[{NOTIFYPATH}] to the sibling BMC for "
+            "the modified path[{PATH}]; Error[{ERRCODE}] : {ERROR}",
+            "NOTIFYPATH", notifyPath, "PATH", modifiedPath, "ERRCODE",
+            result.first, "ERROR", result.second);
+    }
+    else
+    {
+        lg2::debug(
+            "Successfully send notify request[{NOTIFYPATH}] to the sibling BMC "
+            "for the path[{PATH}]",
+            "NOTIFYPATH", notifyPath, "PATH", modifiedPath);
     }
 }
 

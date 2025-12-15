@@ -226,6 +226,21 @@ class Manager
                  fs::path srcPath = fs::path{}, size_t retryCount = 0);
 
     /**
+     * @brief Wrapper API to frame and issue RSYNC command to sync the generated
+     *        notify request to the sibling BMC and to retry if fails as per
+     *        the configuration
+     *
+     * @param[in] cfg - Reference to data sync configuration object
+     * @param[in] notifyPath - The path of the created notify request
+     *
+     * @return sdbusplus::async::task<>
+     */
+    sdbusplus::async::task<>
+        syncNotifyRequest(const config::DataSyncConfig& cfg,
+                          const fs::path& modifiedPath,
+                          const fs::path& notifyPath);
+
+    /**
      * @brief Retry the data sync operation based on failure
      *
      * @param[in] cfg - Data sync configuration
