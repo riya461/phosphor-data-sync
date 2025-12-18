@@ -254,6 +254,26 @@ sdbusplus::async::task<> Manager::startSyncEvents()
     co_return;
 }
 
+bool Manager::isRetryEligible(uint8_t errCode) noexcept
+{
+    switch (errCode)
+    {
+        // Errors — do not retry
+        case 1:  // syntax or usage
+        case 2:  // protocol incompatibility
+        case 3:  // input/output paths selection error
+        case 4:  // requested action not supported
+        case 6:  // daemon unable to append to log-file
+        case 11: // error in file I/O
+        case 13: // program diagnostics errors
+        case 14: // Error in IPC code
+        case 22: // Error allocating core memory buffers
+            return false;
+        default:
+            return true;
+    }
+}
+
 // Disabled because this function conditionally accesses class members when
 // unit tests are not enabled.
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -487,38 +507,29 @@ sdbusplus::async::task<bool>
             co_return true;
         }
 
-        // Permanent errors — do not retry
-        case 1:  // syntax or usage
-        case 2:  // protocol incompatibility
-        case 3:  // input/output paths selection error
-        case 4:  // requested action not supported
-        case 6:  // daemon unable to append to log-file
-        case 11: // error in file I/O
-        case 13: // program diagnostics errors
-        case 14: // Error in IPC code
-        case 22: // Error allocating core memory buffers
+        default:
         {
-            // Mark sync event health as critical when a non-retryable
-            // (permanent) sync error occurs.
-            setSyncEventsHealth(SyncEventsHealth::Critical);
+            if (!isRetryEligible(result.first))
+            {
+                // Mark sync event health as critical when a non-retryable
+                // (permanent) sync error occurs.
+                setSyncEventsHealth(SyncEventsHealth::Critical);
 
-            co_await _extDataIfaces->createErrorLog(
-                "xyz.openbmc_project.RBMC_DataSync.Error.SyncFailure",
-                ext_data::ErrorLevel::Warning, {});
-            lg2::error(
-                "Error syncing [{PATH}], ErrCode: {ERRCODE}, Error: {ERROR}"
-                "RsyncCLI: [{RSYNC_CMD}]",
-                "PATH", currentSrcPath, "ERRCODE", result.first, "ERROR",
-                result.second, "RSYNC_CMD", syncCmd);
-            co_return false;
-        }
+                lg2::error(
+                    "Error syncing [{PATH}], ErrCode: {ERRCODE}, Error: {ERROR}"
+                    "RsyncCLI: [{RSYNC_CMD}]",
+                    "PATH", currentSrcPath, "ERRCODE", result.first, "ERROR",
+                    result.second, "RSYNC_CMD", syncCmd);
 
-        default: // Retryable
-        {
+                co_await _extDataIfaces->createErrorLog(
+                    "xyz.openbmc_project.RBMC_DataSync.Error.SyncFailure",
+                    ext_data::ErrorLevel::Warning, {});
+                co_return false;
+            }
+
             lg2::debug("Retrying rsync for [{SRC}] after error [{CODE}]", "SRC",
                        currentSrcPath, "CODE", result.first);
 
-            // NOLINTNEXTLINE
             co_return co_await retrySync(
                 dataSyncCfg, srcPath.empty() ? fs::path{} : currentSrcPath,
                 retryCount);
@@ -535,25 +546,76 @@ sdbusplus::async::task<>
     getRsyncCmd(RsyncMode::Notify, cfg, notifyPath.string(), notifyCmd);
     lg2::debug("Rsync sibling notify cmd : {CMD}", "CMD", notifyCmd);
 
-    data_sync::async::AsyncCommandExecutor executor(_ctx);
+    // retryAttempts = 0 indicates initial attempt, if fails retry happens
+    uint8_t retryAttempts = 0;
+    while (retryAttempts++ <= cfg._retry->_maxRetryAttempts)
+    {
+        data_sync::async::AsyncCommandExecutor executor(_ctx);
+        auto result = co_await executor.execCmd(notifyCmd);
 
-    auto result = co_await executor.execCmd(notifyCmd);
-    if (result.first != 0)
-    {
-        // TODO : Need to retry if notify command fails.
-        lg2::error(
-            "Failed to send notify request[{NOTIFYPATH}] to the sibling BMC for "
-            "the modified path[{PATH}]; Error[{ERRCODE}] : {ERROR}",
-            "NOTIFYPATH", notifyPath, "PATH", modifiedPath, "ERRCODE",
-            result.first, "ERROR", result.second);
-    }
-    else
-    {
+        switch (result.first)
+        {
+            case 0: // Success
+            {
+                lg2::debug(
+                    "Successfully send notify request[{NOTIFYPATH}] to the sibling BMC "
+                    "for the path[{PATH}]",
+                    "NOTIFYPATH", notifyPath, "PATH", modifiedPath);
+                co_return;
+            }
+
+            case 24: // Vanished source
+            {
+                lg2::error(
+                    "Notify Request[{NOTIFYPATH}] to sibling BMC exited with vanished "
+                    "file error for the path [{PATH}], treating as permanent error.",
+                    "NOTIFYPATH", notifyPath, "PATH", modifiedPath);
+                co_return;
+            }
+
+            default:
+            {
+                if (!isRetryEligible(result.first))
+                {
+                    lg2::error(
+                        "Notify Request[{NOTIFYPATH}] to sibling BMC failed due to permanent error. "
+                        "Modified_path={MOD_PATH}, Error{ERRORCODE} : {ERROR}",
+                        "NOTIFYPATH", notifyPath, "MOD_PATH", modifiedPath,
+                        "ERRORCODE", result.first, "ERROR", result.second);
+                    co_return;
+                }
+            }
+        }
+
+        // NO more retries left
+        if (retryAttempts > cfg._retry->_maxRetryAttempts)
+        {
+            break;
+        }
+
         lg2::debug(
-            "Successfully send notify request[{NOTIFYPATH}] to the sibling BMC "
-            "for the path[{PATH}]",
-            "NOTIFYPATH", notifyPath, "PATH", modifiedPath);
+            "Notify Request[{NOTIFYPATH}] to sibling BMC failed, scheduling retry"
+            "[{RETRY}/{MAX}] after {INTERVAL}s",
+            "NOTIFYPATH", notifyPath, "RETRY", retryAttempts, "MAX",
+            cfg._retry->_maxRetryAttempts, "INTERVAL",
+            cfg._retry->_retryIntervalInSec.count());
+
+        co_await sleep_for(_ctx, std::chrono::seconds(
+                                     cfg._retry->_retryIntervalInSec.count()));
     }
+
+    lg2::error(
+        "Failed to send notify request[{NOTIFYPATH}] to the sibling BMC after "
+        "exhausting all {MAX_ATTEMPTS} retries, Modified path : {MODIFIEDPATH}",
+        "NOTIFYPATH", notifyPath, "MAX_ATTEMPTS", cfg._retry->_maxRetryAttempts,
+        "MODIFIEDPATH", modifiedPath);
+
+    // TODO : Add additional info to the PEL
+    co_await _extDataIfaces->createErrorLog(
+        "xyz.openbmc_project.RBMC_DataSync.Error.NotifyFailure",
+        ext_data::ErrorLevel::Informational, {});
+
+    co_return;
 }
 
 sdbusplus::async::task<>

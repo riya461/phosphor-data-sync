@@ -231,6 +231,7 @@ class Manager
      *        the configuration
      *
      * @param[in] cfg - Reference to data sync configuration object
+     * @param[in] modifiedPath - The data path which modified
      * @param[in] notifyPath - The path of the created notify request
      *
      * @return sdbusplus::async::task<>
@@ -281,6 +282,16 @@ class Manager
      * @return True if SyncEligible; otherwise False.
      */
     bool isSyncEligible(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
+     * @brief Wrapper API to check whether the receieved RSYNC error code
+     *        need to retry or not.
+     *
+     * @param errCode - Rsync error code
+     * @return true - If the error is eligible for retry
+     * @return false - If the error is not eligible for retry
+     */
+    static bool isRetryEligible(uint8_t errCode) noexcept;
 
     /**
      * @brief The async context object used to perform operations asynchronously
