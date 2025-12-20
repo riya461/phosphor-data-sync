@@ -139,7 +139,7 @@ sdbusplus::async::task<>
     co_return;
 }
 
-sdbusplus::async::task<> ExternalDataIFacesImpl::systemDServiceAction(
+sdbusplus::async::task<bool> ExternalDataIFacesImpl::systemdServiceAction(
     const std::string& service, const std::string& systemdMethod)
 {
     try
@@ -154,12 +154,15 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::systemDServiceAction(
                   "METHOD", systemdMethod, "SERVICE", service);
         co_await systemdReload.call<objectPath>(_ctx, systemdMethod, service,
                                                 "replace");
+
+        co_return true;
     }
     catch (const std::exception& e)
     {
-        throw std::runtime_error(std::format("DBus call failed, {}", e.what()));
+        lg2::error("DBus call to {METHOD}:{SERVICE} failed, Exception: {EXCEP}",
+                   "METHOD", systemdMethod, "SERVICE", service, "EXCEP", e);
+        co_return false;
     }
-    co_return;
 }
 
 sdbusplus::async::task<> ExternalDataIFacesImpl::watchRedundancyMgrProps()

@@ -49,15 +49,21 @@ class ExternalDataIFaces
 
     /**
      *  @brief API to initiate the systemd reload/restart to the given service.
-     *         It will trigger either reload or restart depends on the
-     *         given method.
+
+     *         The operation is considered successful as long as the D-Bus
+     *         method call completes successfully. Failures of the reload/
+     *         restart on the application side are outside the scope of this
+     *         API.
      *
      * @param[in] service - The name of the service to be reloaded/restarted
      * @param[in] method - The method to trigger, can have either "RestartUnit"
      *                     or "ReloadUnit".
+     *
+     * @return bool - True on success
+     *              - False on failure.
      */
-    virtual sdbusplus::async::task<>
-        systemDServiceAction(const std::string& service,
+    virtual sdbusplus::async::task<bool>
+        systemdServiceAction(const std::string& service,
                              const std::string& systemdMethod) = 0;
 
     /**

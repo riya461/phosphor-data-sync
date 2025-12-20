@@ -4,6 +4,8 @@
 
 #include "notify_service.hpp"
 
+#include "external_data_ifaces.hpp"
+
 #include <nlohmann/json.hpp>
 #include <phosphor-logging/lg2.hpp>
 
@@ -34,9 +36,48 @@ NotifyService::NotifyService(
     _ctx.spawn(init(notifyFilePath));
 }
 
-// NOLINTNEXTLINE
+sdbusplus::async::task<bool>
+    NotifyService::sendSystemdNotification(const std::string& service,
+                                           const std::string& systemdMethod)
+{
+    // retryAttempt = 0 indicates initial attempt, rest implies retries
+    uint8_t retryAttempt = 0;
+
+    while (retryAttempt++ <= DEFAULT_RETRY_ATTEMPTS)
+    {
+        bool success = co_await _extDataIfaces.systemdServiceAction(
+            service, systemdMethod);
+
+        if (success)
+        {
+            co_return true;
+        }
+
+        // No more retries left
+        if (retryAttempt > DEFAULT_RETRY_ATTEMPTS)
+        {
+            break;
+        }
+
+        lg2::debug(
+            "Scheduling retry[{ATTEMPT}/{MAX}] for {SERVICE} after {SEC}s",
+            "ATTEMPT", retryAttempt, "MAX", DEFAULT_RETRY_ATTEMPTS, "SERVICE",
+            service, "SEC", DEFAULT_RETRY_INTERVAL);
+
+        co_await sleep_for(_ctx, std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
+    }
+
+    lg2::error(
+        "Failed to notify {SERVICE} via {METHOD} ; All {MAX_ATTEMPTS} retries "
+        "exhausted",
+        "SERVICE", service, "METHOD", systemdMethod, "MAX_ATTEMPTS",
+        DEFAULT_RETRY_ATTEMPTS);
+
+    co_return false;
+}
+
 sdbusplus::async::task<>
-    NotifyService::sendSystemDNotification(const nlohmann::json& notifyRqstJson)
+    NotifyService::systemdNotify(const nlohmann::json& notifyRqstJson)
 {
     const auto services = notifyRqstJson["NotifyInfo"]["NotifyServices"]
                               .get<std::vector<std::string>>();
@@ -49,18 +90,16 @@ sdbusplus::async::task<>
 
     for (const auto& service : services)
     {
-        try
+        // Will notify each service sequentially assuming they are dependent
+        bool result = co_await sendSystemdNotification(service, systemdMethod);
+
+        // Create PEL if notify failed
+        if (!result)
         {
-            co_await _extDataIfaces.systemDServiceAction(service,
-                                                         systemdMethod);
-        }
-        catch (const std::exception& e)
-        {
-            lg2::error(
-                "Notify request to {METHOD}:{SERVICE} failed; triggered as "
-                "path[{PATH}] updated. Error: {ERROR}",
-                "METHOD", systemdMethod, "SERVICE", service, "PATH",
-                modifiedPath, "ERROR", e.what());
+            // TODO : Add additional info to the PEL
+            co_await _extDataIfaces.createErrorLog(
+                "xyz.openbmc_project.RBMC_DataSync.Error.NotifyFailure",
+                ext_data::ErrorLevel::Informational, {});
         }
     }
     co_return;
@@ -101,15 +140,15 @@ sdbusplus::async::task<> NotifyService::init(fs::path notifyFilePath)
     }
     else if ((notifyRqstJson["NotifyInfo"]["Mode"] == "Systemd"))
     {
-        co_await sendSystemDNotification(notifyRqstJson);
+        co_await systemdNotify(notifyRqstJson);
     }
     else
     {
         lg2::error(
-            "Failed to process the notify request[{PATH}], Request : {RQSTJSON}",
+            "Notify failed due to unknown Mode in notify request[{PATH}], "
+            "Request : {RQSTJSON}",
             "PATH", notifyFilePath, "RQSTJSON",
             nlohmann::to_string(notifyRqstJson));
-        co_return;
     }
 
     try
