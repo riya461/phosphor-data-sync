@@ -13,14 +13,14 @@ namespace data_sync::config
 
 namespace fs = std::filesystem;
 
-Retry::Retry(uint8_t retryAttempts,
+Retry::Retry(uint8_t maxRetryAttempts,
              const std::chrono::seconds& retryIntervalInSec) :
-    _retryAttempts(retryAttempts), _retryIntervalInSec(retryIntervalInSec)
+    _maxRetryAttempts(maxRetryAttempts), _retryIntervalInSec(retryIntervalInSec)
 {}
 
 bool Retry::operator==(const Retry& retry) const
 {
-    return _retryAttempts == retry._retryAttempts &&
+    return _maxRetryAttempts == retry._maxRetryAttempts &&
            _retryIntervalInSec == retry._retryIntervalInSec;
 }
 

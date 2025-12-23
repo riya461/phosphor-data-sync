@@ -377,13 +377,13 @@ sdbusplus::async::task<bool>
 {
     const fs::path currentSrcPath = srcPath.empty() ? cfg._path : srcPath;
 
-    if (retryCount++ < cfg._retry->_retryAttempts)
+    if (retryCount++ < cfg._retry->_maxRetryAttempts)
     {
         lg2::debug(
             "Retry [{RETRY_ATTEMPT}/{MAX_ATTEMPTS}] for [{SRC_PATH}] after "
             "[{RETRY_INTERVAL}s]",
             "RETRY_ATTEMPT", retryCount, "MAX_ATTEMPTS",
-            cfg._retry->_retryAttempts, "SRC_PATH", currentSrcPath,
+            cfg._retry->_maxRetryAttempts, "SRC_PATH", currentSrcPath,
             "RETRY_INTERVAL", cfg._retry->_retryIntervalInSec.count());
 
         co_await sleep_for(_ctx, std::chrono::seconds(
@@ -397,7 +397,7 @@ sdbusplus::async::task<bool>
     setSyncEventsHealth(SyncEventsHealth::Critical);
 
     lg2::error("Sync failed after [{MAX_ATTEMPTS}] retries for [{SRC_PATH}]",
-               "MAX_ATTEMPTS", cfg._retry->_retryAttempts, "SRC_PATH",
+               "MAX_ATTEMPTS", cfg._retry->_maxRetryAttempts, "SRC_PATH",
                currentSrcPath);
     co_return false;
 }

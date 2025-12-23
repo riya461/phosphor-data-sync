@@ -44,11 +44,11 @@ struct Retry
     /**
      * @brief The constructor
      *
-     * @param[in] retryAttempts - The number of retries
+     * @param[in] maxRetryAttempts - The number of retries
      * @param[in] retryIntervalInSec - The interval in which retry will
      *                                 occur.
      */
-    Retry(uint8_t retryAttempts,
+    Retry(uint8_t maxRetryAttempts,
           const std::chrono::seconds& retryIntervalInSec);
 
     /**
@@ -63,7 +63,7 @@ struct Retry
     /**
      * @brief Number of retries.
      */
-    uint8_t _retryAttempts;
+    uint8_t _maxRetryAttempts;
 
     /**
      * @brief Retry interval in seconds
