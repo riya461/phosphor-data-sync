@@ -187,6 +187,10 @@ bool DataWatcher::isPathExcluded(const fs::path& path)
             return (path.string() == excludePath.string());
         }
     };
+    if (!_excludeList.has_value())
+    {
+        return false;
+    }
     if (std::ranges::any_of(_excludeList.value(), matchesOrParentOfPath))
     {
         lg2::debug("{PATH} is in exclude list. Hence skipping", "PATH", path);
@@ -202,11 +206,15 @@ bool DataWatcher::isPathIncluded(const fs::path& path)
     // Case 2. If the given path(file/dir) is child of the path listed in
     // include list.
 
+    if (!_includeList.has_value())
+    {
+        return false;
+    }
+
     fs::path normalizedPath{};
     fs::is_directory(path) ? normalizedPath = path / "" : normalizedPath = path;
 
-    if ((_includeList.has_value()) &&
-        (_includeList.value().contains(normalizedPath)))
+    if (_includeList.value().contains(normalizedPath))
     {
         lg2::debug("{PATH} present inside include list", "PATH",
                    normalizedPath);
@@ -253,6 +261,10 @@ bool DataWatcher::isPathParentOfInclude(const fs::path& path)
         return ((parentItr == normalizedPath.end()) || (*parentItr == ""));
     };
 
+    if (!_includeList.has_value())
+    {
+        return false;
+    }
     if (auto itr = std::ranges::find_if(_includeList.value(), childOfPath);
         itr != _includeList.value().end())
     {
@@ -823,7 +835,8 @@ void DataWatcher::removeIncludeParentWatches()
     // If so, remove any parent watches since they are no longer needed.
     // Parent watches will only be added when an include path does not exist
     // at startup.
-    if (!std::ranges::all_of(_includeList.value(), hasWatches))
+    if (_includeList.has_value() &&
+        !std::ranges::all_of(_includeList.value(), hasWatches))
     {
         return;
     }

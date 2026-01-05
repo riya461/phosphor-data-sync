@@ -131,6 +131,10 @@ bool DataSyncConfig::operator==(const DataSyncConfig& dataSyncCfg) const
 void DataSyncConfig::frameRsyncExcludeList(
     const std::unordered_set<fs::path>& excludeList)
 {
+    if (!_excludeList.has_value())
+    {
+        return;
+    }
     auto foldWithRsyncFilterOpt = [](std::string listToStr,
                                      const fs::path& entry) {
         return std::move(listToStr) + " --filter='-/ " + entry.string() + "'";

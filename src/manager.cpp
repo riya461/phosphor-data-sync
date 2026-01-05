@@ -383,7 +383,8 @@ sdbusplus::async::task<void>
         const config::DataSyncConfig& dataSyncCfg, const std::string& srcPath)
 {
     std::error_code ec;
-    if (dataSyncCfg._notifySibling.value()._paths.has_value())
+    if (dataSyncCfg._notifySibling.has_value() &&
+        dataSyncCfg._notifySibling.value()._paths.has_value())
     {
         if (!(dataSyncCfg._notifySibling.value()._paths.value().contains(
                 srcPath)) &&
@@ -430,7 +431,7 @@ sdbusplus::async::task<bool>
 {
     const fs::path currentSrcPath = srcPath.empty() ? cfg._path : srcPath;
 
-    if (retryCount++ < cfg._retry->_maxRetryAttempts)
+    if (cfg._retry.has_value() && retryCount++ < cfg._retry->_maxRetryAttempts)
     {
         lg2::debug(
             "Retry [{RETRY_ATTEMPT}/{MAX_ATTEMPTS}] for [{SRC_PATH}] after "
@@ -450,8 +451,10 @@ sdbusplus::async::task<bool>
     setSyncEventsHealth(SyncEventsHealth::Critical);
 
     lg2::error("Sync failed after [{MAX_ATTEMPTS}] retries for [{SRC_PATH}]",
-               "MAX_ATTEMPTS", cfg._retry->_maxRetryAttempts, "SRC_PATH",
-               currentSrcPath);
+               "MAX_ATTEMPTS",
+               cfg._retry.has_value() ? cfg._retry.value()._maxRetryAttempts
+                                      : 0,
+               "SRC_PATH", currentSrcPath);
     co_return false;
 }
 
@@ -581,7 +584,7 @@ sdbusplus::async::task<bool>
             auto retrySuccess = co_await retrySync(
                 dataSyncCfg, srcPath.empty() ? fs::path{} : currentSrcPath,
                 retryCount);
-            if (!retrySuccess &&
+            if (dataSyncCfg._retry.has_value() && !retrySuccess &&
                 retryCount >= dataSyncCfg._retry->_maxRetryAttempts)
             {
                 // Error log for exceeding maximum retries
@@ -608,7 +611,8 @@ sdbusplus::async::task<>
 
     // retryAttempts = 0 indicates initial attempt, if fails retry happens
     uint8_t retryAttempts = 0;
-    while (retryAttempts++ <= cfg._retry->_maxRetryAttempts)
+    while (cfg._retry.has_value() &&
+           retryAttempts++ <= cfg._retry->_maxRetryAttempts)
     {
         data_sync::async::AsyncCommandExecutor executor(_ctx);
         auto result = co_await executor.execCmd(notifyCmd);
@@ -667,7 +671,8 @@ sdbusplus::async::task<>
     lg2::error(
         "Failed to send notify request[{NOTIFYPATH}] to the sibling BMC after "
         "exhausting all {MAX_ATTEMPTS} retries, Modified path : {MODIFIEDPATH}",
-        "NOTIFYPATH", notifyPath, "MAX_ATTEMPTS", cfg._retry->_maxRetryAttempts,
+        "NOTIFYPATH", notifyPath, "MAX_ATTEMPTS",
+        cfg._retry.has_value() ? cfg._retry->_maxRetryAttempts : 0,
         "MODIFIEDPATH", modifiedPath);
 
     ext_data::AdditionalData additionalDetails = {
@@ -734,7 +739,8 @@ sdbusplus::async::task<>
     // NOLINTNEXTLINE
     Manager::monitorTimerToSync(const config::DataSyncConfig& dataSyncCfg)
 {
-    while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
+    while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync() &&
+           dataSyncCfg._periodicityInSec.has_value())
     {
         co_await sdbusplus::async::sleep_for(
             _ctx, dataSyncCfg._periodicityInSec.value());

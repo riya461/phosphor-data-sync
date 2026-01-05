@@ -101,7 +101,9 @@ nlohmann::json
         return nlohmann::json::object(
             {{"ModifiedDataPath", modifiedDataPath},
              {"NotifyInfo",
-              dataSyncConfig._notifySibling.value()._notifyReqInfo}});
+              dataSyncConfig._notifySibling.has_value()
+                  ? dataSyncConfig._notifySibling.value()._notifyReqInfo
+                  : nullptr}});
     }
     catch (const std::exception& e)
     {
