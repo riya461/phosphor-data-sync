@@ -41,6 +41,10 @@ TEST(DataSyncConfigParserTest, TestImmediateFileSyncWithNoRetry)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts,
               DEFAULT_RETRY_ATTEMPTS);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
@@ -79,6 +83,10 @@ TEST(DataSyncConfigParserTest, TestPeriodicFileSyncWithRetry)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Periodic);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::chrono::seconds(70));
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts, 1);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
               std::chrono::seconds(60));
@@ -113,6 +121,13 @@ TEST(DataSyncConfigParserTest, TestImmediateDirectorySyncWithNoRetry)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    if (!dataSyncConfig._retry.has_value() ||
+        !dataSyncConfig._excludeList.has_value() ||
+        !dataSyncConfig._includeList.has_value())
+    {
+        FAIL() << "Expected retry, excludeList and includeList to have "
+                  "configurations, but some are missing.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts,
               DEFAULT_RETRY_ATTEMPTS);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
@@ -151,6 +166,10 @@ TEST(DataSyncConfigParserTest, TestImmediateAndBidirectionalDirectorySync)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts,
               DEFAULT_RETRY_ATTEMPTS);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
@@ -190,6 +209,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidPeriodicity)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Periodic);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::chrono::seconds(60));
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts, 1);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
               std::chrono::seconds(60));
@@ -227,6 +250,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidRetryInterval)
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Periodic);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::chrono::seconds(30));
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts, 1);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
               std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
@@ -263,6 +290,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncDirection)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts,
               DEFAULT_RETRY_ATTEMPTS);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
@@ -299,6 +330,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithInvalidSyncType)
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts,
               DEFAULT_RETRY_ATTEMPTS);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
@@ -335,6 +370,10 @@ TEST(DataSyncConfigParserTest, TestFileSyncWithValidDestination)
               data_sync::config::SyncDirection::Active2Passive);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
     EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts,
               DEFAULT_RETRY_ATTEMPTS);
     EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
@@ -372,6 +411,12 @@ TEST(DataSyncConfigParserTest, TestSyncConfigWithSiblingNotify)
               data_sync::config::SyncDirection::Bidirectional);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    if (!dataSyncConfig._notifySibling.has_value() ||
+        !dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Expected notifySibling and retry configurations, "
+                  "but some are missing.";
+    }
     EXPECT_EQ(dataSyncConfig._notifySibling.value()._paths, std::nullopt);
     EXPECT_EQ(dataSyncConfig._notifySibling.value()
                   ._notifyReqInfo.at("Mode")
@@ -419,6 +464,12 @@ TEST(DataSyncConfigParserTest, TestSyncConfigWithSelectivePathSiblingNotify)
               data_sync::config::SyncDirection::Bidirectional);
     EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Immediate);
     EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    if (!dataSyncConfig._notifySibling.has_value() ||
+        !dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Expected notifySibling and retry configurations, "
+                  "but some are missing.";
+    }
     EXPECT_EQ(dataSyncConfig._notifySibling.value()._paths,
               configJSON["NotifySibling"]["NotifyOnPaths"]
                   .get<std::unordered_set<fs::path>>());
