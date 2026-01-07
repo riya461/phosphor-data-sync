@@ -81,9 +81,9 @@ NotifySibling::NotifySibling(const config::DataSyncConfig& dataSyncConfig,
     }
     catch (std::exception& e)
     {
-        lg2::error(
-            "Creation of sibling notification request failed!!! for [{DATA}]",
-            "DATA", dataSyncConfig._path);
+        throw std::runtime_error(
+            "Creation of sibling notification request failed!!! for [" +
+            dataSyncConfig._path.string() + "]");
     }
 }
 

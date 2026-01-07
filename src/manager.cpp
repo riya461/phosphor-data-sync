@@ -178,11 +178,18 @@ sdbusplus::async::task<> Manager::monitorServiceNotifications()
     }
     catch (std::exception& e)
     {
-        // TODO : Create error log if fails to create watcher.
         constexpr auto notifyDir{NOTIFY_SERVICES_DIR};
         lg2::error("Failed to create watcher for {NOTIFY_DIR}. Exception : "
                    "{EXCEP}",
                    "NOTIFY_DIR", notifyDir, "EXCEP", e);
+
+        ext_data::AdditionalData additionalDetails = {
+            {"DS_Notify_DIR", notifyDir},
+            {"DS_Notify_Msg",
+             "Failed to create inotify watcher for notify services directory"}};
+        _ctx.spawn(_extDataIfaces->createErrorLog(
+            "xyz.openbmc_project.RBMC_DataSync.Error.NotifyFailure",
+            ext_data::ErrorLevel::Informational, additionalDetails));
     }
     co_return;
 }
@@ -382,11 +389,30 @@ sdbusplus::async::task<void>
             co_return;
         }
     }
-    // initiate sibling notification
-    notify::NotifySibling notifySibling(dataSyncCfg, srcPath);
 
-    co_await syncNotifyRequest(dataSyncCfg, srcPath,
-                               notifySibling.getNotifyFilePath());
+    try
+    {
+        // initiate sibling notification
+        notify::NotifySibling notifySibling(dataSyncCfg, srcPath);
+        co_await syncNotifyRequest(dataSyncCfg, srcPath,
+                                   notifySibling.getNotifyFilePath());
+    }
+    catch (const std::exception& e)
+    {
+        lg2::error(
+            "Failed to trigger sibling notification for the modified path : "
+            "[{SRCPATH}], Error : {ERR}",
+            "SRCPATH", srcPath, "ERR", e);
+
+        ext_data::AdditionalData additionalDetails = {
+            {"DS_Notify_ModifiedPath", srcPath},
+            {"DS_Notify_Msg",
+             "Failed to trigger sibling notification request for the path"}};
+        _ctx.spawn(_extDataIfaces->createErrorLog(
+            "xyz.openbmc_project.RBMC_DataSync.Error.NotifyFailure",
+            ext_data::ErrorLevel::Informational, additionalDetails));
+    }
+
     co_return;
 }
 
