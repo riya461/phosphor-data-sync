@@ -106,10 +106,17 @@ sdbusplus::async::task<> Manager::parseConfiguration()
         }
         catch (const std::exception& e)
         {
-            // TODO Create error log
             lg2::error("Failed to parse the configuration file : {CONFIG_FILE},"
                        " exception : {EXCEPTION}",
                        "CONFIG_FILE", configFile.path(), "EXCEPTION", e);
+
+            ext_data::AdditionalData additionalDetails = {
+                {"DS_Config_File", configFile.path().string()},
+                {"DS_Parser_Msg",
+                 "Failed to parse the data sync configuration"}};
+            _ctx.spawn(_extDataIfaces->createErrorLog(
+                "xyz.openbmc_project.RBMC_DataSync.Error.ParseFailure",
+                ext_data::ErrorLevel::Warning, additionalDetails));
         }
     };
 
