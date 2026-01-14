@@ -543,6 +543,7 @@ std::optional<DataOperation>
     lg2::debug("Processing an IN_CLOSE_WRITE for {PATH}", "PATH",
                eventReceivedFor / std::get<BaseName>(receivedEventInfo));
 
+    std::error_code ec;
     if (eventReceivedFor.string().starts_with(_dataPathToWatch.string()))
     {
         if (std::get<BaseName>(receivedEventInfo).empty())
@@ -570,7 +571,8 @@ std::optional<DataOperation>
     }
     else if (fs::equivalent(eventReceivedFor /
                                 std::get<BaseName>(receivedEventInfo),
-                            _dataPathToWatch))
+                            _dataPathToWatch, ec) &&
+             ec.value() == 0)
     {
         // The configured file in the monitored parent directory has been
         // created, hence monitor the configured file and remove the parent
