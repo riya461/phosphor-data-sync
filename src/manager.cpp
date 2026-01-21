@@ -693,6 +693,22 @@ sdbusplus::async::task<>
 {
     try
     {
+        using std::experimental::scope_exit;
+        scope_exit{ [&dataSyncCfg, this]() noexcept {
+            lg2::warning("IN SCOPE EXIT BLOCK ");
+           
+            ext_data::AdditionalData additionalDetails = {
+                {"DS_Sync_Event_Path", dataSyncCfg._path.string()},
+                {"DS_Sync_Event_Msg", "Failed to create watcher for the path"}};
+            additionalDetails["DS_Sync_Event_Type"] =
+                dataSyncCfg.getSyncTypeInStr();
+            _ctx.spawn( _extDataIfaces->createErrorLog(
+                "xyz.openbmc_project.RBMC_DataSync.Error.SyncEventsFailure",
+                ext_data::ErrorLevel::Warning, additionalDetails));
+        } };
+        
+
+
         uint32_t eventMasksToWatch = IN_CLOSE_WRITE | IN_MOVE | IN_DELETE_SELF;
         if (dataSyncCfg._isPathDir)
         {
@@ -707,6 +723,8 @@ sdbusplus::async::task<>
         watch::inotify::DataWatcher dataWatcher(
             _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path,
             excludeList, dataSyncCfg._includeList);
+
+        throw std::runtime_error("TEST EXCEPTION");
 
         while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
         {
@@ -730,19 +748,9 @@ sdbusplus::async::task<>
                    "{ERROR}",
                    "PATH", dataSyncCfg._path, "ERROR", e.what());
 
-        // Error log if fails to create watcher for a
-        // file/directory.
-        ext_data::AdditionalData additionalDetails = {
-            {"DS_Sync_Event_Path", dataSyncCfg._path.string()},
-            {"DS_Sync_Event_Msg", "Failed to create watcher for the path"}};
-        additionalDetails["DS_Sync_Event_Type"] =
-            dataSyncCfg.getSyncTypeInStr();
-        if (!_ctx.stop_requested())
-        {
-            _ctx.spawn(_extDataIfaces->createErrorLog(
-                "xyz.openbmc_project.RBMC_DataSync.Error.SyncEventsFailure",
-                ext_data::ErrorLevel::Warning, additionalDetails));
-        }
+        lg2::warning("IN EXCEPTION BLOCK");
+
+        
     }
     co_return;
 }
