@@ -104,9 +104,9 @@ sdbusplus::async::task<> ExternalDataIFacesImpl::fetchBMCPosition()
 }
 
 sdbusplus::async::task<> ExternalDataIFacesImpl::createErrorLog(
-    const std::string& errMsg, const ErrorLevel& errSeverity,
-    AdditionalData& additionalDetails,
-    const std::optional<json>& calloutsDetails)
+    std::string errMsg, ErrorLevel errSeverity,
+    AdditionalData additionalDetails,
+    std::optional<json> calloutsDetails)
 {
     try
     {

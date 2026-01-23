@@ -95,9 +95,9 @@ class ExternalDataIFacesImpl : public ExternalDataIFaces
      *                              the error log entry.
      */
     sdbusplus::async::task<>
-        createErrorLog(const std::string& errMsg, const ErrorLevel& errSeverity,
-                       AdditionalData& additionalDetails,
-                       const std::optional<json>& calloutsDetails) override;
+        createErrorLog(std::string errMsg, ErrorLevel errSeverity,
+    AdditionalData additionalDetails,
+    std::optional<json> calloutsDetails) override;
 
     /**
      * @brief Used to get the async context
