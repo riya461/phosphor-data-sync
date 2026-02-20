@@ -37,13 +37,6 @@ sdbusplus::async::task<> Manager::init()
     co_await sdbusplus::async::execution::when_all(
         parseConfiguration(), _extDataIfaces->startExtDataFetches());
 
-    if (_syncBMCDataIface.disable_sync())
-    {
-        lg2::info(
-            "Sync is disabled, data sync cannot be performed to the sibling BMC.");
-        co_return;
-    }
-
 // Sibling notification logic is tested independently in notify_service_test
 // Disabled here to avoid unwanted watch additions while testing manager logic.
 // TODO: Revisit after coroutine-based sender/receiver logic is implemented.
@@ -63,14 +56,18 @@ sdbusplus::async::task<> Manager::init()
     _ctx.spawn(_extDataIfaces->watchRedundancyMgrProps());
 #endif
 
-    if (_extDataIfaces->bmcRedundancy())
+    if (!_extDataIfaces->bmcRedundancy() || _syncBMCDataIface.disable_sync())
     {
-        // TODO: Explore the possibility of running FullSync and Background Sync
-        //       concurrently
-        co_await startFullSync();
-
-        co_await startSyncEvents();
+        lg2::warning(
+            "Either Redundancy or Sync is disabled, No sync operations will be performed.");
+        co_return;
     }
+
+    // TODO: Explore the possibility of running FullSync and Background Sync
+    //       concurrently
+    co_await startFullSync();
+
+    co_await startSyncEvents();
 
     co_return;
 }
@@ -162,13 +159,17 @@ sdbusplus::async::task<> Manager::processPendingNotifications()
 // NOLINTNEXTLINE
 sdbusplus::async::task<> Manager::monitorServiceNotifications()
 {
-    lg2::debug("Starting monitoring for sibling notifications...");
-
     constexpr auto notifyDir{NOTIFY_SERVICES_DIR};
+    lg2::info("Monitoring [{PATH}] for sibling notification requests.", "PATH",
+              notifyDir);
+
     bool exception{false};
     try
     {
-        _ctx.spawn(processPendingNotifications());
+        if (!fs::is_empty(notifyDir))
+        {
+            _ctx.spawn(processPendingNotifications());
+        }
 
         // Start watching the NOTIFY_SERVICE_DIR
         // Monitoring for IN_MOVED_TO only as rsync creates a temporary file in
@@ -242,6 +243,7 @@ bool Manager::isSyncEligible(const config::DataSyncConfig& dataSyncCfg)
 // NOLINTNEXTLINE
 sdbusplus::async::task<> Manager::startSyncEvents()
 {
+    lg2::info("Starting background sync.");
     std::ranges::for_each(
         _dataSyncConfiguration |
             std::views::filter([this](const auto& dataSyncCfg) {
@@ -257,10 +259,10 @@ sdbusplus::async::task<> Manager::startSyncEvents()
             }
             catch (const std::exception& e)
             {
-                setSyncEventsHealth(SyncEventsHealth::Critical);
                 lg2::error(
-                    "Failed to configure immediate sync for {PATH}: {EXCEPTION}",
+                    "Failed to start immediate sync for {PATH}: {EXCEPTION}",
                     "EXCEPTION", e, "PATH", dataSyncCfg._path);
+                setSyncEventsHealth(SyncEventsHealth::Critical);
             }
         }
         else if (dataSyncCfg._syncType == Periodic)
@@ -271,10 +273,10 @@ sdbusplus::async::task<> Manager::startSyncEvents()
             }
             catch (const std::exception& e)
             {
-                setSyncEventsHealth(SyncEventsHealth::Critical);
-                lg2::error("Failed to configure periodic sync for {PATH}: "
+                lg2::error("Failed to start periodic sync for {PATH}: "
                            "{EXCEPTION}",
                            "EXCEPTION", e, "PATH", dataSyncCfg._path);
+                setSyncEventsHealth(SyncEventsHealth::Critical);
             }
         }
     });
@@ -465,15 +467,6 @@ sdbusplus::async::task<bool>
         // NOLINTNEXTLINE
         co_return co_await syncData(cfg, std::move(srcPath), retryCount);
     }
-
-    // All retry attempts exhausted, mark sync event health as critical
-    setSyncEventsHealth(SyncEventsHealth::Critical);
-
-    lg2::error("Sync failed after [{MAX_ATTEMPTS}] retries for [{SRC_PATH}]",
-               "MAX_ATTEMPTS",
-               cfg._retry.has_value() ? cfg._retry.value()._maxRetryAttempts
-                                      : 0,
-               "SRC_PATH", currentSrcPath);
     co_return false;
 }
 
@@ -576,15 +569,15 @@ sdbusplus::async::task<bool>
         {
             if (!isRetryEligible(result.first))
             {
+                lg2::error(
+                    "Error syncing [{PATH}], ErrCode: {ERRCODE}, ErrMsg: {ERRMSG}"
+                    "SyncCmd : [{SYNC_CMD}]",
+                    "PATH", currentSrcPath, "ERRCODE", result.first, "ERRMSG",
+                    result.second, "SYNC_CMD", syncCmd);
                 // Mark sync event health as critical when a non-retryable
                 // (permanent) sync error occurs.
                 setSyncEventsHealth(SyncEventsHealth::Critical);
 
-                lg2::error(
-                    "Error syncing [{PATH}], ErrCode: {ERRCODE}, Error: {ERROR}"
-                    "RsyncCLI: [{RSYNC_CMD}]",
-                    "PATH", currentSrcPath, "ERRCODE", result.first, "ERROR",
-                    result.second, "RSYNC_CMD", syncCmd);
                 // Have additional details in the error log for permanent
                 // failures
 
@@ -597,8 +590,10 @@ sdbusplus::async::task<bool>
                 co_return false;
             }
 
-            lg2::debug("Retrying rsync for [{SRC}] after error [{CODE}]", "SRC",
-                       currentSrcPath, "CODE", result.first);
+            lg2::debug(
+                "Retrying rsync for [{SRC}] after ErrCode: {ERRCODE}, ErrMsg: {ERRMSG}",
+                "SRC", currentSrcPath, "ERRCODE", result.first, "ERRMSG",
+                result.second);
 
             auto retrySuccess = co_await retrySync(
                 dataSyncCfg, srcPath.empty() ? fs::path{} : currentSrcPath,
@@ -606,6 +601,20 @@ sdbusplus::async::task<bool>
             if (dataSyncCfg._retry.has_value() && !retrySuccess &&
                 retryCount >= dataSyncCfg._retry->_maxRetryAttempts)
             {
+                lg2::error(
+                    "Sync failed after all [{MAX_ATTEMPTS}] retries for [{SRC_PATH}],"
+                    "ErrCode[{ERRCODE}], ErrMsg={ERRMSG}, SyncCmd : [{SYNC_CMD}]",
+                    "MAX_ATTEMPTS",
+                    dataSyncCfg._retry.has_value()
+                        ? dataSyncCfg._retry.value()._maxRetryAttempts
+                        : 0,
+                    "SRC_PATH", currentSrcPath, "ERRCODE", result.first,
+                    "ERRMSG", result.second, "SYNC_CMD", syncCmd);
+
+                // All retry attempts exhausted, mark sync event health as
+                // critical
+                setSyncEventsHealth(SyncEventsHealth::Critical);
+
                 // Error log for exceeding maximum retries
                 additionalDetails["DS_Sync_Msg"] =
                     "Maximum retries exceeded, sync failed for the path";
@@ -626,15 +635,16 @@ sdbusplus::async::task<>
 {
     std::string notifyCmd{};
     getRsyncCmd(RsyncMode::Notify, cfg, notifyPath.string(), notifyCmd);
-    lg2::debug("Rsync sibling notify cmd : {CMD}", "CMD", notifyCmd);
+    lg2::debug("Sync sibling notify request cmd : {CMD}", "CMD", notifyCmd);
 
+    std::pair<int, std::string> result{-1, ""};
     // retryAttempts = 0 indicates initial attempt, if fails retry happens
     uint8_t retryAttempts = 0;
     while (cfg._retry.has_value() &&
            retryAttempts++ <= cfg._retry->_maxRetryAttempts)
     {
         data_sync::async::AsyncCommandExecutor executor(_ctx);
-        auto result = co_await executor.execCmd(notifyCmd);
+        result = co_await executor.execCmd(notifyCmd);
 
         switch (result.first)
         {
@@ -662,15 +672,16 @@ sdbusplus::async::task<>
                 {
                     lg2::error(
                         "Notify Request[{NOTIFYPATH}] to sibling BMC failed due to permanent error. "
-                        "Modified_path={MOD_PATH}, Error{ERRORCODE} : {ERROR}",
+                        "Modified_path={MOD_PATH}, ErrCode{ERRCODE}, ErrMsg : {ERRMSG}, syncCmd :[{SYNCCMD}]",
                         "NOTIFYPATH", notifyPath, "MOD_PATH", modifiedPath,
-                        "ERRORCODE", result.first, "ERROR", result.second);
+                        "ERRCODE", result.first, "ERRMSG", result.second,
+                        "SYNCCMD", notifyCmd);
                     co_return;
                 }
             }
         }
 
-        // NO more retries left
+        // No more retries left
         if (retryAttempts > cfg._retry->_maxRetryAttempts)
         {
             break;
@@ -687,12 +698,13 @@ sdbusplus::async::task<>
                                      cfg._retry->_retryIntervalInSec.count()));
     }
 
-    lg2::error(
-        "Failed to send notify request[{NOTIFYPATH}] to the sibling BMC after "
-        "exhausting all {MAX_ATTEMPTS} retries, Modified path : {MODIFIEDPATH}",
-        "NOTIFYPATH", notifyPath, "MAX_ATTEMPTS",
-        cfg._retry.has_value() ? cfg._retry->_maxRetryAttempts : 0,
-        "MODIFIEDPATH", modifiedPath);
+    lg2::error("Failed to send notify request[{NOTIFYPATH}] to sibling BMC "
+               "after {TOTAL_ATTEMPTS} attempts. "
+               "ErrCode[{ERRCODE}], ErrMsg={ERRMSG}. "
+               "Modified path: {MODIFIEDPATH}, syncCmd : [{SYNCCMD}]",
+               "NOTIFYPATH", notifyPath, "TOTAL_ATTEMPTS", retryAttempts,
+               "ERRCODE", result.first, "ERRMSG", result.second, "MODIFIEDPATH",
+               modifiedPath, "SYNCCMD", notifyCmd);
 
     ext_data::AdditionalData additionalDetails = {
         {"BMC_Role", _extDataIfaces->bmcRoleInStr()},
@@ -837,8 +849,8 @@ void Manager::setSyncEventsHealth(const SyncEventsHealth& syncEventsHealth)
 // NOLINTNEXTLINE
 sdbusplus::async::task<void> Manager::startFullSync()
 {
-    setFullSyncStatus(FullSyncStatus::FullSyncInProgress);
     lg2::info("Full Sync started");
+    setFullSyncStatus(FullSyncStatus::FullSyncInProgress);
 
     auto fullSyncStartTime = std::chrono::steady_clock::now();
 
@@ -886,19 +898,19 @@ sdbusplus::async::task<void> Manager::startFullSync()
     if (std::ranges::all_of(syncResults,
                             [](const auto& result) { return result; }))
     {
+        lg2::info(
+            "Full Sync completed successfully. Elapsed time : [{DURATION_SECONDS}] seconds",
+            "DURATION_SECONDS", FullsyncElapsedTime.count());
         setFullSyncStatus(FullSyncStatus::FullSyncCompleted);
         setSyncEventsHealth(SyncEventsHealth::Ok);
-        lg2::info("Full Sync completed successfully");
     }
     else
     {
+        lg2::error(
+            "Full Sync failed. Elapsed time : [{DURATION_SECONDS}] seconds",
+            "DURATION_SECONDS", FullsyncElapsedTime.count());
         setFullSyncStatus(FullSyncStatus::FullSyncFailed);
-        lg2::info("Full Sync failed");
     }
-
-    // total duration/time diff of the Full Sync operation
-    lg2::info("Elapsed time for full sync: [{DURATION_SECONDS}] seconds",
-              "DURATION_SECONDS", FullsyncElapsedTime.count());
 
     co_return;
 }

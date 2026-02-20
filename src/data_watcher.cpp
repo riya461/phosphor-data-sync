@@ -423,8 +423,9 @@ std::optional<std::vector<EventInfo>> DataWatcher::readEvents()
         // NOLINTNEXTLINE to avoid cppcoreguidelines-pro-type-reinterpret-cast
         auto* receivedEvent = reinterpret_cast<inotify_event*>(&buffer[offset]);
 
-        lg2::debug("Received {EVENTS} for wd : {WD} and name : {NAME}",
-                   "EVENTS", eventName(receivedEvent->mask), "WD",
+        lg2::debug("Received {EVENTS} from {PATH}, wd:{WD} and name : {NAME}",
+                   "EVENTS", eventName(receivedEvent->mask), "PATH",
+                   _watchDescriptors[receivedEvent->wd], "WD",
                    receivedEvent->wd, "NAME", receivedEvent->name);
 
         if (((receivedEvent->mask & _eventMasksToWatch) != 0) ||

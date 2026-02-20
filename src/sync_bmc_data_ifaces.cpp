@@ -49,6 +49,12 @@ void SyncBMCDataIface::restoreDBusProperties()
             sync_events_health_ = static_cast<SyncEventsHealth>(
                 it->get<std::underlying_type_t<SyncEventsHealth>>());
         }
+        lg2::info(
+            "Restored DBus properties - DisableSync: {DISABLE}, FullSyncStatus: {FULLSYNC}, SyncEventsHealth: {HEALTH}",
+            "DISABLE", disable_sync_, "FULLSYNC",
+            SyncBMCData::convertFullSyncStatusToString(full_sync_status_),
+            "HEALTH",
+            SyncBMCData::convertSyncEventsHealthToString(sync_events_health_));
     }
     catch (const std::exception& e)
     {
@@ -93,12 +99,11 @@ bool SyncBMCDataIface::set_property([[maybe_unused]] disable_sync_t type,
 {
     if (disable_sync_ == disable)
     {
-        lg2::info("Disable sync property is already set to {VALUE}", "VALUE",
-                  disable);
+        lg2::info("Sync is already {VALUE}", "VALUE",
+                  (disable_sync_ ? "disabled" : "enabled"));
         return false;
     }
     disable_sync_ = disable;
-    _manager.disableSyncPropChanged(disable);
     if (sync_events_health_ != SyncEventsHealth::Critical)
     {
         _manager.setSyncEventsHealth(disable ? SyncEventsHealth::Paused
@@ -110,10 +115,11 @@ bool SyncBMCDataIface::set_property([[maybe_unused]] disable_sync_t type,
     }
     catch (const std::exception& e)
     {
-        lg2::info(
-            "Could not serialize DBus Disable Sync value of {DISABLE}: {ERROR}",
+        lg2::warning(
+            "Failed to serialize DBus Disable Sync value of {DISABLE}: {ERROR}",
             "DISABLE", disable, "ERROR", e);
     }
+    _manager.disableSyncPropChanged(disable);
     return true;
 }
 
