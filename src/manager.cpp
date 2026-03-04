@@ -813,6 +813,12 @@ void Manager::setFullSyncStatus(const FullSyncStatus& fullSyncStatus)
     }
     _syncBMCDataIface.full_sync_status(fullSyncStatus);
 
+    // Don't persist InProgress status as it's a transient state
+    if (fullSyncStatus == FullSyncStatus::FullSyncInProgress)
+    {
+        return;
+    }
+
     try
     {
         data_sync::persist::update(data_sync::persist::key::fullSyncStatus,
