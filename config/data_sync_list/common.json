@@ -72,11 +72,11 @@
         {
             "Path": "/var/lib/service-config-manager/",
             "Description": "Persisted service enable/disable config data",
-            "SyncDirection": "Active2Passive",
+            "SyncDirection": "Bidirectional",
             "SyncType": "Immediate",
             "NotifySibling": {
                 "Mode": "Systemd",
-                "Method": "Restart",
+                "Method": "Reload",
                 "NotifyServices": ["srvcfg-manager.service"]
             }
         }
