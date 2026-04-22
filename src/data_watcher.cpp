@@ -423,10 +423,17 @@ std::optional<std::vector<EventInfo>> DataWatcher::readEvents()
         // NOLINTNEXTLINE to avoid cppcoreguidelines-pro-type-reinterpret-cast
         auto* receivedEvent = reinterpret_cast<inotify_event*>(&buffer[offset]);
 
+        // Using find() because,
+        // IN_IGNORED events can arrive for already removed watch descriptors
+        // Hence use of [] to access the map entries will cause stale entries.
+        auto wdIter = _watchDescriptors.find(receivedEvent->wd);
+        std::string pathStr = (wdIter != _watchDescriptors.end())
+                                  ? wdIter->second.string()
+                                  : "[removed path]";
+
         lg2::debug("Received {EVENTS} from {PATH}, wd:{WD} and name : {NAME}",
-                   "EVENTS", eventName(receivedEvent->mask), "PATH",
-                   _watchDescriptors[receivedEvent->wd], "WD",
-                   receivedEvent->wd, "NAME", receivedEvent->name);
+                   "EVENTS", eventName(receivedEvent->mask), "PATH", pathStr,
+                   "WD", receivedEvent->wd, "NAME", receivedEvent->name);
 
         if (((receivedEvent->mask & _eventMasksToWatch) != 0) ||
             ((receivedEvent->mask & _eventMasksIfNotExists) != 0))
@@ -776,16 +783,21 @@ std::optional<DataOperation>
         _watchDescriptors.at(std::get<WD>(receivedEventInfo));
     lg2::debug("Processing IN_DELETE_SELF for {PATH}", "PATH", deletedPath);
 
-    if (_watchDescriptors.size() == 1)
-    {
-        // If configured file / directory got deleted add a watch on parent
-        // dir to notify future create events.
+    // Check if the configured path is same as or a child of the deleted path.
+    bool isConfiguredPathOrParent = _dataPathToWatch.string().starts_with(
+        (fs::is_directory(deletedPath) ? deletedPath / "" : deletedPath)
+            .string());
 
-        // Unique watches are there for all the sub directories also. Hence when
-        // a configured and monitoring directory deletes, IN_DELETE_SELF will
-        // emit for all sub directories which will remove its watches and
-        // finally will get IN_DELETE_SELF for the configured dir also which
-        // makes the size of _watchDescriptors 1.
+    if (isConfiguredPathOrParent)
+    {
+        // Add watch on parent dir to notify future create events when:
+        // 1. The configured path itself got deleted
+        // 2. A parent/ancestor of the configured path got deleted (when
+        //    configured path doesn't exist and we're watching its parent)
+        //
+        // Note: If a child of the configured path is deleted, this condition
+        // will be false, so we won't add a parent watch since the configured
+        // path or its parent is already being watched.
 
         auto parentPath = getExistingParentPath(deletedPath);
         if (parentPath.empty())

@@ -521,8 +521,9 @@ sdbusplus::async::task<bool>
     data_sync::async::AsyncCommandExecutor executor(_ctx);
     // NOLINTNEXTLINE
     auto result = co_await executor.execCmd(syncCmd);
-    lg2::debug("Rsync cmd return code : {RET} : output : {OUTPUT}", "RET",
-               result.first, "OUTPUT", result.second);
+    lg2::debug(
+        "Rsync cmd output for [{PATH}] : return code : {RET} : output : {OUTPUT}",
+        "PATH", currentSrcPath, "RET", result.first, "OUTPUT", result.second);
 
     ext_data::AdditionalData additionalDetails = {
         {"BMC_Role", _extDataIfaces->bmcRoleInStr()},
