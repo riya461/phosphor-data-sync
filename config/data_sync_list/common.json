@@ -76,6 +76,13 @@
                 "Method": "Reload",
                 "NotifyServices": ["srvcfg-manager.service"]
             }
+        },
+        {
+            "Path": "/var/lib/phosphor-logging/",
+            "Description": "Phosphor logging persisted data",
+            "SyncDirection": "Bidirectional",
+            "SyncType": "Immediate",
+            "ExcludeList": ["/var/lib/phosphor-logging/extensions/pels/pelID"]
         }
     ]
 }
