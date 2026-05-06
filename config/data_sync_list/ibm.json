@@ -5,6 +5,12 @@
             "Description": "Root certificate",
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate"
+        },
+        {
+            "Path": "/etc/ntp-server-sync.conf",
+            "Description": "NTP server details",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Immediate"
         }
     ],
     "Directories": [
