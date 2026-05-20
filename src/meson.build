@@ -44,3 +44,6 @@ executable(
     install: true,
     install_dir: libexecdir_installdir,
 )
+
+# Build datasynctool CLI utility
+subdir('datasynctool')
