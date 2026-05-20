@@ -4,6 +4,8 @@
 
 #include "utils.hpp"
 
+#include <phosphor-logging/lg2.hpp>
+#include <sdbusplus/bus.hpp>
 #include <xyz/openbmc_project/Control/SyncBMCData/client.hpp>
 #include <xyz/openbmc_project/Control/SyncBMCData/common.hpp>
 #include <xyz/openbmc_project/Provisioning/Provisioning/client.hpp>
@@ -11,6 +13,7 @@
 
 #include <iostream>
 #include <print>
+#include <variant>
 
 namespace datasynctool::dbus_interactions
 {
@@ -84,6 +87,31 @@ sdbusplus::async::task<> displayStatus(sdbusplus::async::context& ctx,
     catch (const std::exception& e)
     {
         std::cerr << "Error reading D-Bus properties: " << e.what() << "\n";
+        throw;
+    }
+}
+
+sdbusplus::async::task<> startFullSync(sdbusplus::async::context& ctx)
+{
+    try
+    {
+        using SyncBMCDataMgr =
+            sdbusplus::client::xyz::openbmc_project::control::SyncBMCData<>;
+
+        lg2::info("datasynctool attempting a full sync.");
+
+        co_await SyncBMCDataMgr(ctx)
+            .service(SyncBMCData::interface)
+            .path(SyncBMCData::instance_path)
+            .start_full_sync();
+
+        std::println("Full sync initiated. See progress in journal logs");
+
+        co_return;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error starting full sync: " << e.what() << "\n";
         throw;
     }
 }

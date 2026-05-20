@@ -50,4 +50,13 @@ json buildStatusJson(const PropertyMap& properties);
 sdbusplus::async::task<> displayStatus(sdbusplus::async::context& ctx,
                                        bool jsonOutput);
 
+/**
+ * @brief Start full sync operation (async version)
+ *
+ * @param[in] ctx - Async context
+ *
+ * @return async task
+ */
+sdbusplus::async::task<> startFullSync(sdbusplus::async::context& ctx);
+
 } // namespace datasynctool::dbus_interactions

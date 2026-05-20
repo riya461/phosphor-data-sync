@@ -12,11 +12,20 @@ int main(int argc, char* argv[])
     CLI::App app{
         "Data Sync Tool - Command line utility for phosphor-data-sync"};
 
+    auto* fullSyncGroup =
+        app.add_option_group("Full Sync", "Trigger a full sync to the sibling");
+
+    bool fullSync{false};
+    fullSyncGroup->add_flag("-f,--fullSync", fullSync, "Start a full sync");
+
+    auto* statusGroup = app.add_option_group(
+        "Status Display", "Display current status of phosphor-data-sync");
+
     bool showStatus{false};
     app.add_flag("-s,--status", showStatus, "Display the status of data sync");
 
     bool jsonOutput{false};
-    app.add_flag("-j,--json", jsonOutput, "Display in JSON format");
+    statusGroup->add_flag("-j,--json", jsonOutput, "Display in JSON format");
 
     if (argc == 1)
     {
@@ -32,6 +41,11 @@ int main(int argc, char* argv[])
     {
         ctx.spawn(
             datasynctool::dbus_interactions::displayStatus(ctx, jsonOutput));
+    }
+
+    if (fullSync)
+    {
+        ctx.spawn(datasynctool::dbus_interactions::startFullSync(ctx));
     }
 
     ctx.spawn(
