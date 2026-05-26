@@ -24,6 +24,14 @@ using json = nlohmann::ordered_json;
 std::string extractEnumValue(const std::string& dbusValue);
 
 /**
+ * @brief Normalize a path by removing trailing slashes
+ *        Treats /a/b/c and /a/b/c/ as equal
+ *
+ * @param[in] - path : File system path to normalise
+ */
+std::string normalizePath(const std::string& path);
+
+/**
  * @brief Print a parameter in text format based on the given key and value
  *
  * @param[in] key - Parameter name

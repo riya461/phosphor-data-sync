@@ -17,6 +17,23 @@ std::string extractEnumValue(const std::string& dbusValue)
     return dbusValue;
 }
 
+std::string normalizePath(const std::string& path)
+{
+    if (path.empty() || path == "/")
+    {
+        return path;
+    }
+
+    // Remove trailing slashes
+    std::string normalized = path;
+    while (normalized.length() > 1 && normalized.back() == '/')
+    {
+        normalized.pop_back();
+    }
+
+    return normalized;
+}
+
 template <typename T>
 void printParam(std::string key, const T& value)
 {
