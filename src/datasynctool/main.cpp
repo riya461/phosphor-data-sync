@@ -27,6 +27,20 @@ int main(int argc, char* argv[])
     bool jsonOutput{false};
     statusGroup->add_flag("-j,--json", jsonOutput, "Display in JSON format");
 
+    auto* syncEnableGroup = app.add_option_group("Sync Enable",
+                                                 "Enable or disable sync");
+
+    bool enableSync{false};
+    auto* enableOpt = syncEnableGroup->add_flag("-e,--enableSync", enableSync,
+                                                "Enable sync");
+
+    bool disableSync{false};
+    auto* disableOpt = syncEnableGroup->add_flag("-d,--disableSync",
+                                                 disableSync, "Disable sync");
+
+    enableOpt->excludes(disableOpt);
+
+    // Parse command line arguments
     if (argc == 1)
     {
         std::println("{}", app.help());
@@ -36,6 +50,16 @@ int main(int argc, char* argv[])
     CLI11_PARSE(app, argc, argv);
 
     sdbusplus::async::context ctx;
+
+    if (enableSync)
+    {
+        ctx.spawn(datasynctool::dbus_interactions::setSyncEnabled(ctx, true));
+    }
+
+    if (disableSync)
+    {
+        ctx.spawn(datasynctool::dbus_interactions::setSyncEnabled(ctx, false));
+    }
 
     if (showStatus)
     {

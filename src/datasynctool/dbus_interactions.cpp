@@ -116,4 +116,31 @@ sdbusplus::async::task<> startFullSync(sdbusplus::async::context& ctx)
     }
 }
 
+sdbusplus::async::task<> setSyncEnabled(sdbusplus::async::context& ctx,
+                                        bool enable)
+{
+    try
+    {
+        using SyncBMCDataMgr =
+            sdbusplus::client::xyz::openbmc_project::control::SyncBMCData<>;
+
+        lg2::info("datasynctool trying to {ACTION} sync", "ACTION",
+                  enable ? "enable" : "disable");
+
+        co_await SyncBMCDataMgr(ctx)
+            .service(SyncBMCData::interface)
+            .path(SyncBMCData::instance_path)
+            .disable_sync(!enable);
+
+        std::println("Sync {} successfully", enable ? "enabled" : "disabled");
+
+        co_return;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error setting sync state: " << e.what() << "\n";
+        throw;
+    }
+}
+
 } // namespace datasynctool::dbus_interactions

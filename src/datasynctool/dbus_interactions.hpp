@@ -59,4 +59,15 @@ sdbusplus::async::task<> displayStatus(sdbusplus::async::context& ctx,
  */
 sdbusplus::async::task<> startFullSync(sdbusplus::async::context& ctx);
 
+/**
+ * @brief Set sync enabled/disabled state (async version)
+ *
+ * @param[in] ctx - Async context
+ * @param[in] enable - true to enable sync, false to disable
+ *
+ * @return async task
+ */
+sdbusplus::async::task<> setSyncEnabled(sdbusplus::async::context& ctx,
+                                        bool enable);
+
 } // namespace datasynctool::dbus_interactions
