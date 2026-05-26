@@ -5,10 +5,16 @@ cli11_dep = dependency('CLI11')
 
 # Build datasynctool executable
 
-datasynctool_sources = files('dbus_interactions.cpp', 'main.cpp', 'utils.cpp')
+datasynctool_sources = files(
+    'config_options.cpp',
+    'dbus_interactions.cpp',
+    'main.cpp',
+    'utils.cpp',
+)
 
 datasynctool_dependencies = [
     cli11_dep,
+    conf_h_dep,
     sdbusplus_dep,
     phosphor_dbus_interfaces_dep,
     phosphor_logging_dep,

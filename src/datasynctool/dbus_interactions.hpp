@@ -17,18 +17,13 @@ using DbusVariant = std::variant<bool, std::string>;
 using PropertyMap = std::map<std::string, DbusVariant>;
 
 /**
- * @brief Get all D-Bus properties using GetAll method
+ * @brief Get BMC role from D-Bus
  *
- * @param[in] bus - D-Bus connection
- * @param[in] service - D-Bus service name
- * @param[in] path - D-Bus object path
- * @param[in] interface - D-Bus interface name
+ * @param[in] ctx - Async context
  *
- * @return PropertyMap - Map of property names to values
+ * @return BMC role string
  */
-PropertyMap getAllProperties(sdbusplus::bus_t& bus, const std::string& service,
-                             const std::string& path,
-                             const std::string& interface);
+sdbusplus::async::task<std::string> getBMCRole(sdbusplus::async::context& ctx);
 
 /**
  * @brief Build JSON object from D-Bus properties
@@ -40,7 +35,7 @@ PropertyMap getAllProperties(sdbusplus::bus_t& bus, const std::string& service,
 json buildStatusJson(const PropertyMap& properties);
 
 /**
- * @brief Display D-Bus status properties (async version)
+ * @brief Display D-Bus status properties
  *
  * @param[in] ctx - Async context
  * @param[in] jsonOutput - Output in JSON format if true
@@ -51,7 +46,7 @@ sdbusplus::async::task<> displayStatus(sdbusplus::async::context& ctx,
                                        bool jsonOutput);
 
 /**
- * @brief Start full sync operation (async version)
+ * @brief Start full sync operation
  *
  * @param[in] ctx - Async context
  *
@@ -60,7 +55,7 @@ sdbusplus::async::task<> displayStatus(sdbusplus::async::context& ctx,
 sdbusplus::async::task<> startFullSync(sdbusplus::async::context& ctx);
 
 /**
- * @brief Set sync enabled/disabled state (async version)
+ * @brief Set sync enabled/disabled state
  *
  * @param[in] ctx - Async context
  * @param[in] enable - true to enable sync, false to disable

@@ -21,6 +21,28 @@ namespace datasynctool::dbus_interactions
 using SyncBMCData =
     sdbusplus::common::xyz::openbmc_project::control::SyncBMCData;
 
+sdbusplus::async::task<std::string> getBMCRole(sdbusplus::async::context& ctx)
+{
+    try
+    {
+        using RedundancyMgr =
+            sdbusplus::client::xyz::openbmc_project::state::bmc::Redundancy<>;
+
+        auto role = co_await RedundancyMgr(ctx)
+                        .service("xyz.openbmc_project.State.BMC.Redundancy")
+                        .path("/xyz/openbmc_project/state/bmc0")
+                        .role();
+
+        co_return utils::extractEnumValue(
+            RedundancyMgr::convertRoleToString(role));
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error getting BMC role: " << e.what() << "\n";
+        throw;
+    }
+}
+
 sdbusplus::async::task<> displayStatus(sdbusplus::async::context& ctx,
                                        bool jsonOutput)
 {

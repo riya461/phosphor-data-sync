@@ -32,9 +32,61 @@ template void printParam<std::string>(std::string, const std::string&);
 void displayJsonAsText(const json& data)
 {
     std::println();
+
     for (const auto& [name, value] : data.items())
     {
-        if (value.is_boolean())
+        if (value.is_array())
+        {
+            std::println("{}:", name);
+            for (const auto& item : value)
+            {
+                if (item.is_object())
+                {
+                    for (const auto& [key, val] : item.items())
+                    {
+                        if (val.is_array())
+                        {
+                            std::println("    {}:", key);
+                            for (const auto& arrItem : val)
+                            {
+                                std::println("        {}",
+                                             arrItem.is_string()
+                                                 ? arrItem.get<std::string>()
+                                                 : arrItem.dump());
+                            }
+                        }
+                        else if (val.is_string())
+                        {
+                            std::println("    {}: {}", key,
+                                         val.get<std::string>());
+                        }
+                        else if (val.is_boolean())
+                        {
+                            std::println("    {}: {}", key, val.get<bool>());
+                        }
+                        else if (val.is_number_integer())
+                        {
+                            std::println("    {}: {}", key, val.get<int>());
+                        }
+                        else
+                        {
+                            std::println("    {}: {}", key, val.dump());
+                        }
+                    }
+                    std::println();
+                }
+                // Handle array of strings
+                else if (item.is_string())
+                {
+                    std::println("  {}", item.get<std::string>());
+                }
+                else
+                {
+                    std::println("  {}", item.dump());
+                }
+            }
+        }
+        else if (value.is_boolean())
         {
             printParam(name, value.get<bool>());
         }
