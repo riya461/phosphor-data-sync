@@ -105,6 +105,21 @@ class DataWatcher
      */
     sdbusplus::async::task<DataOperations> onDataChange();
 
+    /**
+     * @brief Get the current watch descriptors map
+     *
+     * This method provides read-only access to the internal map of watch
+     * descriptors and their associated file paths. Used by Manager to collect
+     * all currently watched paths for debugging purposes.
+     *
+     * @returns const std::map<WD, fs::path>& - A reference to the map of watch
+     *          descriptors and their associated file paths
+     */
+    const std::map<WD, fs::path>& getWatchDescriptors() const
+    {
+        return _watchDescriptors;
+    }
+
   private:
     /**
      * @brief inotify flags

@@ -10,6 +10,8 @@
 
 #include <filesystem>
 #include <regex>
+#include <utility>
+
 namespace data_sync::utility
 {
 
@@ -20,6 +22,19 @@ FD::FD(int fd) : fd(fd) {}
 FD::~FD()
 {
     reset();
+}
+
+FD::FD(FD&& other) noexcept : fd(std::exchange(other.fd, -1)) {}
+
+FD& FD::operator=(FD&& other) noexcept
+{
+    if (this != &other)
+    {
+        reset();
+        fd = std::exchange(other.fd, -1);
+    }
+
+    return *this;
 }
 
 void FD::reset()

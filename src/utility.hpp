@@ -16,8 +16,10 @@ class FD
   public:
     FD(const FD&) = delete;
     FD& operator=(const FD&) = delete;
-    FD(FD&&) = delete;
-    FD& operator=(FD&&) = delete;
+
+    // Move
+    FD(FD&& other) noexcept;
+    FD& operator=(FD&& other) noexcept;
 
     /**
      * @brief Constructor

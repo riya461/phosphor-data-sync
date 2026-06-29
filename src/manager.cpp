@@ -7,17 +7,25 @@
 #include "async_command_exec.hpp"
 #include "data_watcher.hpp"
 #include "notify_sibling.hpp"
+#include "utility.hpp"
+
+#include <sys/signalfd.h>
+#include <unistd.h>
 
 #include <nlohmann/json.hpp>
 #include <phosphor-logging/lg2.hpp>
+#include <sdbusplus/async/context.hpp>
 
-#include <cstdlib>
+#include <chrono>
+#include <csignal>
+#include <cstring>
 #include <exception>
 #include <experimental/scope>
 #include <fstream>
+#include <iomanip>
 #include <iterator>
+#include <sstream>
 #include <string>
-#include <string_view>
 
 namespace data_sync
 {
@@ -28,6 +36,12 @@ Manager::Manager(sdbusplus::async::context& ctx,
     _ctx(ctx), _extDataIfaces(std::move(extDataIfaces)),
     _dataSyncCfgDir(dataSyncCfgDir), _syncBMCDataIface(ctx, *this)
 {
+// Skip SIGUSR1 registration in unit tests to avoid waiting
+// indefinitely for a signal and time out issues.
+#ifndef UNIT_TEST
+    // Register SIGUSR1 handler
+    registerSignalHandler();
+#endif
     _ctx.spawn(init());
 }
 
@@ -737,14 +751,24 @@ sdbusplus::async::task<>
                 ? std::make_optional<std::unordered_set<fs::path>>(
                       dataSyncCfg._excludeList.value().first)
                 : std::nullopt;
-        watch::inotify::DataWatcher dataWatcher(
-            _ctx, IN_NONBLOCK | IN_CLOEXEC, eventMasksToWatch,
-            dataSyncCfg._path, excludeList, dataSyncCfg._includeList);
+
+        auto [it, inserted] = _activeWatchers.emplace(
+            dataSyncCfg._path,
+            std::make_unique<watch::inotify::DataWatcher>(
+                _ctx, IN_NONBLOCK | IN_CLOEXEC, eventMasksToWatch,
+                dataSyncCfg._path, excludeList, dataSyncCfg._includeList));
+
+        auto* dataWatcher = it->second.get();
+
+        // Ensure removal on scope exit
+        auto cleanup = std::experimental::scope_exit([this, &dataSyncCfg]() {
+            _activeWatchers.erase(dataSyncCfg._path);
+        });
 
         while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
         {
             // NOLINTNEXTLINE
-            if (auto dataOperations = co_await dataWatcher.onDataChange();
+            if (auto dataOperations = co_await dataWatcher->onDataChange();
                 !dataOperations.empty())
             {
                 for (const auto& [path, dataOp] : dataOperations)
@@ -920,6 +944,136 @@ sdbusplus::async::task<void> Manager::startFullSync()
     }
 
     co_return;
+}
+
+nlohmann::json Manager::collectAllWatchingPaths() const
+{
+    nlohmann::json result;
+    nlohmann::json watchingPaths;
+
+    lg2::debug("Collecting the {COUNT} active watchers", "COUNT",
+               _activeWatchers.size());
+
+    for (const auto& [configPath, dataWatcher] : _activeWatchers)
+    {
+        const auto& wds = dataWatcher->getWatchDescriptors();
+
+        std::vector<std::string> paths;
+        paths.reserve(wds.size());
+
+        std::ranges::transform(
+            wds, std::back_inserter(paths),
+            [](const auto& entry) { return entry.second.string(); });
+
+        watchingPaths.emplace(configPath.string(), std::move(paths));
+    }
+
+    result["watching_paths"] = watchingPaths;
+
+    // Add timestamp of collecting along with the list of watchers
+    auto now = std::chrono::system_clock::now();
+    auto timeT = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::gmtime(&timeT), "%Y-%m-%dT%H:%M:%SZ");
+    result["timestamp"] = ss.str();
+
+    return result;
+}
+
+void Manager::registerSignalHandler()
+{
+    try
+    {
+        // Block SIGUSR1 so it's delivered via signalfd instead of default
+        // handler
+        sigset_t ss;
+        if (sigemptyset(&ss) < 0 || sigaddset(&ss, SIGUSR1) < 0)
+        {
+            lg2::error("Failed to setup signal mask for SIGUSR1");
+            return;
+        }
+
+        if (pthread_sigmask(SIG_BLOCK, &ss, nullptr) != 0)
+        {
+            lg2::error("Failed to block SIGUSR1 signal: {ERROR}", "ERROR",
+                       std::strerror(errno));
+            return;
+        }
+
+        utility::FD sigusr1Fd{signalfd(-1, &ss, SFD_NONBLOCK | SFD_CLOEXEC)};
+        if (sigusr1Fd() < 0)
+        {
+            lg2::error("Failed to create signalfd: {ERROR}", "ERROR",
+                       std::strerror(errno));
+            return;
+        }
+
+        lg2::debug(
+            "Successfully registered SIGUSR1 handler using fdio (fd={FD})",
+            "FD", sigusr1Fd());
+
+        // Move fd ownership into the coroutine — RAII closes it on exit
+        _ctx.spawn([](sdbusplus::async::context& ctx, Manager* mgr,
+                      utility::FD sigusr1Fd) -> sdbusplus::async::task<> {
+            sdbusplus::async::fdio sigusr1Fdio(ctx, sigusr1Fd());
+            while (!ctx.stop_requested())
+            {
+                co_await sigusr1Fdio.next();
+
+                signalfd_siginfo si{};
+                ssize_t s = read(sigusr1Fd(), &si, sizeof(si));
+
+                if (s == sizeof(si))
+                {
+                    lg2::info(
+                        "Received SIGUSR1 (signal {SIG}), dumping all watching paths",
+                        "SIG", si.ssi_signo);
+                    mgr->dumpWatchingPathsToFile();
+                }
+                else if (s < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+                {
+                    lg2::error("Failed to read from signalfd: {ERROR}", "ERROR",
+                               std::strerror(errno));
+                }
+            }
+        }(_ctx, this, std::move(sigusr1Fd)));
+    }
+    catch (const std::exception& e)
+    {
+        lg2::error("Failed to register SIGUSR1 handler: {ERROR}", "ERROR", e);
+    }
+}
+
+void Manager::dumpWatchingPathsToFile() const
+{
+    constexpr auto outputFile = "/tmp/data_sync_watching_paths.json";
+
+    try
+    {
+        if (fs::exists(outputFile))
+        {
+            fs::remove(outputFile);
+        }
+        nlohmann::json output = collectAllWatchingPaths();
+
+        std::ofstream file(outputFile);
+        if (!file.is_open())
+        {
+            lg2::error("Failed to open file for dumping watching paths: {FILE}",
+                       "FILE", outputFile);
+            return;
+        }
+
+        file << output.dump(4);
+        file.close();
+
+        lg2::info("Dumped data-sync watching paths to {FILE}", "FILE",
+                  outputFile);
+    }
+    catch (const std::exception& e)
+    {
+        lg2::error("Error writing watching paths file: {ERROR}", "ERROR", e);
+    }
 }
 
 } // namespace data_sync

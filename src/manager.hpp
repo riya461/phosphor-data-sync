@@ -3,12 +3,19 @@
 #pragma once
 
 #include "data_sync_config.hpp"
+#include "data_watcher.hpp"
 #include "external_data_ifaces.hpp"
 #include "notify_service.hpp"
 #include "persistent.hpp"
 #include "sync_bmc_data_ifaces.hpp"
 
+#include <sdbusplus/async.hpp>
+
+#include <atomic>
 #include <filesystem>
+#include <map>
+#include <memory>
+#include <optional>
 #include <ranges>
 #include <vector>
 
@@ -294,6 +301,33 @@ class Manager
     static bool isRetryEligible(uint8_t errCode) noexcept;
 
     /**
+     * @brief Register SIGUSR1 signal handler using signalfd
+     *
+     * Sets up signalfd to receive SIGUSR1 signals and creates an fdio instance
+     * to monitor it.
+     */
+    void registerSignalHandler();
+
+    /**
+     * @brief Write all watched paths to a JSON file
+     *
+     * The method will collect all the current watching paths and dump into
+     * a JSON file.
+     */
+    void dumpWatchingPathsToFile() const;
+
+    /**
+     * @brief Collect all currently watched paths from all DataWatcher instances
+     *
+     * Iterates through all registered DataWatcher instances and collects their
+     * watched paths into a JSON structure.
+     *
+     * @returns nlohmann::json - JSON object with config_path → watched_paths
+     *          mapping and timestamp
+     */
+    nlohmann::json collectAllWatchingPaths() const;
+
+    /**
      * @brief The async context object used to perform operations asynchronously
      *        as required.
      */
@@ -325,6 +359,15 @@ class Manager
      *        completes.
      */
     std::vector<std::unique_ptr<notify::NotifyService>> _notifyReqs;
+
+    /**
+     * @brief Map of config paths to their active DataWatcher instances
+     *
+     * Key: Configured path from JSON (e.g., "/var/lib/network/hypervisor/")
+     * Value: Pointer to the DataWatcher monitoring that path
+     */
+    std::map<fs::path, std::unique_ptr<watch::inotify::DataWatcher>>
+        _activeWatchers;
 };
 
 } // namespace data_sync
