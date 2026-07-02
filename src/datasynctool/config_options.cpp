@@ -16,12 +16,17 @@
 #include <optional>
 #include <print>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace datasynctool::config_options
 {
 
 using json = nlohmann::ordered_json;
+
+static constexpr auto watchingPathsFile = "/tmp/data_sync_watching_paths.json";
+static constexpr auto dataSyncService =
+    "xyz.openbmc_project.Control.SyncBMCData.service";
 
 namespace fs = std::filesystem;
 
@@ -288,6 +293,229 @@ sdbusplus::async::task<> getPathConfig(sdbusplus::async::context& ctx,
         std::cerr << "Error getting path config: " << e.what() << "\n";
         throw;
     }
+}
+
+// Helper: Send SIGUSR1 to daemon and read the resulting watching_paths.json
+static sdbusplus::async::task<std::optional<json>>
+    triggerAndReadWatchingPaths(sdbusplus::async::context& ctx)
+{
+    auto daemonPid =
+        co_await dbus_interactions::getServiceMainPid(ctx, dataSyncService);
+    if (daemonPid == 0)
+    {
+        std::cerr << "Error: phosphor-data-sync daemon is not running\n";
+        co_return std::nullopt;
+    }
+
+    if (kill(daemonPid, SIGUSR1) != 0)
+    {
+        std::cerr
+            << "Error: Failed to send SIGUSR1 to phosphor-data-sync (PID: "
+            << daemonPid << "): " << std::strerror(errno) << "\n";
+        co_return std::nullopt;
+    }
+
+    // Wait briefly for the daemon to write the file
+    // TODO : Leverage inotify instead of sleep
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    std::ifstream file(watchingPathsFile);
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Failed to read watching paths file: "
+                  << watchingPathsFile << "\n";
+        co_return std::nullopt;
+    }
+
+    try
+    {
+        json data = json::parse(file);
+        if (!data.contains("watching_paths") ||
+            !data["watching_paths"].is_object())
+        {
+            std::cerr
+                << "Error: Unexpected JSON format in watching paths file\n";
+            co_return std::nullopt;
+        }
+        co_return data;
+    }
+    catch (const json::exception& e)
+    {
+        std::cerr << "Error: Failed to parse JSON from " << watchingPathsFile
+                  << ": " << e.what() << "\n";
+        co_return std::nullopt;
+    }
+}
+
+// Helper: Check if a specific path is actively watching and print result
+static void printWatchingStatus(const json& watchingPaths,
+                                const std::string& targetPath, bool jsonOutput)
+{
+    const std::string normalizedTarget = utils::normalizePath(targetPath);
+    std::string_view foundConfigPath;
+
+    for (const auto& [configPath, watchingList] : watchingPaths.items())
+    {
+        if (!watchingList.is_array())
+        {
+            continue;
+        }
+
+        auto it = std::ranges::find_if(watchingList, [&](const auto& wp) {
+            return utils::normalizePath(wp.template get<std::string>()) ==
+                   normalizedTarget;
+        });
+
+        if (it != watchingList.end())
+        {
+            foundConfigPath = configPath;
+            break;
+        }
+    }
+
+    const bool found = !foundConfigPath.empty();
+
+    if (jsonOutput)
+    {
+        json result;
+        result["path"] = targetPath;
+        result["is_watching"] = found;
+        if (found)
+        {
+            result["config_path"] = foundConfigPath;
+        }
+        std::println("{}", result.dump(4));
+    }
+    else
+    {
+        if (found)
+        {
+            std::println("Path[{}] is watching currently.", targetPath);
+            std::println("  Config Path : {}", foundConfigPath);
+        }
+        else
+        {
+            std::println("Path[{}] is NOT watching currently", targetPath);
+        }
+    }
+}
+
+// Helper: Print all actively watched paths grouped by Files and Directories
+static void printWatchingPaths(const json& watchingData, bool jsonOutput)
+{
+    const auto& watchingPaths = watchingData.at("watching_paths");
+
+    if (watchingPaths.empty())
+    {
+        std::println("No paths are currently being watched");
+        return;
+    }
+
+    json output{
+        {"Files", json::array()},
+        {"Directories", json::array()},
+    };
+
+    std::ranges::for_each(watchingPaths.items(), [&](const auto& item) {
+        const auto& [configPath, watchingList] = item;
+
+        if (!configPath.empty() && configPath.back() == '/')
+        {
+            output["Directories"].push_back(
+                {{"Path", configPath}, {"Watching", watchingList}});
+        }
+        else
+        {
+            output["Files"].push_back(configPath);
+        }
+    });
+
+    if (auto it = watchingData.find("timestamp"); it != watchingData.end())
+    {
+        output["Timestamp"] = *it;
+    }
+
+    if (jsonOutput)
+    {
+        std::println("{}", output.dump(4));
+        return;
+    }
+
+    constexpr size_t separatorWidth = 60;
+
+    auto printSeparator = [] {
+        std::println("{}", std::string(separatorWidth, '-'));
+    };
+
+    const auto& files = output["Files"];
+    const auto& directories = output["Directories"];
+
+    std::println("Files ({}):", files.size());
+    printSeparator();
+
+    if (files.empty())
+    {
+        std::println("  (none)");
+    }
+    else
+    {
+        std::ranges::for_each(files, [](const auto& file) {
+            std::println("  {}", file.template get<std::string>());
+        });
+    }
+
+    std::println("\nDirectories ({}):", directories.size());
+    printSeparator();
+
+    if (directories.empty())
+    {
+        std::println("  (none)");
+    }
+    else
+    {
+        std::ranges::for_each(directories, [](const auto& directory) {
+            std::println("  {}", directory["Path"].template get<std::string>());
+
+            const auto& watching = directory["Watching"];
+
+            std::println("  Watching ({}):", watching.size());
+
+            std::ranges::for_each(watching, [](const auto& path) {
+                std::println("    - {}", path.template get<std::string>());
+            });
+        });
+    }
+
+    printSeparator();
+
+    if (auto it = output.find("Timestamp"); it != output.end())
+    {
+        std::println("Timestamp : {}", it->get<std::string>());
+    }
+}
+
+sdbusplus::async::task<> listWatchingPaths(sdbusplus::async::context& ctx,
+                                           const std::string& targetPath,
+                                           bool jsonOutput)
+{
+    // NOLINTNEXTLINE
+    auto watchingData = co_await triggerAndReadWatchingPaths(ctx);
+    if (!watchingData)
+    {
+        co_return;
+    }
+
+    if (!targetPath.empty())
+    {
+        printWatchingStatus((*watchingData)["watching_paths"], targetPath,
+                            jsonOutput);
+    }
+    else
+    {
+        printWatchingPaths(*watchingData, jsonOutput);
+    }
+
+    co_return;
 }
 
 } // namespace datasynctool::config_options

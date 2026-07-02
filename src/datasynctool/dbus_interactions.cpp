@@ -165,4 +165,29 @@ sdbusplus::async::task<> setSyncEnabled(sdbusplus::async::context& ctx,
     }
 }
 
+sdbusplus::async::task<pid_t> getServiceMainPid(sdbusplus::async::context& ctx,
+                                                const std::string& serviceName)
+{
+    auto systemd =
+        sdbusplus::async::proxy().service("org.freedesktop.systemd1");
+
+    try
+    {
+        auto unitPath = co_await systemd.path("/org/freedesktop/systemd1")
+                            .interface("org.freedesktop.systemd1.Manager")
+                            .call<sdbusplus::message::object_path>(
+                                ctx, "GetUnit", serviceName);
+
+        auto mainPid = co_await systemd.path(unitPath.str)
+                           .interface("org.freedesktop.systemd1.Service")
+                           .get_property<uint32_t>(ctx, "MainPID");
+
+        co_return static_cast<pid_t>(mainPid);
+    }
+    catch (const std::exception&)
+    {
+        co_return 0;
+    }
+}
+
 } // namespace datasynctool::dbus_interactions

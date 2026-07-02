@@ -65,4 +65,18 @@ sdbusplus::async::task<> startFullSync(sdbusplus::async::context& ctx);
 sdbusplus::async::task<> setSyncEnabled(sdbusplus::async::context& ctx,
                                         bool enable);
 
+/**
+ * @brief Get the MainPID of a systemd service via D-Bus
+ *
+ * Queries org.freedesktop.systemd1 to get the MainPID of the given
+ * service unit. Returns 0 if the service is not running.
+ *
+ * @param[in] ctx - Async context
+ * @param[in] serviceName - Systemd service unit name (e.g. "foo.service")
+ *
+ * @return pid_t - The MainPID of the service, or 0 if not running
+ */
+sdbusplus::async::task<pid_t> getServiceMainPid(sdbusplus::async::context& ctx,
+                                                const std::string& serviceName);
+
 } // namespace datasynctool::dbus_interactions

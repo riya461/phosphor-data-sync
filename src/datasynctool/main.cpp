@@ -55,6 +55,15 @@ int main(int argc, char* argv[])
         ->type_name("AbsoluteDataPath")
         ->check(CLI::ExistingPath);
 
+    std::string watchingPathsArg;
+    configGroup
+        ->add_option(
+            "-w,--watchingPaths", watchingPathsArg,
+            "List actively watching paths, or check if a specific path is being watched")
+        ->type_name("<AbsoluteDataPath>")
+        ->expected(0, 1)
+        ->default_val("");
+
     // Parse command line arguments
     if (argc == 1)
     {
@@ -86,6 +95,14 @@ int main(int argc, char* argv[])
     {
         ctx.spawn(datasynctool::config_options::getPathConfig(ctx, getConfPath,
                                                               jsonOutput));
+    }
+
+    if ((app.count("--watchingPaths") != 0U) || (app.count("-w") != 0U))
+    {
+        // watchingPathsArg is empty when -w used alone (list all),
+        // or contains the path when -w <path> is used (check specific path)
+        ctx.spawn(datasynctool::config_options::listWatchingPaths(
+            ctx, watchingPathsArg, jsonOutput));
     }
 
     if (showStatus)
