@@ -175,7 +175,7 @@ sdbusplus::async::task<> Manager::monitorServiceNotifications()
         // Monitoring for IN_MOVED_TO only as rsync creates a temporary file in
         // the destination and then rename to original file.
         watch::inotify::DataWatcher notifyWatcher(
-            _ctx, IN_NONBLOCK, IN_MOVED_TO, NOTIFY_SERVICES_DIR);
+            _ctx, IN_NONBLOCK | IN_CLOEXEC, IN_MOVED_TO, NOTIFY_SERVICES_DIR);
         while (!_ctx.stop_requested())
         {
             if (auto dataOperations = co_await notifyWatcher.onDataChange();
@@ -738,8 +738,8 @@ sdbusplus::async::task<>
                       dataSyncCfg._excludeList.value().first)
                 : std::nullopt;
         watch::inotify::DataWatcher dataWatcher(
-            _ctx, IN_NONBLOCK, eventMasksToWatch, dataSyncCfg._path,
-            excludeList, dataSyncCfg._includeList);
+            _ctx, IN_NONBLOCK | IN_CLOEXEC, eventMasksToWatch,
+            dataSyncCfg._path, excludeList, dataSyncCfg._includeList);
 
         while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
         {
