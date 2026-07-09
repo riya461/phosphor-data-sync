@@ -2,6 +2,7 @@
 
 #include "config_options.hpp"
 #include "dbus_interactions.hpp"
+#include "error_summary.hpp"
 
 #include <CLI/CLI.hpp>
 #include <sdbusplus/async.hpp>
@@ -41,6 +42,15 @@ int main(int argc, char* argv[])
 
     enableOpt->excludes(disableOpt);
 
+    auto* errorGroup = app.add_option_group(
+        "DataSync Error Log",
+        "Retrieve and display DataSync component error log summary");
+
+    bool showErrorLog{false};
+    errorGroup->add_flag(
+        "-S,--syncFailure", showErrorLog,
+        "Display a summary of recent DataSync sync failure logs");
+
     auto* configGroup = app.add_option_group("Config options",
                                              "Configuration related options");
 
@@ -74,6 +84,12 @@ int main(int argc, char* argv[])
     CLI11_PARSE(app, argc, argv);
 
     sdbusplus::async::context ctx;
+
+    if (showErrorLog)
+    {
+        ctx.spawn(
+            datasynctool::error_summary::displayErrorLogSummary(jsonOutput));
+    }
 
     if (enableSync)
     {
