@@ -8,6 +8,7 @@ cli11_dep = dependency('CLI11')
 datasynctool_sources = files(
     'config_options.cpp',
     'dbus_interactions.cpp',
+    'error_summary.cpp',
     'main.cpp',
     'utils.cpp',
 )
