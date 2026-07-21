@@ -57,6 +57,13 @@ int main(int argc, char* argv[])
             ->expected(0, 1)
             ->default_val(1);
 
+    bool includeTrace{false};
+    auto* traceOpt = errorGroup->add_flag(
+        "-T,--trace", includeTrace,
+        "Include datasync trace lines in each sync failure log entry.\n"
+        "Only valid with -S/--syncFailure.");
+    traceOpt->needs(errorLogOpt);
+
     auto* configGroup = app.add_option_group("Config options",
                                              "Configuration related options");
 
@@ -94,7 +101,7 @@ int main(int argc, char* argv[])
     if (errorLogOpt->count() != 0U)
     {
         ctx.spawn(datasynctool::error_summary::displayErrorLogSummary(
-            jsonOutput, errorLogCount));
+            jsonOutput, errorLogCount, includeTrace));
     }
 
     if (enableSync)

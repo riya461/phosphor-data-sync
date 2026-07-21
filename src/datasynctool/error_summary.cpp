@@ -111,8 +111,39 @@ static std::string_view extractField(const json& pelData, const PelField& field)
                : std::string_view{};
 }
 
+// Extract trace lines from "User Data 2" and "User Data 3" "Data" arrays.
+static std::vector<std::string> extractTraceLines(const json& pelData)
+{
+    std::vector<std::string> lines;
+
+    for (const std::string_view section : {"User Data 2", "User Data 3"})
+    {
+        const auto sectionIt = pelData.find(section);
+        if (sectionIt == pelData.end() || !sectionIt->is_object())
+        {
+            continue;
+        }
+
+        const auto dataIt = sectionIt->find("Data");
+        if (dataIt == sectionIt->end() || !dataIt->is_array())
+        {
+            continue;
+        }
+
+        for (const auto& item : *dataIt)
+        {
+            if (item.is_string())
+            {
+                lines.emplace_back(item.get<std::string>());
+            }
+        }
+    }
+
+    return lines;
+}
+
 // Build a SummaryEntry from a single PEL JSON object.
-static SummaryEntry makeSummaryEntry(const json& pelData)
+static SummaryEntry makeSummaryEntry(const json& pelData, bool includeTrace)
 {
     const std::string_view rawSrc = extractField(pelData, fieldRegistryMsg);
     const auto it = srcRegistryMap.find(rawSrc);
@@ -128,6 +159,7 @@ static SummaryEntry makeSummaryEntry(const json& pelData)
         .path = {},
         .errMsg = {},
         .errCode = {},
+        .traceLines = {},
     };
 
     if (regMsg == "SyncFailure")
@@ -137,11 +169,17 @@ static SummaryEntry makeSummaryEntry(const json& pelData)
         entry.errCode = std::string(extractField(pelData, fieldErrCode));
     }
 
+    if (includeTrace)
+    {
+        entry.traceLines = extractTraceLines(pelData);
+    }
+
     return entry;
 }
 
 sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
-                                                std::size_t limit)
+                                                std::size_t limit,
+                                                bool includeTrace)
 {
     const auto output = runCommand(
         std::format("peltool.py --src {} -r {} -a", datasyncSrcPrefix, limit));
@@ -173,8 +211,8 @@ sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
     // Collect one SummaryEntry per error log.
     auto entries = pelMap.items() | std::views::filter([](const auto& kv) {
         return kv.value().is_object();
-    }) | std::views::transform([](const auto& kv) {
-        return makeSummaryEntry(kv.value());
+    }) | std::views::transform([includeTrace](const auto& kv) {
+        return makeSummaryEntry(kv.value(), includeTrace);
     }) | std::views::filter([](const SummaryEntry& e) {
         return !e.registryMsg.empty() || !e.failureTime.empty() ||
                !e.pelId.empty();
@@ -199,6 +237,10 @@ sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
                 obj[fieldErrMsg.displayName] = e.errMsg;
                 obj[fieldErrCode.displayName] = e.errCode;
             }
+            if (!e.traceLines.empty())
+            {
+                obj["Trace"] = e.traceLines;
+            }
             return obj;
         }) | std::ranges::to<json>();
         std::println("{}", out.dump(2));
@@ -219,6 +261,14 @@ sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
             std::println("  {:<18}: {}", fieldPath.displayName, e.path);
             std::println("  {:<18}: {}", fieldErrMsg.displayName, e.errMsg);
             std::println("  {:<18}: {}", fieldErrCode.displayName, e.errCode);
+        }
+        if (!e.traceLines.empty())
+        {
+            std::println("  {:<18}:", "Trace");
+            for (const auto& line : e.traceLines)
+            {
+                std::println("    {}", line);
+            }
         }
     }
     std::println("{}", separator);

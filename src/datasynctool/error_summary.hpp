@@ -5,6 +5,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace datasynctool::error_summary
 {
@@ -38,6 +39,9 @@ struct PelField
  *   - path         : User Data 1 / DS_Sync_Path
  *   - errMsg       : User Data 1 / DS_Sync_ErrMsg
  *   - errCode      : User Data 1 / DS_Sync_ErrCode
+ *
+ * When trace is requested:
+ *   - traceLines   : User Data 2 / Data  and  User Data 3 / Data
  */
 struct SummaryEntry
 {
@@ -49,6 +53,9 @@ struct SummaryEntry
     std::string path;
     std::string errMsg;
     std::string errCode;
+
+    // Trace
+    std::vector<std::string> traceLines;
 };
 
 /**
@@ -58,12 +65,14 @@ struct SummaryEntry
  * (BD8D70).  For each matching PEL the three fields above are extracted and
  * displayed either as formatted text or JSON.
  *
- * @param[in] jsonOutput Output in JSON format if true
- * @param[in] limit      Maximum number of recent logs to display (default: 1)
+ * @param[in] jsonOutput    Output in JSON format if true
+ * @param[in] limit         Maximum number of logs to display (default: 1)
+ * @param[in] includeTrace  Include datasync trace lines in each entry if true
  *
  * @return async task
  */
 sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
-                                                std::size_t limit = 1);
+                                                std::size_t limit = 1,
+                                                bool includeTrace = false);
 
 } // namespace datasynctool::error_summary
