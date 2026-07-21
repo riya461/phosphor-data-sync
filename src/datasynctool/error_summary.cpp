@@ -140,10 +140,11 @@ static SummaryEntry makeSummaryEntry(const json& pelData)
     return entry;
 }
 
-sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput)
+sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
+                                                std::size_t limit)
 {
     const auto output = runCommand(
-        std::format("peltool.py --src {} -r 1 -a", datasyncSrcPrefix));
+        std::format("peltool.py --src {} -r {} -a", datasyncSrcPrefix, limit));
 
     if (!output.has_value() || output->empty())
     {

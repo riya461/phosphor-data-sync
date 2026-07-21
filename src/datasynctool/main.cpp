@@ -46,10 +46,16 @@ int main(int argc, char* argv[])
         "DataSync Error Log",
         "Retrieve and display DataSync component error log summary");
 
-    bool showErrorLog{false};
-    errorGroup->add_flag(
-        "-S,--syncFailure", showErrorLog,
-        "Display a summary of recent DataSync sync failure logs");
+    std::size_t errorLogCount{0};
+    auto* errorLogOpt =
+        errorGroup
+            ->add_option(
+                "-S,--syncFailure", errorLogCount,
+                "Display a summary of recent DataSync sync failure logs.\n"
+                "Pass N to limit output to the N most recent logs.")
+            ->type_name("N")
+            ->expected(0, 1)
+            ->default_val(1);
 
     auto* configGroup = app.add_option_group("Config options",
                                              "Configuration related options");
@@ -85,10 +91,10 @@ int main(int argc, char* argv[])
 
     sdbusplus::async::context ctx;
 
-    if (showErrorLog)
+    if (errorLogOpt->count() != 0U)
     {
-        ctx.spawn(
-            datasynctool::error_summary::displayErrorLogSummary(jsonOutput));
+        ctx.spawn(datasynctool::error_summary::displayErrorLogSummary(
+            jsonOutput, errorLogCount));
     }
 
     if (enableSync)
