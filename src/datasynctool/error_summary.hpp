@@ -58,9 +58,12 @@ struct SummaryEntry
  * (BD8D70).  For each matching PEL the three fields above are extracted and
  * displayed either as formatted text or JSON.
  *
- * @param[in] jsonOutput  Emit JSON array when true, formatted text otherwise.
+ * @param[in] jsonOutput Output in JSON format if true
+ * @param[in] limit      Maximum number of recent logs to display (default: 1)
+ *
  * @return async task
  */
-sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput);
+sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
+                                                std::size_t limit = 1);
 
 } // namespace datasynctool::error_summary
