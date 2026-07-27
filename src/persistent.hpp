@@ -11,6 +11,7 @@ namespace data_sync::persist
 {
 
 extern std::filesystem::path DBusPropDataFile;
+extern const std::filesystem::path SyncDisableTimeFile;
 
 namespace key
 {
@@ -41,6 +42,24 @@ void writeFile(const nlohmann::json& json, const std::filesystem::path& path);
  *                          didn't exist or was corrupt.
  */
 std::optional<nlohmann::json> readFile(const std::filesystem::path& path);
+
+/**
+ * @brief Read the content of the raw file and return
+ * @note : Now supports integer file content only. Can expand to
+ *         other data-types if needs by using templates
+ * @param[in] path - The absolute path of the file to read
+ *
+ * @return The integer value, or std::nullopt if unavailable.
+ */
+std::optional<int64_t> readRawFile(const std::filesystem::path& path);
+
+/**
+ * @brief Persist the rawData by writing to the given file path
+ *
+ * @param[in] path - Absolute path of file to where data to be persisted.
+ * @param[in] rawData - Raw integer data to persist.
+ */
+void writeRawFile(const std::filesystem::path& path, int64_t rawData);
 
 /**
  * @brief Updates "name": <value>  JSON to the file specified

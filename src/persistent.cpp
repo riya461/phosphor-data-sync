@@ -11,6 +11,8 @@ namespace data_sync::persist
 {
 std::filesystem::path DBusPropDataFile =
     "/var/lib/phosphor-data-sync/persistence/dbus_props.json";
+const std::filesystem::path SyncDisableTimeFile =
+    "/var/lib/phosphor-data-sync/persistence/syncDisableTime";
 
 std::optional<nlohmann::json> readFile(const std::filesystem::path& path)
 {
@@ -29,6 +31,41 @@ std::optional<nlohmann::json> readFile(const std::filesystem::path& path)
     }
 
     return std::nullopt;
+}
+
+std::optional<int64_t> readRawFile(const std::filesystem::path& path)
+{
+    std::ifstream stream{path};
+    if (!stream.is_open())
+    {
+        return std::nullopt;
+    }
+
+    int64_t rawData{};
+    stream >> rawData;
+    if (stream.fail())
+    {
+        return std::nullopt;
+    }
+
+    return rawData;
+}
+
+void writeRawFile(const std::filesystem::path& path, int64_t rawData)
+{
+    std::ofstream stream{path};
+    if (!stream.is_open())
+    {
+        throw std::runtime_error{
+            std::format("Failed to open the file: {}", path.string())};
+    }
+
+    stream << rawData;
+    if (stream.fail())
+    {
+        throw std::runtime_error{
+            std::format("Failed to write data to the file: {}", path.string())};
+    }
 }
 
 namespace util

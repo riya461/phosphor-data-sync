@@ -972,6 +972,30 @@ void Manager::disableSyncPropChanged(bool disableSync)
 {
     if (disableSync)
     {
+        // TODO: Disable all sync events using Sender Receiver.
+        try
+        {
+            if (fs::exists(data_sync::persist::SyncDisableTimeFile))
+            {
+                lg2::debug(
+                    "Persisted sync disabled time stamp already exists, skipping the latest");
+            }
+            else
+            {
+                auto now = std::chrono::system_clock::now();
+                auto timestamp =
+                    std::chrono::duration_cast<std::chrono::seconds>(
+                        now.time_since_epoch())
+                        .count();
+                data_sync::persist::writeRawFile(
+                    data_sync::persist::SyncDisableTimeFile, timestamp);
+            }
+        }
+        catch (const std::exception& e)
+        {
+            lg2::error("Error writing syncDisableTime to file: {ERROR}",
+                       "ERROR", e);
+        }
         lg2::info("Sync is Disabled, Stopping events");
         stopSyncEvents();
     }
