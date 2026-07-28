@@ -13,6 +13,88 @@
 namespace data_sync
 {
 
+void Manager::filterPaths(const config::DataSyncConfig& dataSyncCfg,
+                          PathTimestampMap& pathMap)
+{
+    // Remove excluded paths from the map
+    if (dataSyncCfg._excludeList.has_value())
+    {
+        std::erase_if(pathMap, [&](const auto& entry) {
+            return dataSyncCfg._excludeList->first.contains(entry.first);
+        });
+    }
+
+    // If an include list is configured, remove everything not in it from the
+    // map
+    if (dataSyncCfg._includeList.has_value())
+    {
+        std::erase_if(pathMap, [&](const auto& entry) {
+            return !dataSyncCfg._includeList->contains(entry.first);
+        });
+    }
+}
+
+sdbusplus::async::task<std::optional<Manager::PathTimestampMap>>
+    Manager::pullPeerInfo(const config::DataSyncConfig& dataSyncCfg)
+{
+    std::string cmd;
+    getRsyncCmd(RsyncMode::PullPeerInfo, dataSyncCfg._path, cmd);
+    if (cmd.empty())
+    {
+        co_return std::nullopt;
+    }
+    lg2::debug("Pull peer info cmd: [{CMD}]", "CMD", cmd);
+
+    data_sync::async::AsyncCommandExecutor executor(_ctx);
+    auto result = co_await executor.execCmd(cmd);
+    if (result.first != 0)
+    {
+        lg2::error(
+            "Failed to pull peer info for [{PATH}], ErrCode: {ERRCODE}, ErrMsg: {ERRMSG}, Cmd : [{CMD}]",
+            "PATH", dataSyncCfg._path, "ERRCODE", result.first, "ERRMSG",
+            result.second, "CMD", cmd);
+        co_return std::nullopt;
+    }
+
+    PathTimestampMap pathTimestamps;
+    std::istringstream output(result.second);
+    std::string line;
+
+    while (std::getline(output, line))
+    {
+        std::istringstream lineStream(line);
+        std::string perms;
+        std::string size;
+        std::string date;
+        std::string time;
+        std::string relativePath;
+
+        if (lineStream >> perms >> size >> date >> time >> relativePath)
+        {
+            if (relativePath == ".")
+            {
+                continue;
+            }
+
+            std::string dateTime{};
+            dateTime.append(date);
+            dateTime.append(" ");
+            dateTime.append(time);
+            if (const auto timestamp = utility::parseDateTimeToEpoch(dateTime))
+            {
+                pathTimestamps.emplace(dataSyncCfg._path / relativePath,
+                                       *timestamp);
+            }
+        }
+    }
+
+    filterPaths(dataSyncCfg, pathTimestamps);
+
+    co_return std::make_optional(std::move(pathTimestamps));
+}
+
+// NOLINTNEXTLINE
+>>>>>>> 17d63bc (full-sync: Pull the peer BMC data paths)
 sdbusplus::async::task<void> Manager::startFullSync()
 {
     lg2::info("Full Sync started");

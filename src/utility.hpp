@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstddef>
+#include <optional>
 #include <string>
+#include <string_view>
+
 namespace data_sync::utility
 {
 
@@ -75,6 +79,16 @@ void setupPaths();
  * @throws std::runtime_error if the position cannot be read
  */
 std::size_t readBMCPosition();
+
+/*
+ * @brief Convert a date/time string to epoch-seconds timestamp.
+ *
+ * @param[in] dateTime - Date/time string in "%Y/%m/%d %H:%M:%S" format.
+ *
+ * @return Parsed epoch-seconds timestamp, or std::nullopt on failure.
+ */
+std::optional<std::chrono::seconds>
+    parseDateTimeToEpoch(std::string_view dateTime);
 
 namespace rsync
 {

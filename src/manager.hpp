@@ -31,8 +31,9 @@ namespace fs = std::filesystem;
 
 enum class RsyncMode
 {
-    Sync,  // perform sync
-    Notify // perform sibling notification
+    Sync,         // perform sync
+    Notify,       // perform sibling notification
+    PullPeerInfo, // fetch peer file information
 };
 
 /**
@@ -152,6 +153,7 @@ class Manager
     void setSyncEventsHealth(const SyncEventsHealth& syncEventsHealth);
 
   private:
+    using PathTimestampMap = std::map<fs::path, std::chrono::seconds>;
     /**
      * @brief A helper API to start the data sync operation.
      */
@@ -223,6 +225,43 @@ class Manager
     // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
     void getRsyncCmd(RsyncMode mode, const config::DataSyncConfig& dataSyncCfg,
                      const std::string& srcPath, std::string& cmd);
+
+    /**
+     * @brief API to frame the RSYNC CLI command to Pull the info from peer
+     *       BMC
+     *
+     * @param[in] mode - RsyncMode::PullPeerInfo
+     * @param[in] path - The absolute path to fetch from the peer.
+     * @param[out] cmd - string where the framed RSYNC command holds.
+     */
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    void getRsyncCmd(RsyncMode mode, const fs::path& path, std::string& cmd);
+
+    /**
+     * @brief Fetch peer file path info for the configured path.
+     *
+     * @param[in] dataSyncCfg - The data sync config whose peer path is queried.
+     *
+     * @return Map of absolute peer paths to epoch-seconds timestamp on success,
+     *         or std::nullopt if the peer could not be reached or the command
+     *         failed.
+     */
+    sdbusplus::async::task<std::optional<PathTimestampMap>>
+        pullPeerInfo(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
+     * @brief Filter the PathTimestampMap in-place based on the configured
+     *        include and exclude lists.
+     *
+     *        - Paths present in the exclude list are removed.
+     *        - If an include list is configured, only paths in that list
+     *          are retained; all others will get removed.
+     *
+     * @param[in] dataSyncCfg - The data sync config carrying the lists.
+     * @param[in,out] pathMap  - The map to filter.
+     */
+    static void filterPaths(const config::DataSyncConfig& dataSyncCfg,
+                            PathTimestampMap& pathMap);
 
     /**
      * @brief A helper rsync wrapper API that syncs data to sibling

@@ -19,6 +19,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstring>
+#include <ctime>
 #include <exception>
 #include <experimental/scope>
 #include <fstream>
@@ -449,6 +450,28 @@ void Manager::getRsyncCmd(RsyncMode mode,
     {
         cmd.append(NOTIFY_SERVICES_DIR);
     }
+}
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+void Manager::getRsyncCmd([[maybe_unused]] RsyncMode mode, const fs::path& path,
+                          std::string& cmd)
+{
+    using namespace std::string_literals;
+
+    cmd.append("rsync --recursive --list-only"s);
+
+#ifdef UNIT_TEST
+    cmd.append(" "s);
+#else
+    static const std::string rsyncdURL(
+        std::format(" rsync://localhost:{}/{}",
+                    (_extDataIfaces->bmcPosition() == 0 ? BMC1_RSYNC_PORT
+                                                        : BMC0_RSYNC_PORT),
+                    RSYNCD_MODULE_NAME));
+    cmd.append(rsyncdURL);
+#endif
+
+    cmd.append(path.string());
 }
 
 sdbusplus::async::task<void>

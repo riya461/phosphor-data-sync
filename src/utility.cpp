@@ -8,10 +8,13 @@
 
 #include <phosphor-logging/lg2.hpp>
 
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <limits>
 #include <regex>
+#include <sstream>
 #include <stdexcept>
 #include <utility>
 
@@ -52,6 +55,20 @@ void FD::reset()
 int FD::operator()() const
 {
     return fd;
+}
+
+std::optional<std::chrono::seconds>
+    parseDateTimeToEpoch(std::string_view dateTime)
+{
+    std::tm tm{};
+    std::istringstream timestampStream(std::string{dateTime});
+    timestampStream >> std::get_time(&tm, "%Y/%m/%d %H:%M:%S");
+    if (timestampStream.fail())
+    {
+        return std::nullopt;
+    }
+
+    return std::chrono::seconds{std::mktime(&tm)};
 }
 
 void setupPaths()
