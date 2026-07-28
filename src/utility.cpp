@@ -71,6 +71,18 @@ std::optional<std::chrono::seconds>
     return std::chrono::seconds{std::mktime(&tm)};
 }
 
+std::optional<std::chrono::seconds>
+    fileTimeToEpoch(const std::filesystem::file_time_type& fileTime)
+{
+    auto systemNow = std::chrono::system_clock::now();
+    auto fileNow = fs::file_time_type::clock::now();
+    auto systemTime =
+        std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+            fileTime - fileNow + systemNow);
+    return std::chrono::seconds{
+        std::chrono::system_clock::to_time_t(systemTime)};
+}
+
 void setupPaths()
 {
     const fs::path persistPath{"/var/lib/phosphor-data-sync/"};

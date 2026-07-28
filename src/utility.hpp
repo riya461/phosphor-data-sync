@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -89,6 +90,16 @@ std::size_t readBMCPosition();
  */
 std::optional<std::chrono::seconds>
     parseDateTimeToEpoch(std::string_view dateTime);
+
+/**
+ * @brief Convert a filesystem time point to epoch-seconds timestamp.
+ *
+ * @param[in] fileTime - Filesystem time point to convert.
+ *
+ * @return Converted epoch-seconds timestamp.
+ */
+std::optional<std::chrono::seconds>
+    fileTimeToEpoch(const std::filesystem::file_time_type& fileTime);
 
 namespace rsync
 {
