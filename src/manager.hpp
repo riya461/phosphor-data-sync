@@ -154,6 +154,7 @@ class Manager
 
   private:
     using PathTimestampMap = std::map<fs::path, std::chrono::seconds>;
+    using PathList = std::vector<fs::path>;
     /**
      * @brief A helper API to start the data sync operation.
      */
@@ -273,6 +274,51 @@ class Manager
      */
     static void filterPaths(const config::DataSyncConfig& dataSyncCfg,
                             PathTimestampMap& pathMap);
+
+    /**
+     * @brief Collect paths present only locally that were deleted on the peer.
+     *
+     * Iterates the local snapshot in a single pass: a path is classified as
+     * deleted at peer if it is absent from the peer snapshot and its mtime
+     * is older than the sync-disable timestamp.
+     *
+     * @param[in] localInfo - Local path/timestamp map.
+     * @param[in] peerInfo - Peer path/timestamp map.
+     * @param[in] syncDisableTime - Timestamp when sync was disabled.
+     *
+     * @return List of paths to remove from the local filesystem before rsync.
+     */
+    static PathList getPeerDeletedPath(const PathTimestampMap& localInfo,
+                                       const PathTimestampMap& peerInfo,
+                                       std::chrono::seconds syncDisableTime);
+
+    /**
+     * @brief Delete paths locally that were removed on the peer.
+     *
+     * @param[in] peerDeletedPaths - Paths to delete from the local BMC.
+     */
+    static void deletePeerDeletedPaths(const PathList& peerDeletedPaths);
+
+    /**
+     * @brief Trigger the pre-sync classification algorithm to remove the
+     * peer deleted paths before full sync for bidirectional sync paths.
+     *
+     * @param[in] cfg - The data sync config object
+     */
+    sdbusplus::async::task<>
+        cleanupPeerDeletedFiles(const config::DataSyncConfig& cfg);
+
+    /**
+     * @brief Run pre-fullSync followed by a full sync for a bidirectional
+     *        config path. Chains cleanupPeerDeletedFiles and syncData into a
+     * single spawnable task so both run concurrently with other configs.
+     *
+     * @param[in] cfg - The data sync config object
+     *
+     * @return Returns true if sync succeeds; otherwise, returns false
+     */
+    sdbusplus::async::task<bool>
+        bidirectionFullSync(const config::DataSyncConfig& cfg);
 
     /**
      * @brief A helper rsync wrapper API that syncs data to sibling

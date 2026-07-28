@@ -136,8 +136,97 @@ Manager::PathTimestampMap Manager::collectLocalPathTimestamps(
     return pathTimestamps;
 }
 
-// NOLINTNEXTLINE
->>>>>>> 17d63bc (full-sync: Pull the peer BMC data paths)
+Manager::PathList
+    Manager::getPeerDeletedPath(const PathTimestampMap& localInfo,
+                                const PathTimestampMap& peerInfo,
+                                std::chrono::seconds syncDisableTime)
+{
+    PathList remotelyDeletedPaths;
+
+    for (const auto& [path, timestamp] : localInfo)
+    {
+        // Paths not present on peer BMC with a timestamp older than
+        // syncDisableTime are deleted paths on the peer intentionally. Paths
+        // newer than syncDisableTime were created locally during the disabled
+        // window and must be kept.
+        if (!peerInfo.contains(path) && timestamp < syncDisableTime)
+        {
+            remotelyDeletedPaths.emplace_back(path);
+        }
+    }
+
+    return remotelyDeletedPaths;
+}
+
+void Manager::deletePeerDeletedPaths(const PathList& remotelyDeletedPaths)
+{
+    for (const auto& path : remotelyDeletedPaths)
+    {
+        std::error_code ec;
+        fs::remove_all(path, ec);
+        if (ec)
+        {
+            lg2::error(
+                "Failed to delete remotely deleted path [{PATH}], Error: {ERROR}",
+                "PATH", path, "ERROR", ec.message());
+            continue;
+        }
+
+        lg2::debug("Deleted [{PATH}] on local BMC as it deleted at peer",
+                   "PATH", path);
+    }
+}
+
+sdbusplus::async::task<>
+    Manager::cleanupPeerDeletedFiles(const config::DataSyncConfig& cfg)
+{
+    // step 1 : read the sync disabled timestamp
+    auto syncDisableTime = data_sync::persist::readRawFile(
+        data_sync::persist::SyncDisableTimeFile);
+    if (!syncDisableTime)
+    {
+        lg2::warning(
+            "Sync disable time missing, skipping pre-sync cleanup algorithm for [{PATH}]",
+            "PATH", cfg._path);
+        co_return;
+    }
+
+    lg2::debug("Running pre-fullsync for [{PATH}]", "PATH", cfg._path);
+
+    // Step 2 : Collect the list of available files and their mtime from local
+    // BMC
+    auto localInfo = collectLocalPathTimestamps(cfg);
+
+    // Step 3 : Collect the list of available files and their mtime from peer
+    // BMC
+    auto peerInfo = co_await pullPeerInfo(cfg);
+    if (!peerInfo)
+    {
+        lg2::warning(
+            "Failed to pull peer info for [{PATH}], skipping pre-sync cleanup",
+            "PATH", cfg._path);
+        co_return;
+    }
+
+    // Step 4 : Get paths that deleted in peer by using local and peer paths
+    // meta data
+    auto remotelyDeletedPaths = getPeerDeletedPath(
+        localInfo, *peerInfo, std::chrono::seconds{*syncDisableTime});
+
+    // Step 5 : Remove the deleted paths at the peer on local BMC
+    deletePeerDeletedPaths(remotelyDeletedPaths);
+
+    co_return;
+}
+
+sdbusplus::async::task<bool>
+    Manager::bidirectionFullSync(const config::DataSyncConfig& cfg)
+{
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.Branch)
+    co_await cleanupPeerDeletedFiles(cfg);
+    co_return co_await syncData(cfg);
+}
+
 sdbusplus::async::task<void> Manager::startFullSync()
 {
     lg2::info("Full Sync started");
@@ -156,8 +245,14 @@ sdbusplus::async::task<void> Manager::startFullSync()
         {
             if (isSyncEligible(cfg))
             {
+                auto task =
+                    (cfg._syncDirection == config::SyncDirection::Bidirectional)
+                        // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.Branch)
+                        ? bidirectionFullSync(cfg)
+                        : syncData(cfg);
+
                 _ctx.spawn(
-                    syncData(cfg) |
+                    std::move(task) |
                     stdexec::then([&syncResults, &spawnedTasks](bool result) {
                     syncResults.push_back(result);
                     spawnedTasks--; // Decrement the number of spawned tasks
