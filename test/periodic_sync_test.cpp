@@ -116,7 +116,9 @@ TEST_F(ManagerTest, PeriodicDataSyncDelayFileTest)
            {"Description", "Parse test file"},
            {"SyncDirection", "Bidirectional"},
            {"SyncType", "Periodic"},
-           {"Periodicity", "PT1S"}}}}};
+           {"Periodicity", "PT1S"},
+           {"RetryAttempts", 2},
+           {"RetryInterval", "PT10S"}}}}};
 
     fs::path srcFile{jsonData["Files"][0]["Path"]};
     fs::path destDir{jsonData["Files"][0]["DestinationPath"]};

@@ -367,10 +367,15 @@ void Manager::getRsyncCmd(RsyncMode mode,
     // Appending required flags to sync data between BMCs
     // For more details about CLI options, refer rsync man page.
     // https://download.samba.org/pub/rsync/rsync.1#OPTION_SUMMARY
+
     cmd.append("rsync --compress --recursive --perms --group --owner --times "
                "--atimes"s);
-    if (mode == RsyncMode::Sync)
+
+    if (mode == RsyncMode::Sync || mode == RsyncMode::BidirFullSync)
     {
+        cmd.append(
+            " --itemize-changes --relative --stats --delete-missing-args"s);
+
         if (dataSyncCfg._syncDirection == Bidirectional)
         {
             // skips the operation if dest is newer.
@@ -379,9 +384,14 @@ void Manager::getRsyncCmd(RsyncMode mode,
             // truth.
             cmd.append(" --update"s);
         }
-        cmd.append(
-            " --itemize-changes --relative --delete --delete-missing-args --stats"s);
 
+        if (mode == RsyncMode::Sync)
+        {
+            // --delete is intentionally skipped for bidir full sync
+            // to avoid removal of newly created paths at the dest while
+            // full sync from peer.
+            cmd.append(" --delete"s);
+        }
         if (dataSyncCfg._excludeList.has_value())
         {
             cmd.append(dataSyncCfg._excludeList->second);
@@ -441,7 +451,7 @@ void Manager::getRsyncCmd(RsyncMode mode,
     cmd.append(rsyncdURL);
 #endif
 
-    if (mode == RsyncMode::Sync)
+    if (mode == RsyncMode::Sync || mode == RsyncMode::BidirFullSync)
     {
         // Add destination data path if configured
         cmd.append(dataSyncCfg._destPath.value_or(fs::path("")).string());
@@ -548,7 +558,7 @@ sdbusplus::async::task<void>
 sdbusplus::async::task<bool>
     // NOLINTNEXTLINE
     Manager::retrySync(const config::DataSyncConfig& cfg, fs::path srcPath,
-                       size_t retryCount)
+                       size_t retryCount, RsyncMode mode)
 {
     const fs::path currentSrcPath = srcPath.empty() ? cfg._path : srcPath;
 
@@ -565,7 +575,7 @@ sdbusplus::async::task<bool>
                                      cfg._retry->_retryIntervalInSec.count()));
 
         // NOLINTNEXTLINE
-        co_return co_await syncData(cfg, std::move(srcPath), retryCount);
+        co_return co_await syncData(cfg, std::move(srcPath), retryCount, mode);
     }
     co_return false;
 }
@@ -573,7 +583,7 @@ sdbusplus::async::task<bool>
 sdbusplus::async::task<bool>
     // NOLINTNEXTLINE
     Manager::syncData(const config::DataSyncConfig& dataSyncCfg,
-                      fs::path srcPath, size_t retryCount)
+                      fs::path srcPath, size_t retryCount, RsyncMode mode)
 {
     // Don't sync if the sync is disabled
     if (_syncBMCDataIface.disable_sync())
@@ -609,7 +619,7 @@ sdbusplus::async::task<bool>
     }
 
     std::string syncCmd{};
-    getRsyncCmd(RsyncMode::Sync, dataSyncCfg, srcPath.string(), syncCmd);
+    getRsyncCmd(mode, dataSyncCfg, srcPath.string(), syncCmd);
 
     if (syncCmd.empty())
     {
@@ -693,7 +703,7 @@ sdbusplus::async::task<bool>
 
             auto retrySuccess = co_await retrySync(
                 dataSyncCfg, srcPath.empty() ? fs::path{} : currentSrcPath,
-                retryCount);
+                retryCount, mode);
             if (dataSyncCfg._retry.has_value() && !retrySuccess &&
                 retryCount >= dataSyncCfg._retry->_maxRetryAttempts)
             {

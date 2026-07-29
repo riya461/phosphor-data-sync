@@ -255,7 +255,7 @@ sdbusplus::async::task<bool>
 {
     // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.Branch)
     co_await cleanupPeerDeletedFiles(cfg);
-    co_return co_await syncData(cfg);
+    co_return co_await syncData(cfg, {}, 0, RsyncMode::BidirFullSync);
 }
 
 sdbusplus::async::task<void> Manager::startFullSync()
@@ -329,8 +329,27 @@ sdbusplus::async::task<void> Manager::startFullSync()
         lg2::info(
             "Full Sync completed successfully. Elapsed time : [{DURATION_SECONDS}] seconds",
             "DURATION_SECONDS", FullsyncElapsedTime.count());
+
         setFullSyncStatus(FullSyncStatus::FullSyncCompleted);
         setSyncEventsHealth(SyncEventsHealth::Ok);
+
+        // Delete the sync-disable timestamp after a 3s delay, giving the
+        // peer a window to fetch it before removal. Only if the file exists
+        if (fs::exists(data_sync::persist::SyncDisableTimeFile))
+        {
+            _ctx.spawn(
+                sdbusplus::async::sleep_for(_ctx, std::chrono::seconds(3)) |
+                stdexec::then([]() {
+                std::error_code ec;
+                fs::remove(data_sync::persist::SyncDisableTimeFile, ec);
+                if (ec)
+                {
+                    lg2::warning(
+                        "Failed to remove syncDisableTime file after full sync completion: {ERROR}",
+                        "ERROR", ec.message());
+                }
+            }));
+        }
     }
     else
     {

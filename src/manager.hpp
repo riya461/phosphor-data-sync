@@ -33,6 +33,7 @@ enum class RsyncMode
 {
     Sync,                    // perform sync
     Notify,                  // perform sibling notification
+    BidirFullSync,           // perform bidirectional full sync
     PullPeerInfo,            // fetch peer file listing + mtimes
     PullPeerSyncDisableTime, // fetch syncDisableTime file from peer
 };
@@ -337,13 +338,15 @@ class Manager
      * @param[in] dataSyncCfg - The data sync config to sync
      * @param[in] srcPath - The modified path inside the cfg path, if available.
      * @param[in] retryCount - The current retry attempt count
+     * @param[in] mode - The rsync mode to use. Defaults to RsyncMode::Sync
      *
      * @return Returns true if sync succeeds; otherwise, returns false
      *
      */
     sdbusplus::async::task<bool>
         syncData(const config::DataSyncConfig& dataSyncCfg,
-                 fs::path srcPath = fs::path{}, size_t retryCount = 0);
+                 fs::path srcPath = fs::path{}, size_t retryCount = 0,
+                 RsyncMode mode = RsyncMode::Sync);
 
     /**
      * @brief Wrapper API to frame and issue RSYNC command to sync the generated
@@ -371,7 +374,8 @@ class Manager
      * @return true if the retry succeeds or can be skipped, false if failed
      */
     sdbusplus::async::task<bool> retrySync(const config::DataSyncConfig& cfg,
-                                           fs::path srcPath, size_t retryCount);
+                                           fs::path srcPath, size_t retryCount,
+                                           RsyncMode mode = RsyncMode::Sync);
 
     /**
      * @brief A helper to API to monitor data to sync if its changed
