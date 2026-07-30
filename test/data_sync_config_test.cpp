@@ -96,6 +96,47 @@ TEST(DataSyncConfigParserTest, TestPeriodicFileSyncWithRetry)
 
 /*
  * Test when the input JSON contains the details of the directory to be synced
+ * after a deferred interval with no overriding retry attempt and retry
+ * interval.
+ */
+TEST(DataSyncConfigParserTest, TestDeferredDirectorySyncWithNoRetry)
+{
+    const auto configJSON = R"(
+        {
+            "Path": "/directory/path/to/sync/",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Active2Passive",
+            "SyncType": "Deferred",
+            "DeferredSyncInterval": "PT1S"
+        }
+    )"_json;
+
+    data_sync::config::DataSyncConfig dataSyncConfig(configJSON, true);
+
+    EXPECT_EQ(dataSyncConfig._path, "/directory/path/to/sync/");
+    EXPECT_EQ(dataSyncConfig._isPathDir, true);
+    EXPECT_EQ(dataSyncConfig._destPath, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._syncDirection,
+              data_sync::config::SyncDirection::Active2Passive);
+    EXPECT_EQ(dataSyncConfig._syncType, data_sync::config::SyncType::Deferred);
+    EXPECT_EQ(dataSyncConfig._periodicityInSec, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._deferredSyncIntervalInSec,
+              std::chrono::seconds(1));
+    EXPECT_EQ(dataSyncConfig._notifySibling, std::nullopt);
+    if (!dataSyncConfig._retry.has_value())
+    {
+        FAIL() << "Missing retry configuration.";
+    }
+    EXPECT_EQ(dataSyncConfig._retry.value()._maxRetryAttempts,
+              DEFAULT_RETRY_ATTEMPTS);
+    EXPECT_EQ(dataSyncConfig._retry.value()._retryIntervalInSec,
+              std::chrono::seconds(DEFAULT_RETRY_INTERVAL));
+    EXPECT_EQ(dataSyncConfig._excludeList, std::nullopt);
+    EXPECT_EQ(dataSyncConfig._includeList, std::nullopt);
+}
+
+/*
+ * Test when the input JSON contains the details of the directory to be synced
  * immediately with no overriding retry attempt and retry interval.
  */
 TEST(DataSyncConfigParserTest, TestImmediateDirectorySyncWithNoRetry)

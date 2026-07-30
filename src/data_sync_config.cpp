@@ -75,6 +75,19 @@ DataSyncConfig::DataSyncConfig(const nlohmann::json& config,
         _periodicityInSec = std::nullopt;
     }
 
+    if (_syncType == SyncType::Deferred)
+    {
+        constexpr auto defDeferredSyncInterval = 1;
+        _deferredSyncIntervalInSec =
+            convertISODurationToSec(
+                config["DeferredSyncInterval"].get<std::string>())
+                .value_or(std::chrono::seconds(defDeferredSyncInterval));
+    }
+    else
+    {
+        _deferredSyncIntervalInSec = std::nullopt;
+    }
+
     if (config.contains("NotifySibling"))
     {
         _notifySibling = NotifySiblingConfig(config["NotifySibling"]);
@@ -123,6 +136,8 @@ bool DataSyncConfig::operator==(const DataSyncConfig& dataSyncCfg) const
            _destPath == dataSyncCfg._destPath &&
            _syncType == dataSyncCfg._syncType &&
            _periodicityInSec == dataSyncCfg._periodicityInSec &&
+           _deferredSyncIntervalInSec ==
+               dataSyncCfg._deferredSyncIntervalInSec &&
            _retry == dataSyncCfg._retry &&
            _excludeList == dataSyncCfg._excludeList &&
            _includeList == dataSyncCfg._includeList;
@@ -172,6 +187,10 @@ std::optional<SyncType>
     if (syncType == "Immediate")
     {
         return SyncType::Immediate;
+    }
+    else if (syncType == "Deferred")
+    {
+        return SyncType::Deferred;
     }
     else if (syncType == "Periodic")
     {

@@ -32,6 +32,7 @@ enum class SyncDirection
 enum class SyncType
 {
     Immediate,
+    Deferred,
     Periodic
 };
 
@@ -168,6 +169,8 @@ struct DataSyncConfig
         {
             case SyncType::Immediate:
                 return "Immediate";
+            case SyncType::Deferred:
+                return "Deferred";
             case SyncType::Periodic:
                 return "Periodic";
         }
@@ -205,6 +208,13 @@ struct DataSyncConfig
      * @note Holds a value if the synchronization type is set to Periodic.
      */
     std::optional<std::chrono::seconds> _periodicityInSec;
+
+    /**
+     * @brief Delay before running a deferred sync.
+     *
+     * @note Holds a value if the synchronization type is set to Deferred.
+     */
+    std::optional<std::chrono::seconds> _deferredSyncIntervalInSec;
 
     /**
      * @brief The details of sibling notification
