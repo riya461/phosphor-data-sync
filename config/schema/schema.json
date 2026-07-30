@@ -56,6 +56,9 @@
                 "Periodicity": {
                     "$ref": "#/$defs/periodicity"
                 },
+                "DeferredSyncInterval": {
+                    "$ref": "#/$defs/deferredSyncInterval"
+                },
                 "NotifySibling": {
                     "$ref": "#/$defs/notifySiblingForFiles"
                 },
@@ -70,6 +73,7 @@
             "additionalProperties": false,
             "allOf": [
                 { "$ref": "#/$defs/conditionForPeriodicity" },
+                { "$ref": "#/$defs/conditionForDeferredSyncInterval" },
                 { "$ref": "#/$defs/conditionForRetry" }
             ]
         },
@@ -95,6 +99,9 @@
                 "Periodicity": {
                     "$ref": "#/$defs/periodicity"
                 },
+                "DeferredSyncInterval": {
+                    "$ref": "#/$defs/deferredSyncInterval"
+                },
                 "NotifySibling": {
                     "$ref": "#/$defs/notifySiblingForDirs"
                 },
@@ -119,6 +126,7 @@
             "additionalProperties": false,
             "allOf": [
                 { "$ref": "#/$defs/conditionForPeriodicity" },
+                { "$ref": "#/$defs/conditionForDeferredSyncInterval" },
                 { "$ref": "#/$defs/conditionForRetry" }
             ]
         },
@@ -148,7 +156,7 @@
         },
         "syncType": {
             "description": "The type of sync to be performed",
-            "enum": ["Periodic", "Immediate"]
+            "enum": ["Periodic", "Immediate", "Deferred"]
         },
         "notifySiblingForFiles": {
             "description": "The JSON object which definess how the data owner on the synced side to be notified once the data got changed",
@@ -227,6 +235,11 @@
             "type": "string",
             "format": "duration"
         },
+        "deferredSyncInterval": {
+            "description": "The quiet interval in ISO 8601 duration format before a deferred sync operation. Eg: PT1S - 1 second",
+            "type": "string",
+            "format": "duration"
+        },
         "excludeList": {
             "description": "The list of paths in the directory that should be excluded while sync operation",
             "type": "array",
@@ -294,6 +307,22 @@
                 "required": ["Periodicity"]
             },
             "else": { "not": { "required": ["Periodicity"] } }
+        },
+        "conditionForDeferredSyncInterval": {
+            "if": {
+                "type": "object",
+                "properties": { "SyncType": { "const": "Deferred" } },
+                "required": ["SyncType"]
+            },
+            "then": {
+                "properties": {
+                    "DeferredSyncInterval": {
+                        "$ref": "#/$defs/deferredSyncInterval"
+                    }
+                },
+                "required": ["DeferredSyncInterval"]
+            },
+            "else": { "not": { "required": ["DeferredSyncInterval"] } }
         },
         "conditionForRetry": {
             "if": {

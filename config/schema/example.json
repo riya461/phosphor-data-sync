@@ -55,6 +55,13 @@
                 "Mode": "DBus",
                 "NotifyServices": ["Service1", "Service2"]
             }
+        },
+        {
+            "Path": "/directory3/path/to/sync/",
+            "Description": "Add details about the data and purpose of the synchronization",
+            "SyncDirection": "Bidirectional",
+            "SyncType": "Deferred",
+            "DeferredSyncInterval": "PT1S"
         }
     ]
 }
