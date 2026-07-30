@@ -136,6 +136,37 @@ Manager::PathTimestampMap Manager::collectLocalPathTimestamps(
     return pathTimestamps;
 }
 
+sdbusplus::async::task<bool> Manager::pullPeerSyncDisableTime()
+{
+    std::string cmd;
+    getRsyncCmd(RsyncMode::PullPeerSyncDisableTime,
+                data_sync::persist::SyncDisableTimeFile, cmd);
+    if (cmd.empty())
+    {
+        co_return false;
+    }
+
+    data_sync::async::AsyncCommandExecutor executor(_ctx);
+    // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.Branch)
+    auto result = co_await executor.execCmd(cmd);
+    if (result.first == 0)
+    {
+        lg2::debug("Fetched syncDisableTime file from peer successfully");
+        co_return true;
+    }
+
+    if (result.first == 23)
+    {
+        lg2::debug("syncDisableTime file appears to missing in peer as well");
+        co_return false;
+    }
+
+    lg2::error(
+        "Failed to fetch syncDisableTime file from peer.Cmd : {CMD},  ErrCode: {ERRCODE}, ErrMsg: {ERRMSG}",
+        "CMD", cmd, "ERRCODE", result.first, "ERRMSG", result.second);
+    co_return false;
+}
+
 Manager::PathList
     Manager::getPeerDeletedPath(const PathTimestampMap& localInfo,
                                 const PathTimestampMap& peerInfo,
@@ -233,6 +264,17 @@ sdbusplus::async::task<void> Manager::startFullSync()
     setFullSyncStatus(FullSyncStatus::FullSyncInProgress);
 
     auto fullSyncStartTime = std::chrono::steady_clock::now();
+
+    // Fetch the peer's sync-disable timestamp early if not available locally,
+    // Peer deletes this file after its full sync finishes, so grabbing early
+    // will avoid race
+    // NOLINTNEXTLINE
+    if (!data_sync::persist::readRawFile(
+            data_sync::persist::SyncDisableTimeFile))
+    {
+        // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.Branch)
+        co_await pullPeerSyncDisableTime();
+    }
 
     auto syncResults = std::vector<bool>();
     size_t spawnedTasks = 0;

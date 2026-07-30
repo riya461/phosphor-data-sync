@@ -31,9 +31,10 @@ namespace fs = std::filesystem;
 
 enum class RsyncMode
 {
-    Sync,         // perform sync
-    Notify,       // perform sibling notification
-    PullPeerInfo, // fetch peer file information
+    Sync,                    // perform sync
+    Notify,                  // perform sibling notification
+    PullPeerInfo,            // fetch peer file listing + mtimes
+    PullPeerSyncDisableTime, // fetch syncDisableTime file from peer
 };
 
 /**
@@ -231,7 +232,7 @@ class Manager
      * @brief API to frame the RSYNC CLI command to Pull the info from peer
      *       BMC
      *
-     * @param[in] mode - RsyncMode::PullPeerInfo
+     * @param[in] mode - RsyncMode : PullPeerInfo or PullPeerSyncDisableTime
      * @param[in] path - The absolute path to fetch from the peer.
      * @param[out] cmd - string where the framed RSYNC command holds.
      */
@@ -274,6 +275,14 @@ class Manager
      */
     static void filterPaths(const config::DataSyncConfig& dataSyncCfg,
                             PathTimestampMap& pathMap);
+
+    /**
+     * @brief Fetch the sync disable time file from peer.
+     *
+     * @return True if the local file exists or was fetched successfully;
+     *         otherwise false.
+     */
+    sdbusplus::async::task<bool> pullPeerSyncDisableTime();
 
     /**
      * @brief Collect paths present only locally that were deleted on the peer.
