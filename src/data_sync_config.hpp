@@ -263,6 +263,16 @@ struct DataSyncConfig
      */
     mutable std::unordered_set<fs::path> _syncInProgressPaths;
 
+    /**
+     * @brief Tracks whether deferred sync is already scheduled.
+     */
+    mutable bool _deferredSyncScheduled = false;
+
+    /**
+     * @brief Timestamp of the latest event received for deferred sync.
+     */
+    mutable std::chrono::steady_clock::time_point _lastDeferredSyncEventTime;
+
   private:
     /**
      * @brief A helper API to retrieve the corresponding enum type

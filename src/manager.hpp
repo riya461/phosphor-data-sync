@@ -280,6 +280,29 @@ class Manager
         addDataWatcher(const config::DataSyncConfig& dataSyncCfg);
 
     /**
+     * @brief A helper API to monitor data changes and trigger deferred sync.
+     *
+     * @param[in] dataSyncCfg - The data sync config to sync
+     */
+    sdbusplus::async::task<>
+        monitorDeferredDataToSync(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
+     * @brief Schedule a deferred sync for the changed data.
+     *
+     * @param[in] dataSyncCfg - The data sync config to sync
+     */
+    void deferSync(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
+     * @brief Wait for the deferred interval and run sync.
+     *
+     * @param[in] dataSyncCfg - The data sync config to sync
+     */
+    sdbusplus::async::task<>
+        syncDeferredData(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
      * @brief A helper to API to sync data periodically.
      *
      * @param[in] dataSyncCfg - The data sync config to sync

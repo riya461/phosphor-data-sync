@@ -291,6 +291,28 @@ sdbusplus::async::task<> Manager::startSyncEvents()
                 setSyncEventsHealth(SyncEventsHealth::Critical);
             }
         }
+        else if (dataSyncCfg._syncType == Deferred)
+        {
+            if ((dataSyncCfg._syncDirection == Bidirectional) &&
+                _activeWatchers.contains(dataSyncCfg._path))
+            {
+                lg2::debug(
+                    "Bidirectional watcher already exists for {PATH}, skipping duplicate watcher",
+                    "PATH", dataSyncCfg._path);
+                return;
+            }
+            try
+            {
+                this->_ctx.spawn(this->monitorDeferredDataToSync(dataSyncCfg));
+            }
+            catch (const std::exception& e)
+            {
+                lg2::error(
+                    "Failed to start deferred sync for {PATH}: {EXCEPTION}",
+                    "EXCEPTION", e, "PATH", dataSyncCfg._path);
+                setSyncEventsHealth(SyncEventsHealth::Critical);
+            }
+        }
         else if (dataSyncCfg._syncType == Periodic)
         {
             try
@@ -811,6 +833,113 @@ sdbusplus::async::task<>
             {"DS_Events_Path", dataSyncCfg._path.string()},
             {"DS_Events_Msg",
              "Exception: Failed to create inotify watcher for the configured path"}};
+        co_await _extDataIfaces->createErrorLog(
+            "xyz.openbmc_project.RBMC_DataSync.Error.SyncEventsFailure",
+            ext_data::ErrorLevel::Warning, additionalDetails);
+    }
+    co_return;
+}
+
+void Manager::deferSync(const config::DataSyncConfig& dataSyncCfg)
+{
+    dataSyncCfg._lastDeferredSyncEventTime = std::chrono::steady_clock::now();
+
+    if (dataSyncCfg._deferredSyncScheduled)
+    {
+        return;
+    }
+
+    dataSyncCfg._deferredSyncScheduled = true;
+    _ctx.spawn(syncDeferredData(dataSyncCfg));
+}
+
+sdbusplus::async::task<>
+    Manager::syncDeferredData(const config::DataSyncConfig& dataSyncCfg)
+{
+    while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync() &&
+           dataSyncCfg._deferredSyncIntervalInSec.has_value())
+    {
+        const auto deferredSyncInterval =
+            dataSyncCfg._deferredSyncIntervalInSec.value();
+
+        // Time since the most recent event. If another event arrives before the
+        // interval completes, the timestamp is updated and this loop waits
+        // again from that new event time.
+        const auto timeSinceLastEvent = std::chrono::steady_clock::now() -
+                                        dataSyncCfg._lastDeferredSyncEventTime;
+
+        if (timeSinceLastEvent < deferredSyncInterval)
+        {
+            // Wait only for the remaining interval. Example: for a 1s interval,
+            // if the last event was 300ms ago, wait 700ms more.
+            co_await sleep_for(_ctx, deferredSyncInterval - timeSinceLastEvent);
+            continue;
+        }
+
+        // Remember the event timestamp covered by this sync. If another event
+        // arrives while rsync is running, the timestamp changes and we run
+        // another sync.
+        const auto syncedEventTime = dataSyncCfg._lastDeferredSyncEventTime;
+
+        lg2::debug(
+            "Deferred sync quiet interval elapsed for [{PATH}], triggering root sync",
+            "PATH", dataSyncCfg._path);
+
+        // NOLINTNEXTLINE
+        co_await syncData(dataSyncCfg);
+
+        if (dataSyncCfg._lastDeferredSyncEventTime == syncedEventTime)
+        {
+            // No new event arrived during rsync, so deferred sync is complete.
+            break;
+        }
+    }
+
+    dataSyncCfg._deferredSyncScheduled = false;
+    co_return;
+}
+
+sdbusplus::async::task<>
+    // NOLINTNEXTLINE
+    Manager::monitorDeferredDataToSync(
+        const config::DataSyncConfig& dataSyncCfg)
+{
+    bool exception{false};
+    try
+    {
+        auto* dataWatcher = addDataWatcher(dataSyncCfg);
+
+        // Ensure removal on scope exit
+        auto cleanup = std::experimental::scope_exit([this, &dataSyncCfg]() {
+            _activeWatchers.erase(dataSyncCfg._path);
+        });
+
+        while (!_ctx.stop_requested() && !_syncBMCDataIface.disable_sync())
+        {
+            // NOLINTNEXTLINE
+            if (auto dataOperations = co_await dataWatcher->onDataChange();
+                !dataOperations.empty())
+            {
+                lg2::debug(
+                    "Deferring sync for [{PATH}], received [{COUNT}] data operations",
+                    "PATH", dataSyncCfg._path, "COUNT", dataOperations.size());
+                deferSync(dataSyncCfg);
+            }
+        }
+    }
+    catch (std::exception& e)
+    {
+        lg2::error("Failed to create deferred watcher object for {PATH}. "
+                   "Exception : {ERROR}",
+                   "PATH", dataSyncCfg._path, "ERROR", e.what());
+        exception = true;
+    }
+    if (exception)
+    {
+        ext_data::AdditionalData additionalDetails = {
+            {"DS_Events_Path", dataSyncCfg._path.string()},
+            {"DS_Events_Msg",
+             "Exception: Failed to create deferred inotify watcher for the configured path"}};
         co_await _extDataIfaces->createErrorLog(
             "xyz.openbmc_project.RBMC_DataSync.Error.SyncEventsFailure",
             ext_data::ErrorLevel::Warning, additionalDetails);
