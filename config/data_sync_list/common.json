@@ -82,7 +82,8 @@
             "Path": "/var/lib/phosphor-logging/",
             "Description": "Phosphor logging persisted data",
             "SyncDirection": "Bidirectional",
-            "SyncType": "Immediate",
+            "SyncType": "Deferred",
+            "DeferredSyncInterval": "PT1S",
             "ExcludeList": ["/var/lib/phosphor-logging/extensions/pels/pelID"]
         }
     ]
