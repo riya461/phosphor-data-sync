@@ -745,6 +745,29 @@ sdbusplus::async::task<>
     co_return;
 }
 
+watch::inotify::DataWatcher*
+    Manager::addDataWatcher(const config::DataSyncConfig& dataSyncCfg)
+{
+    uint32_t eventMasksToWatch = IN_CLOSE_WRITE | IN_MOVE | IN_DELETE_SELF;
+    if (dataSyncCfg._isPathDir)
+    {
+        eventMasksToWatch |= IN_CREATE | IN_DELETE;
+    }
+
+    auto excludeList = dataSyncCfg._excludeList.has_value()
+                           ? std::make_optional<std::unordered_set<fs::path>>(
+                                 dataSyncCfg._excludeList.value().first)
+                           : std::nullopt;
+
+    auto [it, _] = _activeWatchers.emplace(
+        dataSyncCfg._path,
+        std::make_unique<watch::inotify::DataWatcher>(
+            _ctx, IN_NONBLOCK | IN_CLOEXEC, eventMasksToWatch,
+            dataSyncCfg._path, excludeList, dataSyncCfg._includeList));
+
+    return it->second.get();
+}
+
 sdbusplus::async::task<>
     // NOLINTNEXTLINE
     Manager::monitorDataToSync(const config::DataSyncConfig& dataSyncCfg)
@@ -752,25 +775,7 @@ sdbusplus::async::task<>
     bool exception{false};
     try
     {
-        uint32_t eventMasksToWatch = IN_CLOSE_WRITE | IN_MOVE | IN_DELETE_SELF;
-        if (dataSyncCfg._isPathDir)
-        {
-            eventMasksToWatch |= IN_CREATE | IN_DELETE;
-        }
-
-        auto excludeList =
-            dataSyncCfg._excludeList.has_value()
-                ? std::make_optional<std::unordered_set<fs::path>>(
-                      dataSyncCfg._excludeList.value().first)
-                : std::nullopt;
-
-        auto [it, inserted] = _activeWatchers.emplace(
-            dataSyncCfg._path,
-            std::make_unique<watch::inotify::DataWatcher>(
-                _ctx, IN_NONBLOCK | IN_CLOEXEC, eventMasksToWatch,
-                dataSyncCfg._path, excludeList, dataSyncCfg._includeList));
-
-        auto* dataWatcher = it->second.get();
+        auto* dataWatcher = addDataWatcher(dataSyncCfg);
 
         // Ensure removal on scope exit
         auto cleanup = std::experimental::scope_exit([this, &dataSyncCfg]() {

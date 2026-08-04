@@ -270,6 +270,16 @@ class Manager
         monitorDataToSync(const config::DataSyncConfig& dataSyncCfg);
 
     /**
+     * @brief Create and register a DataWatcher for the given sync config.
+     *
+     * @param[in] dataSyncCfg - The data sync config to watch
+     *
+     * @return Pointer to the registered watcher
+     */
+    watch::inotify::DataWatcher*
+        addDataWatcher(const config::DataSyncConfig& dataSyncCfg);
+
+    /**
      * @brief A helper to API to sync data periodically.
      *
      * @param[in] dataSyncCfg - The data sync config to sync
