@@ -189,6 +189,14 @@ class Manager
     sdbusplus::async::task<> startSyncEvents();
 
     /**
+     * @brief Stop all active data change watchers.
+     *
+     * Stops each watcher in _activeWatchers, allowing their monitor
+     * coroutines to exit cleanly.
+     */
+    void stopSyncEvents();
+
+    /**
      * @brief API responsible to trigger sibling notification if required.
      *
      * @param[in] dataSyncCfg - The data sync config to sync

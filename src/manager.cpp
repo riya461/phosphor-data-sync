@@ -293,14 +293,6 @@ sdbusplus::async::task<> Manager::startSyncEvents()
         }
         else if (dataSyncCfg._syncType == Deferred)
         {
-            if ((dataSyncCfg._syncDirection == Bidirectional) &&
-                _activeWatchers.contains(dataSyncCfg._path))
-            {
-                lg2::debug(
-                    "Bidirectional watcher already exists for {PATH}, skipping duplicate watcher",
-                    "PATH", dataSyncCfg._path);
-                return;
-            }
             try
             {
                 this->_ctx.spawn(this->monitorDeferredDataToSync(dataSyncCfg));
@@ -329,6 +321,14 @@ sdbusplus::async::task<> Manager::startSyncEvents()
         }
     });
     co_return;
+}
+
+void Manager::stopSyncEvents()
+{
+    for (auto& [path, watcher] : _activeWatchers)
+    {
+        watcher->stop();
+    }
 }
 
 bool Manager::isRetryEligible(uint8_t errCode) noexcept
@@ -974,8 +974,8 @@ void Manager::disableSyncPropChanged(bool disableSync)
 {
     if (disableSync)
     {
-        // TODO: Disable all sync events using Sender Receiver.
         lg2::info("Sync is Disabled, Stopping events");
+        stopSyncEvents();
     }
     else
     {

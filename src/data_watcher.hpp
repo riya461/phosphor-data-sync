@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <map>
 #include <unordered_set>
+#include <vector>
 
 namespace data_sync::watch::inotify
 {
@@ -104,6 +105,15 @@ class DataWatcher
      *                         received event
      */
     sdbusplus::async::task<DataOperations> onDataChange();
+
+    /**
+     * @brief Stop all active inotify watches.
+     *
+     * Removes all watch descriptors, causing the kernel to emit
+     * IN_IGNORED which unblocks any pending co_await on onDataChange().
+     * The inotify fd is closed by the destructor after the coroutine exits.
+     */
+    void stop();
 
     /**
      * @brief Get the current watch descriptors map

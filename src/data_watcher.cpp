@@ -56,6 +56,17 @@ int DataWatcher::inotifyInit() const
     return fd;
 }
 
+void DataWatcher::stop()
+{
+    lg2::debug("Stopping DataWatcher for [{PATH}], removing [{COUNT}] watches",
+               "PATH", _dataPathToWatch, "COUNT", _watchDescriptors.size());
+
+    auto wds = _watchDescriptors | std::views::keys |
+               std::ranges::to<std::vector>();
+
+    std::ranges::for_each(wds, [this](int wd) { removeWatch(wd); });
+}
+
 std::string DataWatcher::eventName(uint32_t eventMask)
 {
     std::vector<std::string> events{};
