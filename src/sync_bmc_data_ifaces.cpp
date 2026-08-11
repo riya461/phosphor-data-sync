@@ -35,26 +35,26 @@ void SyncBMCDataIface::restoreDBusProperties()
         if (auto it = json->find(data_sync::persist::key::disable);
             it != json->end())
         {
-            disable_sync_ = it->get<bool>();
+            this->properties.disable_sync = it->get<bool>();
         }
         if (auto it = json->find(data_sync::persist::key::fullSyncStatus);
             it != json->end())
         {
-            full_sync_status_ = static_cast<FullSyncStatus>(
+            this->properties.full_sync_status = static_cast<FullSyncStatus>(
                 it->get<std::underlying_type_t<FullSyncStatus>>());
         }
         if (auto it = json->find(data_sync::persist::key::syncEventsHealth);
             it != json->end())
         {
-            sync_events_health_ = static_cast<SyncEventsHealth>(
+            this->properties.sync_events_health = static_cast<SyncEventsHealth>(
                 it->get<std::underlying_type_t<SyncEventsHealth>>());
         }
         lg2::info(
             "Restored DBus properties - DisableSync: {DISABLE}, FullSyncStatus: {FULLSYNC}, SyncEventsHealth: {HEALTH}",
-            "DISABLE", disable_sync_, "FULLSYNC",
-            SyncBMCData::convertFullSyncStatusToString(full_sync_status_),
+            "DISABLE", disable_sync(), "FULLSYNC",
+            SyncBMCData::convertFullSyncStatusToString(full_sync_status()),
             "HEALTH",
-            SyncBMCData::convertSyncEventsHealthToString(sync_events_health_));
+            SyncBMCData::convertSyncEventsHealthToString(sync_events_health()));
     }
     catch (const std::exception& e)
     {
@@ -68,7 +68,7 @@ sdbusplus::async::task<>
     // NOLINTNEXTLINE
     SyncBMCDataIface::method_call([[maybe_unused]] start_full_sync_t type)
 {
-    if (disable_sync_)
+    if (disable_sync())
     {
         lg2::error("Sync is Disabled, cannot start full sync.");
         throw sdbusplus::xyz::openbmc_project::Control::SyncBMCData::Error::
@@ -83,7 +83,7 @@ sdbusplus::async::task<>
             SiblingBMCNotAvailable();
     }
 
-    if (full_sync_status_ == FullSyncStatus::FullSyncInProgress)
+    if (full_sync_status() == FullSyncStatus::FullSyncInProgress)
     {
         lg2::error(
             "Full Sync in progress. Operation cannot proceed at this time ");
@@ -97,14 +97,14 @@ sdbusplus::async::task<>
 bool SyncBMCDataIface::set_property([[maybe_unused]] disable_sync_t type,
                                     bool disable)
 {
-    if (disable_sync_ == disable)
+    if (disable_sync() == disable)
     {
         lg2::info("Sync is already {VALUE}", "VALUE",
-                  (disable_sync_ ? "disabled" : "enabled"));
+                  (disable_sync() ? "disabled" : "enabled"));
         return false;
     }
-    disable_sync_ = disable;
-    if (sync_events_health_ != SyncEventsHealth::Critical)
+    this->properties.disable_sync = disable;
+    if (sync_events_health() != SyncEventsHealth::Critical)
     {
         _manager.setSyncEventsHealth(disable ? SyncEventsHealth::Paused
                                              : SyncEventsHealth::Ok);
