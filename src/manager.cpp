@@ -359,15 +359,23 @@ void Manager::getRsyncCmd(RsyncMode mode,
                           const std::string& srcPath, std::string& cmd)
 {
     using namespace std::string_literals;
+    using enum config::SyncDirection;
 
+    // Appending required flags to sync data between BMCs
+    // For more details about CLI options, refer rsync man page.
+    // https://download.samba.org/pub/rsync/rsync.1#OPTION_SUMMARY
     cmd.append("rsync --compress --recursive --perms --group --owner --times "
-               "--atimes --update"s);
+               "--atimes"s);
     if (mode == RsyncMode::Sync)
     {
-        // Appending required flags to sync data between BMCs
-        // For more details about CLI options, refer rsync man page.
-        // https://download.samba.org/pub/rsync/rsync.1#OPTION_SUMMARY
-
+        if (dataSyncCfg._syncDirection == Bidirectional)
+        {
+            // skips the operation if dest is newer.
+            // Required for bidirectional as either side can trigger sync like
+            // on full sync In unidirectional sync, sender is the source of
+            // truth.
+            cmd.append(" --update"s);
+        }
         cmd.append(" --relative --delete --delete-missing-args --stats"s);
 
         if (dataSyncCfg._excludeList.has_value())
