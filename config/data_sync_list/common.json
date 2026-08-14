@@ -70,8 +70,13 @@
         {
             "Path": "/var/lib/service-config-manager/",
             "Description": "Persisted service enable/disable config data",
-            "SyncDirection": "Bidirectional",
+            "SyncDirection": "Active2Passive",
             "SyncType": "Immediate",
+            "IncludeList": [
+                "/var/lib/service-config-manager/obmc-console@ttyVUART0",
+                "/var/lib/service-config-manager/obmc-console@ttyVUART1",
+                "/var/lib/service-config-manager/sshd"
+            ],
             "NotifySibling": {
                 "Mode": "Systemd",
                 "Method": "Reload",
