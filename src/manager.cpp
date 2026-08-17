@@ -264,21 +264,9 @@ sdbusplus::async::task<> Manager::startSyncEvents()
         return this->isSyncEligible(dataSyncCfg);
     }),
         [this](const auto& dataSyncCfg) {
-        using enum config::SyncDirection;
         using enum config::SyncType;
         if (dataSyncCfg._syncType == Immediate)
         {
-            // Bidirectional watchers can already be running when sync is
-            // enabled again during failover. Skip creating the same watcher
-            // again.
-            if ((dataSyncCfg._syncDirection == Bidirectional) &&
-                _activeWatchers.contains(dataSyncCfg._path))
-            {
-                lg2::debug(
-                    "Bidirectional watcher already exists for {PATH}, skipping duplicate watcher",
-                    "PATH", dataSyncCfg._path);
-                return;
-            }
             try
             {
                 this->_ctx.spawn(this->monitorDataToSync(dataSyncCfg));
