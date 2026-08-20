@@ -181,8 +181,9 @@ sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
                                                 std::size_t limit,
                                                 bool includeTrace)
 {
-    const auto output = runCommand(
-        std::format("peltool.py --src {} -r {} -a", datasyncSrcPrefix, limit));
+    const auto output = runCommand(std::format(
+        "peltool.py --src {} --reverse {} --all-pels --skip-parser-plugins ",
+        datasyncSrcPrefix, limit));
 
     if (!output.has_value() || output->empty())
     {
