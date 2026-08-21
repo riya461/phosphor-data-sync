@@ -52,7 +52,10 @@
             "SyncDirection": "Active2Passive",
             "SyncType": "Immediate",
             "ExcludeList": [
-                "/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/control/minimum_ship_level_required__"
+                "/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/control/minimum_ship_level_required__",
+                "/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/network/host0/intf__",
+                "/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/network/host0/intf/addr__",
+                "/var/lib/phosphor-settings-manager/settings/xyz/openbmc_project/software/apply_time__"
             ],
             "NotifySibling": {
                 "Mode": "Systemd",
