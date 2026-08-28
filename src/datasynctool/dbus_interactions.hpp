@@ -79,4 +79,19 @@ sdbusplus::async::task<> setSyncEnabled(sdbusplus::async::context& ctx,
 sdbusplus::async::task<pid_t> getServiceMainPid(sdbusplus::async::context& ctx,
                                                 const std::string& serviceName);
 
+/**
+ * @brief Get the ActiveState of a systemd service unit via D-Bus
+ *
+ * Queries org.freedesktop.systemd1 to get the ActiveState of the given
+ * service unit. Returns "unknown" if the unit cannot be found or queried.
+ *
+ * @param[in] ctx         - async context
+ * @param[in] serviceName - Systemd service unit name
+ *
+ * @return std::string - ActiveState value or "unknown" on error
+ */
+sdbusplus::async::task<std::string>
+    getServiceActiveState(sdbusplus::async::context& ctx,
+                          const std::string& serviceName);
+
 } // namespace datasynctool::dbus_interactions

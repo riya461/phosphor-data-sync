@@ -95,6 +95,11 @@ sdbusplus::async::task<> displayStatus(sdbusplus::async::context& ctx,
         catch (const std::exception&)
         {}
 
+        statusData["Rsync Service"] =
+            co_await getServiceActiveState(ctx, "SyncBMCData_rsync.service");
+        statusData["Stunnel Service"] =
+            co_await getServiceActiveState(ctx, "SyncBMCData_stunnel.service");
+
         if (jsonOutput)
         {
             std::println("{}", statusData.dump(4));
@@ -187,6 +192,30 @@ sdbusplus::async::task<pid_t> getServiceMainPid(sdbusplus::async::context& ctx,
     catch (const std::exception&)
     {
         co_return 0;
+    }
+}
+
+sdbusplus::async::task<std::string>
+    getServiceActiveState(sdbusplus::async::context& ctx,
+                          const std::string& serviceName)
+{
+    auto systemd =
+        sdbusplus::async::proxy().service("org.freedesktop.systemd1");
+
+    try
+    {
+        auto unitPath = co_await systemd.path("/org/freedesktop/systemd1")
+                            .interface("org.freedesktop.systemd1.Manager")
+                            .call<sdbusplus::message::object_path>(
+                                ctx, "GetUnit", serviceName);
+
+        co_return co_await systemd.path(unitPath.str)
+            .interface("org.freedesktop.systemd1.Unit")
+            .get_property<std::string>(ctx, "ActiveState");
+    }
+    catch (const std::exception&)
+    {
+        co_return std::string("unknown");
     }
 }
 
