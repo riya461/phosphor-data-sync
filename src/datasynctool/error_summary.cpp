@@ -56,10 +56,10 @@ static constexpr PelField fieldPelId = {"Private Header", "Platform Log Id",
 
 // SyncFailure - only fields
 static constexpr PelField fieldPath = {"User Data 1", "DS_Sync_Path", "Path"};
-static constexpr PelField fieldErrMsg = {"User Data 1", "DS_Sync_ErrMsg",
-                                         "ErrMsg"};
-static constexpr PelField fieldErrCode = {"User Data 1", "DS_Sync_ErrCode",
-                                          "ErrCode"};
+static constexpr PelField fieldRsyncErrMsg = {"User Data 1", "DS_Sync_ErrMsg",
+                                              "RsyncErrMsg"};
+static constexpr PelField fieldRsyncErrCode = {"User Data 1", "DS_Sync_ErrCode",
+                                               "RsyncErrCode"};
 
 static std::optional<std::string> runCommand(std::string_view cmd)
 {
@@ -157,16 +157,18 @@ static SummaryEntry makeSummaryEntry(const json& pelData, bool includeTrace)
         .failureTime = std::string(extractField(pelData, fieldFailureTime)),
         .pelId = std::string(extractField(pelData, fieldPelId)),
         .path = {},
-        .errMsg = {},
-        .errCode = {},
+        .rsyncErrMsg = {},
+        .rsyncErrCode = {},
         .traceLines = {},
     };
 
     if (regMsg == "SyncFailure")
     {
         entry.path = std::string(extractField(pelData, fieldPath));
-        entry.errMsg = std::string(extractField(pelData, fieldErrMsg));
-        entry.errCode = std::string(extractField(pelData, fieldErrCode));
+        entry.rsyncErrMsg =
+            std::string(extractField(pelData, fieldRsyncErrMsg));
+        entry.rsyncErrCode =
+            std::string(extractField(pelData, fieldRsyncErrCode));
     }
 
     if (includeTrace)
@@ -232,11 +234,12 @@ sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
             obj[fieldRegistryMsg.displayName] = e.registryMsg;
             obj[fieldFailureTime.displayName] = e.failureTime;
             obj[fieldPelId.displayName] = e.pelId;
-            if (!e.path.empty() || !e.errMsg.empty() || !e.errCode.empty())
+            if (!e.path.empty() || !e.rsyncErrMsg.empty() ||
+                !e.rsyncErrCode.empty())
             {
                 obj[fieldPath.displayName] = e.path;
-                obj[fieldErrMsg.displayName] = e.errMsg;
-                obj[fieldErrCode.displayName] = e.errCode;
+                obj[fieldRsyncErrMsg.displayName] = e.rsyncErrMsg;
+                obj[fieldRsyncErrCode.displayName] = e.rsyncErrCode;
             }
             if (!e.traceLines.empty())
             {
@@ -257,11 +260,14 @@ sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
         std::println("  {:<18}: {}", fieldFailureTime.displayName,
                      e.failureTime);
         std::println("  {:<18}: {}", fieldPelId.displayName, e.pelId);
-        if (!e.path.empty() || !e.errMsg.empty() || !e.errCode.empty())
+        if (!e.path.empty() || !e.rsyncErrMsg.empty() ||
+            !e.rsyncErrCode.empty())
         {
             std::println("  {:<18}: {}", fieldPath.displayName, e.path);
-            std::println("  {:<18}: {}", fieldErrMsg.displayName, e.errMsg);
-            std::println("  {:<18}: {}", fieldErrCode.displayName, e.errCode);
+            std::println("  {:<18}: {}", fieldRsyncErrMsg.displayName,
+                         e.rsyncErrMsg);
+            std::println("  {:<18}: {}", fieldRsyncErrCode.displayName,
+                         e.rsyncErrCode);
         }
         if (!e.traceLines.empty())
         {

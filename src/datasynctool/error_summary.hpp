@@ -37,8 +37,8 @@ struct PelField
  *
  * In SyncFailure :
  *   - path         : User Data 1 / DS_Sync_Path
- *   - errMsg       : User Data 1 / DS_Sync_ErrMsg
- *   - errCode      : User Data 1 / DS_Sync_ErrCode
+ *   - rsyncErrMsg  : User Data 1 / DS_Sync_ErrMsg
+ *   - rsyncErrCode : User Data 1 / DS_Sync_ErrCode
  *
  * When trace is requested:
  *   - traceLines   : User Data 2 / Data  and  User Data 3 / Data
@@ -51,8 +51,8 @@ struct SummaryEntry
 
     // SyncFailure
     std::string path;
-    std::string errMsg;
-    std::string errCode;
+    std::string rsyncErrMsg;
+    std::string rsyncErrCode;
 
     // Trace
     std::vector<std::string> traceLines;
