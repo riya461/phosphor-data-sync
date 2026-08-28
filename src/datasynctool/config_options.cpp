@@ -330,13 +330,17 @@ static sdbusplus::async::task<std::optional<json>>
     try
     {
         json data = json::parse(file);
+
+        // Treat null as valid case as it indicates no active watchers.
         if (!data.contains("watching_paths") ||
-            !data["watching_paths"].is_object())
+            (!data["watching_paths"].is_null() &&
+             !data["watching_paths"].is_object()))
         {
             std::cerr
                 << "Error: Unexpected JSON format in watching paths file\n";
             co_return std::nullopt;
         }
+
         co_return data;
     }
     catch (const json::exception& e)
@@ -405,7 +409,7 @@ static void printWatchingPaths(const json& watchingData, bool jsonOutput)
 {
     const auto& watchingPaths = watchingData.at("watching_paths");
 
-    if (watchingPaths.empty())
+    if (watchingPaths.is_null() || watchingPaths.empty())
     {
         std::println("No paths are currently being watched");
         return;
