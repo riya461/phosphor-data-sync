@@ -2,6 +2,8 @@
 
 #include "error_summary.hpp"
 
+#include "err_reason_rules.hpp"
+
 #include <sys/wait.h>
 
 #include <nlohmann/json.hpp>
@@ -111,14 +113,23 @@ static std::string_view extractField(const json& pelData, const PelField& field)
                : std::string_view{};
 }
 
-// Extract trace lines from "User Data 2" and "User Data 3" "Data" arrays.
-static std::vector<std::string> extractTraceLines(const json& pelData)
+// Extract trace lines from PEL User Data sections.
+// If section is provided, only that section is read.
+// If section is absent, all known trace sections are read (User Data 2 + 3).
+static std::vector<std::string>
+    extractTraceLines(const json& pelData,
+                      std::optional<std::string_view> section = std::nullopt)
 {
     std::vector<std::string> lines;
 
-    for (const std::string_view section : {"User Data 2", "User Data 3"})
+    const auto sectionsToRead =
+        section.has_value()
+            ? std::vector<std::string_view>{section.value()}
+            : std::vector<std::string_view>{"User Data 2", "User Data 3"};
+
+    for (const std::string_view sec : sectionsToRead)
     {
-        const auto sectionIt = pelData.find(section);
+        const auto sectionIt = pelData.find(std::string(sec));
         if (sectionIt == pelData.end() || !sectionIt->is_object())
         {
             continue;
@@ -159,6 +170,9 @@ static SummaryEntry makeSummaryEntry(const json& pelData, bool includeTrace)
         .path = {},
         .rsyncErrMsg = {},
         .rsyncErrCode = {},
+        .errReason = {},
+        .errCauses = {},
+        .errVerify = {},
         .traceLines = {},
     };
 
@@ -169,11 +183,28 @@ static SummaryEntry makeSummaryEntry(const json& pelData, bool includeTrace)
             std::string(extractField(pelData, fieldRsyncErrMsg));
         entry.rsyncErrCode =
             std::string(extractField(pelData, fieldRsyncErrCode));
-    }
 
-    if (includeTrace)
-    {
-        entry.traceLines = extractTraceLines(pelData);
+        // Scan only stunnel traces (User Data 3) for error reason derivation.
+        const auto derived =
+            deriveErrorReason(extractTraceLines(pelData, "User Data 3"));
+        if (derived.has_value())
+        {
+            entry.errReason = std::string(derived->reason);
+            for (const auto& c : derived->causes)
+            {
+                entry.errCauses.emplace_back(c);
+            }
+            for (const auto& v : derived->verify)
+            {
+                entry.errVerify.emplace_back(v);
+            }
+        }
+
+        if (includeTrace)
+        {
+            // All trace sections for -T output.
+            entry.traceLines = extractTraceLines(pelData);
+        }
     }
 
     return entry;
@@ -238,6 +269,18 @@ sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
                 !e.rsyncErrCode.empty())
             {
                 obj[fieldPath.displayName] = e.path;
+                if (!e.errReason.empty())
+                {
+                    obj["ErrorReason"] = e.errReason;
+                    if (!e.errCauses.empty())
+                    {
+                        obj["PossibleCauses"] = e.errCauses;
+                    }
+                    if (!e.errVerify.empty())
+                    {
+                        obj["Verify"] = e.errVerify;
+                    }
+                }
                 obj[fieldRsyncErrMsg.displayName] = e.rsyncErrMsg;
                 obj[fieldRsyncErrCode.displayName] = e.rsyncErrCode;
             }
@@ -264,6 +307,24 @@ sdbusplus::async::task<> displayErrorLogSummary(bool jsonOutput,
             !e.rsyncErrCode.empty())
         {
             std::println("  {:<18}: {}", fieldPath.displayName, e.path);
+            if (!e.errReason.empty())
+            {
+                std::println("  {:<18}: {}", "ErrorReason", e.errReason);
+                std::ranges::for_each(e.errCauses | std::views::enumerate,
+                                      [](const auto& t) {
+                    std::println("    {:<16}{} - {}",
+                                 std::get<0>(t) == 0 ? "PossibleCauses" : "",
+                                 std::get<0>(t) == 0 ? ":" : " ",
+                                 std::get<1>(t));
+                });
+                std::ranges::for_each(e.errVerify | std::views::enumerate,
+                                      [](const auto& t) {
+                    std::println("    {:<16}{} - {}",
+                                 std::get<0>(t) == 0 ? "Verify" : "",
+                                 std::get<0>(t) == 0 ? ":" : " ",
+                                 std::get<1>(t));
+                });
+            }
             std::println("  {:<18}: {}", fieldRsyncErrMsg.displayName,
                          e.rsyncErrMsg);
             std::println("  {:<18}: {}", fieldRsyncErrCode.displayName,

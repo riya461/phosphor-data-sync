@@ -39,6 +39,9 @@ struct PelField
  *   - path         : User Data 1 / DS_Sync_Path
  *   - rsyncErrMsg  : User Data 1 / DS_Sync_ErrMsg
  *   - rsyncErrCode : User Data 1 / DS_Sync_ErrCode
+ *   - errReason    : reason derived from trace lines
+ *   - errCauses    : possible causes for the matched reason (may be empty)
+ *   - errVerify    : verification steps for the matched reason (may be empty)
  *
  * When trace is requested:
  *   - traceLines   : User Data 2 / Data  and  User Data 3 / Data
@@ -53,6 +56,9 @@ struct SummaryEntry
     std::string path;
     std::string rsyncErrMsg;
     std::string rsyncErrCode;
+    std::string errReason;
+    std::vector<std::string> errCauses;
+    std::vector<std::string> errVerify;
 
     // Trace
     std::vector<std::string> traceLines;
