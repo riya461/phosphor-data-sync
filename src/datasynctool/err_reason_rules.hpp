@@ -24,22 +24,36 @@ namespace reason
 
 constexpr std::string_view connectionRefused =
     "Connection to sibling BMC is refused";
+constexpr std::string_view mtlsHandshakeFailed = "mTLS handshake failed";
 
 } // namespace reason
 
 namespace cause
 {
 
+// Connection refused causes
 constexpr std::string_view cause1 = "PeerConnected might be false";
 constexpr std::string_view cause2 =
     "stunnel/rsync service might not be running on sibling";
+
+// mTLS handshake failure causes
+constexpr std::string_view cause3 = "System time is out of sync";
+constexpr std::string_view cause4 =
+    "Certificate, key or CA mismatch between BMCs";
 
 } // namespace cause
 
 namespace verify
 {
 
+// Connection refused verify steps
 constexpr std::string_view verify1 = "run datasynctool --status on both BMCs";
+
+// mTLS handshake failure verify steps
+constexpr std::string_view verify2 =
+    "Verify system time matches certificate validity period";
+constexpr std::string_view verify3 =
+    "Verify certificates are not expired or corrupted";
 
 } // namespace verify
 
@@ -67,7 +81,10 @@ static const std::map<std::string_view, ErrReason> errReasonRules = {
      {reason::connectionRefused,
       {cause::cause1, cause::cause2},
       {verify::verify1}}},
-};
+    {trace_patterns::mtlsHandshake,
+     {reason::mtlsHandshakeFailed,
+      {cause::cause3, cause::cause4},
+      {verify::verify2, verify::verify3}}}};
 
 /**
  * @brief Derive error reason and possible causes by scanning trace lines.
