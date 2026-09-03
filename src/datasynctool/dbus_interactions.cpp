@@ -18,6 +18,9 @@
 namespace datasynctool::dbus_interactions
 {
 
+static constexpr auto dataSyncService =
+    "xyz.openbmc_project.Control.SyncBMCData.service";
+
 using SyncBMCData =
     sdbusplus::common::xyz::openbmc_project::control::SyncBMCData;
 
@@ -217,6 +220,20 @@ sdbusplus::async::task<std::string>
     {
         co_return std::string("unknown");
     }
+}
+
+sdbusplus::async::task<bool>
+    isDataSyncServiceRunning(sdbusplus::async::context& ctx)
+{
+    auto pid = co_await getServiceMainPid(ctx, dataSyncService);
+    if (pid == 0)
+    {
+        std::cerr
+            << "Error: phosphor-data-sync daemon is not running\n"
+               "The option is disabled — DataSync service is not active.\n";
+        co_return false;
+    }
+    co_return true;
 }
 
 } // namespace datasynctool::dbus_interactions

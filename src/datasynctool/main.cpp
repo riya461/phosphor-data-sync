@@ -96,6 +96,11 @@ int main(int argc, char* argv[])
 
     CLI11_PARSE(app, argc, argv);
 
+    const bool watchingPathsRequested = (app.count("--watchingPaths") != 0U) ||
+                                        (app.count("-w") != 0U);
+    const bool needsService = fullSync || showStatus || enableSync ||
+                              disableSync || watchingPathsRequested;
+
     sdbusplus::async::context ctx;
 
     if (errorLogOpt->count() != 0U)
@@ -104,14 +109,48 @@ int main(int argc, char* argv[])
             jsonOutput, errorLogCount, includeTrace));
     }
 
-    if (enableSync)
+    if (needsService)
     {
-        ctx.spawn(datasynctool::dbus_interactions::setSyncEnabled(ctx, true));
-    }
+        ctx.spawn(
+            [enableSync, disableSync, showStatus, fullSync,
+             watchingPathsRequested, watchingPathsArg, jsonOutput](
+                sdbusplus::async::context& ctx) -> sdbusplus::async::task<> {
+            // NOLINTNEXTLINE(clang-analyzer-core.uninitialized.Branch)
+            if (!co_await datasynctool::dbus_interactions::
+                    isDataSyncServiceRunning(ctx))
+            {
+                co_return;
+            }
 
-    if (disableSync)
-    {
-        ctx.spawn(datasynctool::dbus_interactions::setSyncEnabled(ctx, false));
+            if (enableSync)
+            {
+                co_await datasynctool::dbus_interactions::setSyncEnabled(ctx,
+                                                                         true);
+            }
+
+            if (disableSync)
+            {
+                co_await datasynctool::dbus_interactions::setSyncEnabled(ctx,
+                                                                         false);
+            }
+
+            if (showStatus)
+            {
+                co_await datasynctool::dbus_interactions::displayStatus(
+                    ctx, jsonOutput);
+            }
+
+            if (fullSync)
+            {
+                co_await datasynctool::dbus_interactions::startFullSync(ctx);
+            }
+
+            if (watchingPathsRequested)
+            {
+                co_await datasynctool::config_options::listWatchingPaths(
+                    ctx, watchingPathsArg, jsonOutput);
+            }
+        }(ctx));
     }
 
     if (showConfigPaths)
@@ -124,25 +163,6 @@ int main(int argc, char* argv[])
     {
         ctx.spawn(datasynctool::config_options::getPathConfig(ctx, getConfPath,
                                                               jsonOutput));
-    }
-
-    if ((app.count("--watchingPaths") != 0U) || (app.count("-w") != 0U))
-    {
-        // watchingPathsArg is empty when -w used alone (list all),
-        // or contains the path when -w <path> is used (check specific path)
-        ctx.spawn(datasynctool::config_options::listWatchingPaths(
-            ctx, watchingPathsArg, jsonOutput));
-    }
-
-    if (showStatus)
-    {
-        ctx.spawn(
-            datasynctool::dbus_interactions::displayStatus(ctx, jsonOutput));
-    }
-
-    if (fullSync)
-    {
-        ctx.spawn(datasynctool::dbus_interactions::startFullSync(ctx));
     }
 
     ctx.spawn(
