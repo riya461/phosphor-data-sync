@@ -13,6 +13,7 @@ rbmc_data_sync_sources = [
         'error_log.cpp',
         'external_data_ifaces.cpp',
         'external_data_ifaces_impl.cpp',
+        'full_sync.cpp',
         'manager.cpp',
         'notify_service.cpp',
         'notify_sibling.cpp',
