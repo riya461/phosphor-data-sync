@@ -3,6 +3,7 @@
 #include "sync_bmc_data_ifaces.hpp"
 
 #include "manager.hpp"
+#include "persistent.hpp"
 
 #include <phosphor-logging/lg2.hpp>
 
@@ -121,6 +122,22 @@ bool SyncBMCDataIface::set_property([[maybe_unused]] disable_sync_t type,
     }
     _manager.disableSyncPropChanged(disable);
     return true;
+}
+
+void SyncBMCDataIface::setDisableSyncProperty(bool disableSync)
+{
+    properties.disable_sync = disableSync;
+    try
+    {
+        data_sync::persist::update(data_sync::persist::key::disable,
+                                   disableSync);
+    }
+    catch (const std::exception& e)
+    {
+        lg2::warning(
+            "Failed to persist DisableSync value of {DISABLE}: {ERROR}",
+            "DISABLE", disableSync, "ERROR", e);
+    }
 }
 
 } // namespace data_sync::dbus_ifaces

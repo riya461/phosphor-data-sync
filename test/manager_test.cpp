@@ -203,3 +203,52 @@ TEST_F(ManagerTest, testDBusDataPersistency)
 
     ctx.run();
 }
+
+/*
+ * Test that when data-sync starts with redundancy disabled, DisableSync is
+ * set to true(other than its default value) and SyncEventsHealth is set to
+ * Paused.
+ */
+TEST_F(ManagerTest, testSyncDisabledWhenRedDisabledAtStartup)
+{
+    using namespace std::literals;
+    namespace ed = data_sync::ext_data;
+
+    std::unique_ptr<ed::ExternalDataIFaces> extDataIface =
+        std::make_unique<ed::MockExternalDataIFaces>();
+
+    ed::MockExternalDataIFaces* mockExtDataIfaces =
+        dynamic_cast<ed::MockExternalDataIFaces*>(extDataIface.get());
+
+    // Redundancy is disabled at startup
+    ON_CALL(*mockExtDataIfaces, fetchBMCRedundancyMgrProps())
+        // NOLINTNEXTLINE
+        .WillByDefault([&mockExtDataIfaces]() -> sdbusplus::async::task<> {
+        mockExtDataIfaces->setBMCRole(ed::BMCRole::Active);
+        mockExtDataIfaces->setBMCRedundancy(false);
+        co_return;
+    });
+
+    EXPECT_CALL(*mockExtDataIfaces, fetchBMCPosition())
+        // NOLINTNEXTLINE
+        .WillRepeatedly([]() -> sdbusplus::async::task<> { co_return; });
+
+    sdbusplus::async::context ctx;
+
+    data_sync::Manager manager{ctx, std::move(extDataIface),
+                               ManagerTest::dataSyncCfgDir};
+
+    ctx.spawn(
+        sdbusplus::async::sleep_for(ctx, 0.5s) |
+        sdbusplus::async::execution::then([&ctx]() { ctx.request_stop(); }));
+    ctx.run();
+
+    // DisableSync must be set to true and persisted
+    EXPECT_EQ(data_sync::persist::read<bool>(data_sync::persist::key::disable),
+              true)
+        << "DisableSync should be persisted as true when redundancy is off at startup.";
+
+    // SyncEventsHealth must reflect Paused (no sync running, no failure)
+    EXPECT_EQ(manager.getSyncEventsHealth(), SyncEventsHealth::Paused)
+        << "SyncEventsHealth should be Paused when redundancy is off at startup.";
+}

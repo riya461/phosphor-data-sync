@@ -74,6 +74,20 @@ sdbusplus::async::task<> Manager::init()
     {
         lg2::warning(
             "Either Redundancy or Sync is disabled, No sync operations will be performed.");
+
+        // During bootup, sync may be enabled before redundancy.
+        // Disabling sync in that case to ensure that background sync
+        // will trigger once rbmc manager enables redundancy and
+        // sync as background sync trigger happens only if DisableSync
+        // property changes.
+        if (!_extDataIfaces->bmcRedundancy() &&
+            !_syncBMCDataIface.disable_sync())
+        {
+            lg2::info(
+                "Redundancy is disabled at startup, marking sync also disabled.");
+            _syncBMCDataIface.setDisableSyncProperty(true);
+            setSyncEventsHealth(SyncEventsHealth::Paused);
+        }
         co_return;
     }
 

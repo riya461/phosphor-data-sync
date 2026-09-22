@@ -67,6 +67,14 @@ class SyncBMCDataIface :
      */
     bool set_property(disable_sync_t type, bool disable);
 
+    /**
+     * @brief Sets the DisableSync property value directly without via DBus
+     *        methods.
+     *
+     * @param[in] disableSync - The value to set.
+     */
+    void setDisableSyncProperty(bool disableSync);
+
   private:
     /**
      * @brief Reference to the Manager object.
