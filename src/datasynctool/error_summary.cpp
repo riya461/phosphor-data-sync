@@ -156,14 +156,13 @@ static SummaryEntry makeSummaryEntry(const json& pelData, bool includeTrace)
                 entry.errVerify.emplace_back(v);
             }
         }
-
-        if (includeTrace)
-        {
-            // All trace sections for -T output.
-            entry.traceLines = extractTraceLines(pelData);
-        }
     }
 
+    if (includeTrace)
+    {
+        // All trace sections for -T output.
+        entry.traceLines = extractTraceLines(pelData);
+    }
     return entry;
 }
 
